@@ -3,11 +3,11 @@
   "cleanUrls": true,
   "functions": {
     "server.js": {
-      "includeFiles": "data/**",
+      "includeFiles": "{index.html,styles.css,tracker_app.js,advance_modules.js,sw.js,manifest.json,icon.svg,icon-192.png,icon-512.png,apple-touch-icon.png,data/**}",
       "maxDuration": 15
     },
     "index.js": {
-      "includeFiles": "data/**",
+      "includeFiles": "{index.html,styles.css,tracker_app.js,advance_modules.js,sw.js,manifest.json,icon.svg,icon-192.png,icon-512.png,apple-touch-icon.png,data/**}",
       "maxDuration": 15
     },
     "api/*.js": {

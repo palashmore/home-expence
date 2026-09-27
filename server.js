@@ -29,6 +29,30 @@ const mimeTypes = {
     '.ico': 'image/x-icon'
 };
 
+// Pre-load static assets at startup into memory
+const staticCache = {};
+const staticFiles = [
+    'index.html',
+    'styles.css',
+    'tracker_app.js',
+    'advance_modules.js',
+    'sw.js',
+    'manifest.json',
+    'icon.svg'
+];
+
+for (const f of staticFiles) {
+    try {
+        const p1 = path.join(process.cwd(), f);
+        const p2 = path.join(__dirname, f);
+        if (fs.existsSync(p1)) {
+            staticCache[f] = fs.readFileSync(p1);
+        } else if (fs.existsSync(p2)) {
+            staticCache[f] = fs.readFileSync(p2);
+        }
+    } catch (e) {}
+}
+
 const handler = async (req, res) => {
     const parsedUrl = url.parse(req.url, true);
     const pathname = parsedUrl.pathname;
@@ -74,13 +98,30 @@ const handler = async (req, res) => {
             return await configHandler(req, res);
         }
 
-        // Serve Static Files
+        // Serve Static Files with Pre-cached In-Memory Fallback
+        const cleanPath = pathname === '/' ? 'index.html' : pathname.replace(/^\//, '');
+        if (staticCache[cleanPath]) {
+            const ext = path.extname(cleanPath).toLowerCase();
+            res.writeHead(200, {
+                'Content-Type': mimeTypes[ext] || 'application/octet-stream',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            });
+            return res.end(staticCache[cleanPath]);
+        }
+
         const baseDir = fs.existsSync(path.join(process.cwd(), 'index.html')) ? process.cwd() : __dirname;
         let filePath = path.join(baseDir, pathname === '/' ? 'index.html' : pathname);
         const ext = path.extname(filePath).toLowerCase();
 
         fs.readFile(filePath, (err, content) => {
             if (err) {
+                // If not found, fallback to cached index.html
+                if (staticCache['index.html']) {
+                    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                    return res.end(staticCache['index.html']);
+                }
                 if (err.code === 'ENOENT') {
                     // Fallback to index.html for SPA routes
                     fs.readFile(path.join(baseDir, 'index.html'), (e, indexContent) => {
@@ -88,7 +129,7 @@ const handler = async (req, res) => {
                             res.writeHead(500);
                             res.end('Server Error loading index.html');
                         } else {
-                            res.writeHead(200, { 'Content-Type': 'text/html' });
+                            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
                             res.end(indexContent, 'utf-8');
                         }
                     });

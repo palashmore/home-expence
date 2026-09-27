@@ -52,7 +52,14 @@ const DEFAULT_CONFIG = {
     { id: "bill-5", name: "Maid - Madhuri Salary", category: "Maid - Madhuri", dueDay: 21, approxAmount: 800, icon: "🧹" },
     { id: "bill-6", name: "Chef - Nilima Salary", category: "Chef - Nilima Nikose", dueDay: 30, approxAmount: 4500, icon: "👩‍🍳" }
   ],
-  familyMembers: ["Palash", "Pallavi", "Mom", "Dad"],
+  familyMembers: ["Palash", "Pallavi"],
+  monthlyBudgetLimit: 50000,
+  splitRules: [
+    "Household Expense (Palash Reimburses Pallavi 100%)",
+    "Personal Expense (Pallavi - Not Reimbursed)",
+    "Personal Expense (Palash)",
+    "Equal (50/50)"
+  ],
   paymentMethods: ["UPI / GPay / PhonePe", "Credit Card", "Net Banking", "Cash"],
   householdCycle: {
     type: "custom",

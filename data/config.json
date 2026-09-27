@@ -3,7 +3,7 @@
     {
       "id": "staff-1",
       "name": "Chef - Nilima Nikose",
-      "shortName": "Nilima",
+      "shortName": "Nilima Nikose",
       "role": "Chef / Cook",
       "baseSalary": 4500,
       "allowedPaidLeaves": 4,
@@ -20,7 +20,6 @@
       "allowedPaidLeaves": 2,
       "billingCycleDay": 21,
       "cycleType": "custom_cycle",
-      "cycleStartDay": 21,
       "active": true
     }
   ],
@@ -56,12 +55,6 @@
       "defaultPaidTo": "Madhuri"
     },
     {
-      "name": "Wifi & Internet",
-      "icon": "📶",
-      "type": "expense",
-      "defaultPaidTo": "Airtel"
-    },
-    {
       "name": "Dish Bill (DTH)",
       "icon": "📺",
       "type": "expense",
@@ -84,6 +77,12 @@
       "icon": "🤝",
       "type": "transfer",
       "defaultPaidTo": "Pallavi"
+    },
+    {
+      "name": "Food Delivery",
+      "icon": "🍔",
+      "type": "expense",
+      "defaultPaidTo": ""
     }
   ],
   "recurringBills": [
@@ -106,7 +105,7 @@
     {
       "id": "bill-3",
       "name": "Airtel Broadband / Wifi",
-      "category": "Wifi & Internet",
+      "category": "Grocery & Vegetables",
       "dueDay": 15,
       "approxAmount": 999,
       "icon": "📶"
@@ -138,9 +137,7 @@
   ],
   "familyMembers": [
     "Palash",
-    "Pallavi",
-    "Mom",
-    "Dad"
+    "Pallavi"
   ],
   "paymentMethods": [
     "UPI / GPay / PhonePe",
@@ -152,6 +149,13 @@
     "type": "custom",
     "cycleStartDay": 5,
     "cycleEndDay": 5,
-    "description": "5th of current month to 5th of next month (Verified)"
-  }
+    "description": "5th of current month to 5th of next month"
+  },
+  "monthlyBudgetLimit": 50000,
+  "splitRules": [
+    "Household Expense (Palash Reimburses Pallavi 100%)",
+    "Personal Expense (Pallavi - Not Reimbursed)",
+    "Personal Expense (Palash)",
+    "Equal (50/50)"
+  ]
 }

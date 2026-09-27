@@ -20,7 +20,7 @@ let CATEGORIES = _win.CATEGORIES || [
     "Shopping & Miscellaneous"
 ];
 
-let FAMILY_MEMBERS = _win.FAMILY_MEMBERS || ["Palash", "Pallavi", "Mom", "Dad"];
+let FAMILY_MEMBERS = _win.FAMILY_MEMBERS || ["Palash", "Pallavi"];
 if (typeof window !== 'undefined') {
     window.FAMILY_MEMBERS = FAMILY_MEMBERS;
     window.CATEGORIES = CATEGORIES;
@@ -175,6 +175,9 @@ function switchTab(tabId) {
     }
     if (tabId === 'audit' && window.renderAuditView) {
         window.renderAuditView();
+    }
+    if (tabId === 'personal' && window.renderPersonalExpensesDashboard) {
+        window.renderPersonalExpensesDashboard();
     }
 
     // Scroll to top when switching views on mobile/desktop
@@ -532,6 +535,9 @@ function renderAllViews() {
     renderExpenseTable(filtered);
     renderStaffView(filtered);
     renderMonthlyMatrix();
+    if (window.renderPersonalExpensesDashboard) {
+        window.renderPersonalExpensesDashboard();
+    }
 }
 
 // Active Filter Tags with '×' Remove Buttons
@@ -1269,18 +1275,44 @@ function renderHouseholdSpendingMatrix(filteredData) {
     const tbody = document.getElementById("spendingMatrixTbody");
     if (!thead || !tbody) return;
 
-    const matrixCategories = [
-        "Grocery & Vegetables",
-        "Electricity Bill",
-        "Flat Maintenance",
-        "Maid - Madhuri",
-        "Chef - Nilima Nikose",
-        "Dish Bill (DTH)",
-        "Wifi & Internet",
-        "Shopping & Miscellaneous"
-    ];
+    // Dynamically get categories: masterConfig.categories or CATEGORIES or from data
+    let matrixCategories = [];
+    if (window.masterConfig && window.masterConfig.categories && Array.isArray(window.masterConfig.categories)) {
+        matrixCategories = window.masterConfig.categories.filter(c => c.type !== 'income').map(c => c.name);
+    } else if (window.CATEGORIES && Array.isArray(window.CATEGORIES)) {
+        matrixCategories = window.CATEGORIES.filter(c => c !== "Accepted Payments (Income)");
+    } else {
+        matrixCategories = [
+            "Grocery & Vegetables",
+            "Electricity Bill",
+            "Flat Maintenance",
+            "Maid - Madhuri",
+            "Chef - Nilima Nikose",
+            "Dish Bill (DTH)",
+            "Wifi & Internet",
+            "Shopping & Miscellaneous"
+        ];
+    }
 
-    const members = ["Palash", "Pallavi", "Mom", "Dad", "Not Specified"];
+    // Include any new categories present in the active filtered data
+    filteredData.filter(i => i.category && i.category !== "Accepted Payments (Income)").forEach(i => {
+        if (!matrixCategories.includes(i.category)) {
+            matrixCategories.push(i.category);
+        }
+    });
+
+    // Dynamically get active members: strictly masterConfig.familyMembers, never hardcoded Mom/Dad!
+    let members = [];
+    if (window.masterConfig && window.masterConfig.familyMembers && Array.isArray(window.masterConfig.familyMembers)) {
+        members = [...window.masterConfig.familyMembers];
+    } else if (window.FAMILY_MEMBERS && Array.isArray(window.FAMILY_MEMBERS)) {
+        members = [...window.FAMILY_MEMBERS];
+    } else {
+        members = ["Palash", "Pallavi"];
+    }
+    if (!members.includes("Not Specified")) {
+        members.push("Not Specified");
+    }
 
     // Compute sums: member -> category -> sum
     const matrix = {};
@@ -1293,7 +1325,7 @@ function renderHouseholdSpendingMatrix(filteredData) {
     });
 
     filteredData.filter(i => i.category !== "Accepted Payments (Income)").forEach(i => {
-        const m = i.paidBy || "Not Specified";
+        const m = (i.paidBy && members.includes(i.paidBy)) ? i.paidBy : "Not Specified";
         const c = i.category;
         if (matrix[m] && matrix[m][c] !== undefined) {
             matrix[m][c] += Number(i.amount);
@@ -1340,11 +1372,13 @@ function renderBudgetProgress(totalSpent) {
     const pctText = document.getElementById("budgetPercentText");
     const pill = document.getElementById("budgetAlertPill");
 
-    if (spentVal) spentVal.textContent = formatINR(totalSpent);
-    if (capVal) capVal.textContent = formatINR(monthlyBudgetLimit);
+    const effectiveBudget = (window.masterConfig && Number(window.masterConfig.monthlyBudgetLimit)) || monthlyBudgetLimit || 50000;
 
-    const pct = Math.min(100, Math.round((totalSpent / monthlyBudgetLimit) * 100));
-    const remaining = Math.max(0, monthlyBudgetLimit - totalSpent);
+    if (spentVal) spentVal.textContent = formatINR(totalSpent);
+    if (capVal) capVal.textContent = formatINR(effectiveBudget);
+
+    const pct = Math.min(100, Math.round((totalSpent / effectiveBudget) * 100));
+    const remaining = Math.max(0, effectiveBudget - totalSpent);
 
     if (progressBar) {
         progressBar.style.width = `${pct}%`;
@@ -1375,23 +1409,39 @@ function renderBudgetProgress(totalSpent) {
 }
 
 function calculateRecurringChecklist(filteredData) {
-    const checklistConfig = [
-        { name: "Electricity Bill", target: 2800, paidTo: "MSEDCL" },
-        { name: "Flat Maintenance", target: 1500, paidTo: "Society Office" },
-        { name: "Dish Bill (DTH)", target: 300, paidTo: "Dish TV / DTH" },
-        { name: "Maid - Madhuri", target: 800, paidTo: "Madhuri" },
-        { name: "Chef - Nilima Nikose", target: 4500, paidTo: "Nilima Nikose" },
-        { name: "Wifi & Internet", target: 1000, paidTo: "Broadband" }
-    ];
+    let checklistConfig = [];
+    if (window.masterConfig && window.masterConfig.recurringBills && Array.isArray(window.masterConfig.recurringBills)) {
+        checklistConfig = window.masterConfig.recurringBills.filter(b => b.active !== false).map(b => ({
+            name: b.category || b.name,
+            displayName: b.name || b.category,
+            target: Number(b.approxAmount) || 0,
+            paidTo: b.name
+        }));
+    } else {
+        checklistConfig = [
+            { name: "Electricity Bill", displayName: "Electricity Bill", target: 2800, paidTo: "MSEDCL" },
+            { name: "Flat Maintenance", displayName: "Flat Maintenance", target: 1500, paidTo: "Society Office" },
+            { name: "Dish Bill (DTH)", displayName: "Dish Bill (DTH)", target: 300, paidTo: "Dish TV / DTH" },
+            { name: "Maid - Madhuri", displayName: "Maid - Madhuri", target: 800, paidTo: "Madhuri" },
+            { name: "Chef - Nilima Nikose", displayName: "Chef - Nilima Nikose", target: 4500, paidTo: "Nilima Nikose" },
+            { name: "Wifi & Internet", displayName: "Wifi & Internet", target: 1000, paidTo: "Broadband" }
+        ];
+    }
 
     let paidCount = 0;
     const items = checklistConfig.map(cfg => {
-        const matching = filteredData.filter(i => i.category === cfg.name);
+        const matching = filteredData.filter(i => {
+            const catMatch = i.category === cfg.name || i.category === cfg.displayName;
+            const descMatch = (i.description && i.description.toLowerCase().includes(cfg.displayName.toLowerCase())) ||
+                              (i.paidTo && i.paidTo.toLowerCase().includes(cfg.displayName.toLowerCase()));
+            return catMatch || descMatch;
+        });
         const total = matching.reduce((a, b) => a + Number(b.amount), 0);
         const isPaid = total >= cfg.target || (total > 0 && total >= cfg.target * 0.8);
         if (isPaid) paidCount++;
         return {
             ...cfg,
+            name: cfg.displayName || cfg.name,
             actual: total,
             isPaid: isPaid
         };
@@ -2375,7 +2425,8 @@ function importFromExcel(event) {
 
             if (invalidPaidByValues.length > 0) {
                 const uniqueInvalid = Array.from(new Set(invalidPaidByValues));
-                alert(`Notice: Non-standard Paid By values detected: [${uniqueInvalid.join(', ')}]. Supported: Palash, Pallavi, Mom, Dad. These will be imported as 'Not Specified'.`);
+                const supportedMembers = (window.masterConfig && window.masterConfig.familyMembers) || window.FAMILY_MEMBERS || ['Palash', 'Pallavi'];
+                alert(`Notice: Non-standard Paid By values detected: [${uniqueInvalid.join(', ')}]. Supported: ${supportedMembers.join(', ')}. These will be imported as 'Not Specified'.`);
             }
 
             if (importedExpenses.length > 0) {

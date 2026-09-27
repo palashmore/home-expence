@@ -1386,6 +1386,41 @@
           filterPaidBy.value = currentVal;
         }
       }
+
+      // 2b. Dynamic Quick Filter Member Chips
+      const chipsContainer = document.getElementById('quickFilterMemberChips');
+      if (chipsContainer) {
+        chipsContainer.innerHTML = config.familyMembers.map((m, idx) => {
+          const isPalash = m.toLowerCase().includes('palash');
+          const icon = isPalash ? '👤' : (m.toLowerCase().includes('pallavi') ? '🌸' : '🧑');
+          const colorClasses = isPalash 
+            ? 'bg-violet-50 hover:bg-violet-100 text-violet-700 border-violet-200' 
+            : 'bg-pink-50 hover:bg-pink-100 text-pink-700 border-pink-200';
+          return `<button onclick="quickFilterPaidBy('${m}')" class="quick-chip px-2.5 py-1 rounded-lg font-bold ${colorClasses} border transition shadow-xs text-xs">${icon} ${m}</button>`;
+        }).join('');
+      }
+
+      // 2c. Dynamic Settle Up Paid By
+      const settlePaidBy = document.getElementById('settleUpPaidBy');
+      if (settlePaidBy) {
+        settlePaidBy.innerHTML = config.familyMembers.map(m => 
+          `<option value="${m}">${m}</option>`
+        ).join('');
+      }
+    }
+
+    // 2d. Split / Allocation Rules Dropdown
+    if (config.splitRules && Array.isArray(config.splitRules)) {
+      const inputSplit = document.getElementById('inputSplitBetween');
+      if (inputSplit) {
+        const currentVal = inputSplit.value;
+        inputSplit.innerHTML = config.splitRules.map(r => 
+          `<option value="${r}">${r}</option>`
+        ).join('');
+        if (currentVal && config.splitRules.includes(currentVal)) {
+          inputSplit.value = currentVal;
+        }
+      }
     }
 
     // 3. Payment Methods Dropdown
@@ -1560,6 +1595,24 @@
       `).join('');
     }
 
+    // 5b. Split & Allocation Rules ("Split Dropdown")
+    const splitList = document.getElementById('adminSplitRulesList');
+    if (splitList && config.splitRules) {
+      splitList.innerHTML = config.splitRules.map(r => `
+        <span class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-50 text-purple-800 border border-purple-200 shadow-sm">
+          <i class="fa-solid fa-arrows-split-up-and-left text-purple-500 mr-1.5 text-[10px]"></i>
+          <span>${r}</span>
+          <button onclick="adminRemoveSplitRule('${r.replace(/'/g, "\\'")}')" class="ml-2 text-purple-400 hover:text-rose-600 transition font-black">&times;</button>
+        </span>
+      `).join('');
+    }
+
+    // 5c. Monthly Budget Limit
+    const budgetInput = document.getElementById('adminMonthlyBudgetLimit');
+    if (budgetInput && config.monthlyBudgetLimit !== undefined) {
+      budgetInput.value = config.monthlyBudgetLimit;
+    }
+
     // 6. Household Cycle Window Settings
     const isCustom = config.householdCycle && config.householdCycle.type === 'custom';
     const radCal = document.getElementById('adminCycleTypeCalendar');
@@ -1654,14 +1707,53 @@
       description: isCustom ? `${startDay}th of current month to ${endDay}th of next month` : 'Standard Calendar Month (1st to month end)'
     };
 
+    // 4. Gather Monthly Budget Target
+    const monthlyBudgetLimit = parseFloat(document.getElementById('adminMonthlyBudgetLimit')?.value) || 50000;
+
     const payload = {
       ...config,
       staff: updatedStaff,
       recurringBills: updatedBills,
-      householdCycle: updatedCycle
+      householdCycle: updatedCycle,
+      monthlyBudgetLimit: monthlyBudgetLimit,
+      splitRules: config.splitRules || [
+        "Household Expense (Palash Reimburses Pallavi 100%)",
+        "Personal Expense (Pallavi - Not Reimbursed)",
+        "Personal Expense (Palash)",
+        "Equal (50/50)"
+      ]
     };
 
     await saveMasterConfig(payload);
+  };
+
+  window.adminAddSplitRule = async function () {
+    const input = document.getElementById('adminNewSplitRuleInput');
+    const val = input ? input.value.trim() : '';
+    if (!val) return;
+    const config = window.masterConfig || {};
+    const current = config.splitRules || [
+      "Household Expense (Palash Reimburses Pallavi 100%)",
+      "Personal Expense (Pallavi - Not Reimbursed)",
+      "Personal Expense (Palash)",
+      "Equal (50/50)"
+    ];
+    if (current.includes(val)) {
+      if (window.showToast) window.showToast('info', 'Already Exists', 'This split rule is already in the list.');
+      return;
+    }
+    const updated = [...current, val];
+    config.splitRules = updated;
+    if (input) input.value = '';
+    await saveMasterConfig({ splitRules: updated });
+  };
+
+  window.adminRemoveSplitRule = async function (ruleName) {
+    const config = window.masterConfig || {};
+    const current = config.splitRules || [];
+    const updated = current.filter(r => r !== ruleName);
+    config.splitRules = updated;
+    await saveMasterConfig({ splitRules: updated });
   };
 
   window.resetAdminConfigToDefaults = async function () {
@@ -1695,7 +1787,14 @@
             { id: "bill-5", name: "Maid - Madhuri Salary", category: "Maid - Madhuri", dueDay: 21, approxAmount: 800, icon: "🧹" },
             { id: "bill-6", name: "Chef - Nilima Salary", category: "Chef - Nilima Nikose", dueDay: 30, approxAmount: 4500, icon: "👩‍🍳" }
           ],
-          familyMembers: ["Palash", "Pallavi", "Mom", "Dad"],
+          familyMembers: ["Palash", "Pallavi"],
+          monthlyBudgetLimit: 50000,
+          splitRules: [
+            "Household Expense (Palash Reimburses Pallavi 100%)",
+            "Personal Expense (Pallavi - Not Reimbursed)",
+            "Personal Expense (Palash)",
+            "Equal (50/50)"
+          ],
           paymentMethods: ["UPI / GPay / PhonePe", "Credit Card", "Net Banking", "Cash"],
           householdCycle: { type: "custom", cycleStartDay: 5, cycleEndDay: 5, description: "5th of current month to 5th of next month" }
         })
@@ -2060,6 +2159,345 @@
   window.filterInAppAuditLogs = function() {
     renderInAppAuditList();
   };
+
+  // ========================================================
+  // DEDICATED PERSONAL EXPENSES DASHBOARD (PALASH & PALLAVI)
+  // ========================================================
+
+  let currentPersonalFilter = 'all'; // 'all' | 'Palash' | 'Pallavi'
+  let personalChartInstance = null;
+
+  function isPersonalExpense(item) {
+    if (!item) return false;
+    if (item.isPersonal === true || item.expenseType === 'personal') return true;
+    const split = (item.splitBetween || '').toLowerCase();
+    if (split.includes('personal') || split.includes('not reimbursed')) return true;
+    return false;
+  }
+  window.isPersonalExpense = isPersonalExpense;
+
+  function getPersonalPayer(item) {
+    if (!item) return 'Palash';
+    const split = (item.splitBetween || '').toLowerCase();
+    if (split.includes('pallavi')) return 'Pallavi';
+    if (split.includes('palash')) return 'Palash';
+    if (item.paidBy && item.paidBy.toLowerCase().includes('pallavi')) return 'Pallavi';
+    if (item.paidBy && item.paidBy.toLowerCase().includes('palash')) return 'Palash';
+    return item.paidBy || 'Palash';
+  }
+
+  window.setPersonalViewFilter = function (person) {
+    currentPersonalFilter = person;
+    ['All', 'Palash', 'Pallavi'].forEach(p => {
+      const btn = document.getElementById('btnPersonalFilter' + p);
+      if (btn) {
+        if ((p === 'All' && person === 'all') || (p === person)) {
+          btn.className = 'px-3 py-1.5 rounded-lg transition bg-purple-600 text-white shadow-sm';
+        } else {
+          btn.className = 'px-3 py-1.5 rounded-lg transition text-slate-300 hover:text-white';
+        }
+      }
+    });
+    window.renderPersonalExpensesDashboard();
+  };
+
+  window.openPersonalExpenseModal = function () {
+    if (window.openExpenseModal) {
+      window.openExpenseModal();
+      const payer = currentPersonalFilter === 'Pallavi' ? 'Pallavi' : 'Palash';
+      const inputPaidBy = document.getElementById('inputPaidBy');
+      const inputSplit = document.getElementById('inputSplitBetween');
+      if (inputPaidBy) inputPaidBy.value = payer;
+      if (inputSplit) {
+        const targetOption = Array.from(inputSplit.options).find(opt => 
+          opt.value.toLowerCase().includes('personal') && opt.value.toLowerCase().includes(payer.toLowerCase())
+        );
+        if (targetOption) {
+          inputSplit.value = targetOption.value;
+        } else {
+          inputSplit.value = `Personal Expense (${payer})`;
+        }
+      }
+    }
+  };
+
+  function getExpensesForCurrentPeriod() {
+    const allExp = window.expensesData || (typeof expenses !== 'undefined' ? expenses : []);
+    if (typeof dashboardFilters === 'undefined') return allExp;
+    const cur = typeof getCurrentPeriod === 'function' ? getCurrentPeriod() : { month: 'September', year: '2026' };
+    const hasCustomRange = !!(dashboardFilters.dateFrom || dashboardFilters.dateTo);
+
+    return allExp.filter(item => {
+      if (!item.date) return false;
+      const itemDate = new Date(item.date);
+      if (isNaN(itemDate.getTime())) return false;
+      if (hasCustomRange) {
+        const itemTime = itemDate.getTime();
+        if (dashboardFilters.dateFrom && itemTime < new Date(dashboardFilters.dateFrom).getTime()) return false;
+        if (dashboardFilters.dateTo && itemTime > new Date(dashboardFilters.dateTo).getTime()) return false;
+        return true;
+      }
+      const itemMonth = typeof MONTHS !== 'undefined' ? MONTHS[itemDate.getMonth()] : '';
+      const itemYear = itemDate.getFullYear().toString();
+      const matchMonth = dashboardFilters.month === 'all' || itemMonth === (dashboardFilters.month || cur.month);
+      const matchYear = dashboardFilters.year === 'all' || itemYear === (dashboardFilters.year || cur.year);
+      return matchMonth && matchYear;
+    });
+  }
+
+  window.renderPersonalExpensesDashboard = function () {
+    const periodExpenses = getExpensesForCurrentPeriod();
+
+    const personalItems = periodExpenses.filter(isPersonalExpense);
+    const householdItems = periodExpenses.filter(e => !isPersonalExpense(e) && e.category !== 'Accepted Payments (Income)');
+
+    const palashItems = personalItems.filter(e => getPersonalPayer(e) === 'Palash');
+    const pallaviItems = personalItems.filter(e => getPersonalPayer(e) === 'Pallavi');
+
+    const palashTotal = palashItems.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
+    const pallaviTotal = pallaviItems.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
+    const combinedTotal = palashTotal + pallaviTotal;
+    const householdTotal = householdItems.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
+    const overallTotal = combinedTotal + householdTotal;
+    const personalRatioPct = overallTotal > 0 ? Math.round((combinedTotal / overallTotal) * 100) : 0;
+
+    // 1. Update KPI Card 1: Palash Personal
+    const elPalashTotal = document.getElementById('statPersonalPalashTotal');
+    const elPalashCount = document.getElementById('statPersonalPalashCount');
+    const elPalashAvg = document.getElementById('statPersonalPalashAvg');
+    if (elPalashTotal) elPalashTotal.textContent = (window.formatINR ? window.formatINR(palashTotal) : '₹' + palashTotal.toLocaleString('en-IN'));
+    if (elPalashCount) elPalashCount.textContent = `${palashItems.length} records`;
+    if (elPalashAvg) elPalashAvg.textContent = `Avg: ₹${palashItems.length ? Math.round(palashTotal / palashItems.length).toLocaleString('en-IN') : '0'}`;
+
+    // 2. Update KPI Card 2: Pallavi Personal
+    const elPallaviTotal = document.getElementById('statPersonalPallaviTotal');
+    const elPallaviCount = document.getElementById('statPersonalPallaviCount');
+    const elPallaviAvg = document.getElementById('statPersonalPallaviAvg');
+    if (elPallaviTotal) elPallaviTotal.textContent = (window.formatINR ? window.formatINR(pallaviTotal) : '₹' + pallaviTotal.toLocaleString('en-IN'));
+    if (elPallaviCount) elPallaviCount.textContent = `${pallaviItems.length} records`;
+    if (elPallaviAvg) elPallaviAvg.textContent = `Avg: ₹${pallaviItems.length ? Math.round(pallaviTotal / pallaviItems.length).toLocaleString('en-IN') : '0'}`;
+
+    // 3. Update KPI Card 3: Combined Personal
+    const elCombinedTotal = document.getElementById('statPersonalCombinedTotal');
+    const elSplitRatio = document.getElementById('statPersonalSplitRatio');
+    if (elCombinedTotal) elCombinedTotal.textContent = (window.formatINR ? window.formatINR(combinedTotal) : '₹' + combinedTotal.toLocaleString('en-IN'));
+    if (elSplitRatio) {
+      const palashPct = combinedTotal > 0 ? Math.round((palashTotal / combinedTotal) * 100) : 0;
+      const pallaviPct = combinedTotal > 0 ? (100 - palashPct) : 0;
+      elSplitRatio.textContent = `Palash ${palashPct}% • Pallavi ${pallaviPct}%`;
+    }
+
+    // 4. Update KPI Card 4: Ratio
+    const elRatioPct = document.getElementById('statPersonalRatioPct');
+    const elHouseholdShared = document.getElementById('statHouseholdSharedText');
+    if (elRatioPct) elRatioPct.textContent = `${personalRatioPct}%`;
+    if (elHouseholdShared) elHouseholdShared.textContent = `Household: ${window.formatINR ? window.formatINR(householdTotal) : '₹' + householdTotal.toLocaleString('en-IN')}`;
+
+    const elChartBadge = document.getElementById('personalChartTotalBadge');
+    if (elChartBadge) elChartBadge.textContent = `Total: ${window.formatINR ? window.formatINR(combinedTotal) : '₹' + combinedTotal.toLocaleString('en-IN')}`;
+
+    // 5. Render Category Donut Chart & Breakdown List
+    renderPersonalCategoryDonut(personalItems, combinedTotal);
+
+    // 6. Render Palash vs Pallavi Comparison Matrix
+    renderPersonalComparisonMatrix(personalItems);
+
+    // 7. Render Personal Log Table
+    renderPersonalTable(personalItems);
+  };
+
+  function renderPersonalCategoryDonut(personalItems, combinedTotal) {
+    const canvas = document.getElementById('personalCategoryChart');
+    const emptyMsg = document.getElementById('personalChartEmptyMsg');
+    const listEl = document.getElementById('personalCategoryBreakdownList');
+
+    if (!canvas) return;
+
+    if (personalItems.length === 0 || combinedTotal === 0) {
+      if (emptyMsg) emptyMsg.classList.remove('hidden');
+      if (listEl) listEl.innerHTML = '<div class="text-xs text-slate-400 font-medium py-2 text-center">No personal items logged in this period.</div>';
+      if (personalChartInstance) {
+        personalChartInstance.destroy();
+        personalChartInstance = null;
+      }
+      return;
+    }
+
+    if (emptyMsg) emptyMsg.classList.add('hidden');
+
+    const catMap = {};
+    personalItems.forEach(i => {
+      const cat = i.category || 'Other';
+      catMap[cat] = (catMap[cat] || 0) + (Number(i.amount) || 0);
+    });
+
+    const sortedCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+    const labels = sortedCats.map(c => c[0]);
+    const data = sortedCats.map(c => c[1]);
+
+    const palette = [
+      '#8b5cf6', '#ec4899', '#3b82f6', '#10b981', '#f59e0b',
+      '#06b6d4', '#6366f1', '#14b8a6', '#f43f5e', '#84cc16'
+    ];
+
+    if (listEl) {
+      listEl.innerHTML = sortedCats.map(([cat, amount], idx) => {
+        const pct = Math.round((amount / combinedTotal) * 100);
+        const color = palette[idx % palette.length];
+        return `
+          <div class="flex items-center justify-between text-xs py-1 border-b border-slate-50 last:border-0">
+            <div class="flex items-center space-x-2 truncate">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${color}"></span>
+              <span class="font-bold text-slate-700 truncate">${cat}</span>
+            </div>
+            <div class="flex items-center space-x-2 font-mono">
+              <span class="font-black text-slate-900">${window.formatINR ? window.formatINR(amount) : '₹' + amount}</span>
+              <span class="text-[10px] text-slate-400 font-semibold w-8 text-right">${pct}%</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    if (typeof Chart !== 'undefined') {
+      if (personalChartInstance) {
+        personalChartInstance.destroy();
+      }
+      personalChartInstance = new Chart(canvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: palette.slice(0, labels.length),
+            borderWidth: 2,
+            borderColor: '#ffffff',
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '68%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function (ctx) {
+                  const val = ctx.raw || 0;
+                  const pct = Math.round((val / combinedTotal) * 100);
+                  return ` ${ctx.label}: ₹${val.toLocaleString('en-IN')} (${pct}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+  }
+
+  function renderPersonalComparisonMatrix(personalItems) {
+    const container = document.getElementById('personalComparisonContainer');
+    if (!container) return;
+
+    if (personalItems.length === 0) {
+      container.innerHTML = '<div class="text-xs text-slate-400 font-medium py-6 text-center">No personal expenses to compare.</div>';
+      return;
+    }
+
+    const catMap = {};
+    personalItems.forEach(i => {
+      const cat = i.category || 'Other';
+      const payer = getPersonalPayer(i);
+      if (!catMap[cat]) catMap[cat] = { Palash: 0, Pallavi: 0, total: 0 };
+      catMap[cat][payer] = (catMap[cat][payer] || 0) + (Number(i.amount) || 0);
+      catMap[cat].total += (Number(i.amount) || 0);
+    });
+
+    const entries = Object.entries(catMap).sort((a, b) => b[1].total - a[1].total);
+
+    container.innerHTML = entries.map(([cat, data]) => {
+      const palashPct = data.total > 0 ? Math.round((data.Palash / data.total) * 100) : 0;
+      const pallaviPct = data.total > 0 ? (100 - palashPct) : 0;
+
+      return `
+        <div class="p-3 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-1.5">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-black text-slate-900">${cat}</span>
+            <span class="font-extrabold text-slate-600 font-mono text-[11px]">${window.formatINR ? window.formatINR(data.total) : '₹' + data.total}</span>
+          </div>
+          
+          <!-- Dual Progress Bar -->
+          <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex">
+            <div style="width: ${palashPct}%" class="bg-indigo-500 h-full transition-all duration-300" title="Palash: ${palashPct}%"></div>
+            <div style="width: ${pallaviPct}%" class="bg-pink-500 h-full transition-all duration-300" title="Pallavi: ${pallaviPct}%"></div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] font-semibold text-slate-500">
+            <span class="text-indigo-700 font-bold">👤 Palash: ₹${data.Palash.toLocaleString('en-IN')} (${palashPct}%)</span>
+            <span class="text-pink-700 font-bold">🌸 Pallavi: ₹${data.Pallavi.toLocaleString('en-IN')} (${pallaviPct}%)</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderPersonalTable(personalItems) {
+    const tbody = document.getElementById('personalExpensesTableBody');
+    const emptyState = document.getElementById('personalExpensesEmptyState');
+    if (!tbody) return;
+
+    const search = (document.getElementById('searchPersonalExpenses')?.value || '').trim().toLowerCase();
+
+    const filtered = personalItems.filter(i => {
+      const payer = getPersonalPayer(i);
+      if (currentPersonalFilter !== 'all' && payer !== currentPersonalFilter) {
+        return false;
+      }
+      if (search) {
+        const text = `${i.notes || ''} ${i.description || ''} ${i.category || ''} ${i.paidTo || ''} ${payer}`.toLowerCase();
+        if (!text.includes(search)) return false;
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '';
+      if (emptyState) emptyState.classList.remove('hidden');
+      return;
+    }
+
+    if (emptyState) emptyState.classList.add('hidden');
+
+    tbody.innerHTML = filtered.map(item => {
+      const payer = getPersonalPayer(item);
+      const isPalash = payer === 'Palash';
+      const badge = isPalash 
+        ? '<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">👤 Palash</span>'
+        : '<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-black bg-pink-50 text-pink-700 border border-pink-200">🌸 Pallavi</span>';
+
+      const d = item.date ? new Date(item.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+
+      return `
+        <tr class="hover:bg-purple-50/40 transition">
+          <td class="py-2.5 px-3 whitespace-nowrap text-slate-600 font-semibold">${d}</td>
+          <td class="py-2.5 px-3 whitespace-nowrap">${badge}</td>
+          <td class="py-2.5 px-3 font-bold text-slate-900">${item.category || '-'}</td>
+          <td class="py-2.5 px-3 text-slate-500 text-[11px]">${item.paymentMethod || 'UPI / Cash'}</td>
+          <td class="py-2.5 px-3 text-slate-600 max-w-[200px] truncate" title="${item.notes || item.description || item.paidTo || ''}">${item.notes || item.description || item.paidTo || '-'}</td>
+          <td class="py-2.5 px-3 text-right font-black text-purple-900 font-mono text-sm">${window.formatINR ? window.formatINR(item.amount) : '₹' + item.amount}</td>
+          <td class="py-2.5 px-3 text-center whitespace-nowrap">
+            <button onclick="editExpense('${item.id}')" class="p-1 text-slate-400 hover:text-indigo-600 transition" title="Edit expense">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            <button onclick="deleteExpense('${item.id}')" class="p-1 ml-1 text-slate-400 hover:text-rose-600 transition" title="Delete expense">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
 
   window.initAdvanceModules = function () {
     initPWA();

@@ -1,5 +1,449 @@
 [
   {
+    "id": "audit-1790531177401-wh5v",
+    "timestamp": "2026-09-27T17:46:17.399Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "masterConfig",
+    "diff": {
+      "monthlyBudgetLimit": {
+        "updated": true,
+        "summary": "number"
+      },
+      "splitRules": {
+        "updated": true,
+        "summary": "4 items"
+      }
+    },
+    "metadata": {
+      "modifiedSections": [
+        "monthlyBudgetLimit",
+        "splitRules"
+      ]
+    }
+  },
+  {
+    "id": "audit-1790529346131-4meu",
+    "timestamp": "2026-09-27T17:15:46.131Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1790529345118-i75v",
+    "diff": {
+      "created": {
+        "amount": 480,
+        "category": "Food Delivery",
+        "paidBy": "Palash",
+        "splitBetween": "Personal Expense (Palash)",
+        "date": "2026-09-27"
+      }
+    },
+    "metadata": {
+      "category": "Food Delivery",
+      "amount": 480,
+      "paidBy": "Palash",
+      "splitBetween": "Personal Expense (Palash)",
+      "date": "2026-09-27"
+    }
+  },
+  {
+    "id": "audit-1790529308138-silh",
+    "timestamp": "2026-09-27T17:15:08.138Z",
+    "action": "UPDATE_EXPENSE",
+    "recordId": "exp-1790529124842-73vt",
+    "diff": {
+      "paidBy": {
+        "old": "Palash",
+        "new": "Pallavi"
+      },
+      "category": {
+        "old": "Shopping & Miscellaneous",
+        "new": "Food Delivery"
+      }
+    },
+    "metadata": {
+      "category": "Food Delivery",
+      "amount": 212,
+      "paidBy": "Pallavi",
+      "splitBetween": "Personal Expense (Pallavi - Not Reimbursed)",
+      "date": "2026-09-27"
+    }
+  },
+  {
+    "id": "audit-1790529277640-mf1a",
+    "timestamp": "2026-09-27T17:14:37.640Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "masterConfig",
+    "diff": {
+      "staff": {
+        "updated": true,
+        "summary": "2 items"
+      },
+      "categories": {
+        "updated": true,
+        "summary": "10 items"
+      },
+      "recurringBills": {
+        "updated": true,
+        "summary": "6 items"
+      },
+      "familyMembers": {
+        "updated": true,
+        "summary": "2 items"
+      },
+      "paymentMethods": {
+        "updated": true,
+        "summary": "4 items"
+      },
+      "householdCycle": {
+        "updated": true,
+        "summary": "object"
+      }
+    },
+    "metadata": {
+      "modifiedSections": [
+        "staff",
+        "categories",
+        "recurringBills",
+        "familyMembers",
+        "paymentMethods",
+        "householdCycle"
+      ]
+    }
+  },
+  {
+    "id": "audit-1790529249222-40ta",
+    "timestamp": "2026-09-27T17:14:09.222Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "masterConfig",
+    "diff": {
+      "categories": {
+        "updated": true,
+        "summary": "10 items"
+      }
+    },
+    "metadata": {
+      "modifiedSections": [
+        "categories"
+      ]
+    }
+  },
+  {
+    "id": "audit-1790529248638-uw8e",
+    "timestamp": "2026-09-27T17:14:08.638Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "masterConfig",
+    "diff": {
+      "categories": {
+        "updated": true,
+        "summary": "10 items"
+      }
+    },
+    "metadata": {
+      "modifiedSections": [
+        "categories"
+      ]
+    }
+  },
+  {
+    "id": "audit-1790529247805-mui5",
+    "timestamp": "2026-09-27T17:14:07.805Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "masterConfig",
+    "diff": {
+      "categories": {
+        "updated": true,
+        "summary": "10 items"
+      }
+    },
+    "metadata": {
+      "modifiedSections": [
+        "categories"
+      ]
+    }
+  },
+  {
+    "id": "audit-1790529125925-xdpq",
+    "timestamp": "2026-09-27T17:12:05.925Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1790529124842-73vt",
+    "diff": {
+      "created": {
+        "amount": 212,
+        "category": "Shopping & Miscellaneous",
+        "paidBy": "Palash",
+        "splitBetween": "Personal Expense (Pallavi - Not Reimbursed)",
+        "date": "2026-09-27"
+      }
+    },
+    "metadata": {
+      "category": "Shopping & Miscellaneous",
+      "amount": 212,
+      "paidBy": "Palash",
+      "splitBetween": "Personal Expense (Pallavi - Not Reimbursed)",
+      "date": "2026-09-27"
+    }
+  },
+  {
+    "id": "audit-1790517514267-ce7j",
+    "timestamp": "2026-09-27T13:58:34.267Z",
+    "action": "UPDATE_ATTENDANCE",
+    "recordId": "Chef - Nilima Nikose:2026-09",
+    "diff": {
+      "staff": {
+        "old": "Chef - Nilima Nikose",
+        "new": "Chef - Nilima Nikose"
+      },
+      "month": {
+        "old": "2026-09",
+        "new": "2026-09"
+      },
+      "daysRecorded": {
+        "old": 4,
+        "new": 5
+      }
+    },
+    "metadata": {
+      "staff": "Chef - Nilima Nikose",
+      "month": "2026-09"
+    }
+  },
+  {
+    "id": "audit-1790517508150-47hb",
+    "timestamp": "2026-09-27T13:58:28.150Z",
+    "action": "UPDATE_ATTENDANCE",
+    "recordId": "Chef - Nilima Nikose:2026-09",
+    "diff": {
+      "staff": {
+        "old": "Chef - Nilima Nikose",
+        "new": "Chef - Nilima Nikose"
+      },
+      "month": {
+        "old": "2026-09",
+        "new": "2026-09"
+      },
+      "daysRecorded": {
+        "old": 3,
+        "new": 4
+      }
+    },
+    "metadata": {
+      "staff": "Chef - Nilima Nikose",
+      "month": "2026-09"
+    }
+  },
+  {
+    "id": "audit-1790517506036-m42b",
+    "timestamp": "2026-09-27T13:58:26.036Z",
+    "action": "UPDATE_ATTENDANCE",
+    "recordId": "Chef - Nilima Nikose:2026-09",
+    "diff": {
+      "staff": {
+        "old": "Chef - Nilima Nikose",
+        "new": "Chef - Nilima Nikose"
+      },
+      "month": {
+        "old": "2026-09",
+        "new": "2026-09"
+      },
+      "daysRecorded": {
+        "old": 3,
+        "new": 3
+      }
+    },
+    "metadata": {
+      "staff": "Chef - Nilima Nikose",
+      "month": "2026-09"
+    }
+  },
+  {
+    "id": "audit-1790517505396-bs0i",
+    "timestamp": "2026-09-27T13:58:25.396Z",
+    "action": "UPDATE_ATTENDANCE",
+    "recordId": "Chef - Nilima Nikose:2026-09",
+    "diff": {
+      "staff": {
+        "old": "Chef - Nilima Nikose",
+        "new": "Chef - Nilima Nikose"
+      },
+      "month": {
+        "old": "2026-09",
+        "new": "2026-09"
+      },
+      "daysRecorded": {
+        "old": 3,
+        "new": 3
+      }
+    },
+    "metadata": {
+      "staff": "Chef - Nilima Nikose",
+      "month": "2026-09"
+    }
+  },
+  {
+    "id": "audit-1790517417804-5zf5",
+    "timestamp": "2026-09-27T13:56:57.804Z",
+    "action": "UPDATE_EXPENSE",
+    "recordId": "exp-1790486334762-r5h7",
+    "diff": {
+      "date": {
+        "old": "2026-09-27",
+        "new": "2026-09-05"
+      }
+    },
+    "metadata": {
+      "category": "Chef - Nilima Nikose",
+      "amount": 4500,
+      "paidBy": "Palash",
+      "splitBetween": "Household Expense (Palash Reimburses Pallavi 100%)",
+      "date": "2026-09-05"
+    }
+  },
+  {
+    "id": "audit-1790513088777-vajb",
+    "timestamp": "2026-09-27T12:44:48.777Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1790513087979-ltn6",
+    "diff": {
+      "created": {
+        "amount": 638,
+        "category": "Accepted Payments (Income)",
+        "paidBy": "Palash",
+        "splitBetween": "Household Expense (Palash Reimburses Pallavi 100%)",
+        "date": "2026-09-27"
+      }
+    },
+    "metadata": {
+      "category": "Accepted Payments (Income)",
+      "amount": 638,
+      "paidBy": "Palash",
+      "splitBetween": "Household Expense (Palash Reimburses Pallavi 100%)",
+      "date": "2026-09-27"
+    }
+  },
+  {
+    "id": "audit-1790512388829-fyfr",
+    "timestamp": "2026-09-27T12:33:08.829Z",
+    "action": "UPDATE_ATTENDANCE",
+    "recordId": "Chef - Nilima Nikose:2026-09",
+    "diff": {
+      "staff": {
+        "old": "Chef - Nilima Nikose",
+        "new": "Chef - Nilima Nikose"
+      },
+      "month": {
+        "old": "2026-09",
+        "new": "2026-09"
+      },
+      "daysRecorded": {
+        "old": 3,
+        "new": 3
+      }
+    },
+    "metadata": {
+      "staff": "Chef - Nilima Nikose",
+      "month": "2026-09"
+    }
+  },
+  {
+    "id": "audit-1790512042448-l37q",
+    "timestamp": "2026-09-27T12:27:22.448Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "masterConfig",
+    "diff": {
+      "staff": {
+        "updated": true,
+        "summary": "2 items"
+      },
+      "categories": {
+        "updated": true,
+        "summary": "9 items"
+      },
+      "recurringBills": {
+        "updated": true,
+        "summary": "6 items"
+      },
+      "familyMembers": {
+        "updated": true,
+        "summary": "2 items"
+      },
+      "paymentMethods": {
+        "updated": true,
+        "summary": "4 items"
+      },
+      "householdCycle": {
+        "updated": true,
+        "summary": "object"
+      }
+    },
+    "metadata": {
+      "modifiedSections": [
+        "staff",
+        "categories",
+        "recurringBills",
+        "familyMembers",
+        "paymentMethods",
+        "householdCycle"
+      ]
+    }
+  },
+  {
+    "id": "audit-1790512017944-4el3",
+    "timestamp": "2026-09-27T12:26:57.944Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "masterConfig",
+    "diff": {
+      "categories": {
+        "updated": true,
+        "summary": "9 items"
+      }
+    },
+    "metadata": {
+      "modifiedSections": [
+        "categories"
+      ]
+    }
+  },
+  {
+    "id": "audit-1790511697696-wvtk",
+    "timestamp": "2026-09-27T12:21:37.696Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "masterConfig",
+    "diff": {
+      "staff": {
+        "updated": true,
+        "summary": "2 items"
+      },
+      "categories": {
+        "updated": true,
+        "summary": "10 items"
+      },
+      "recurringBills": {
+        "updated": true,
+        "summary": "6 items"
+      },
+      "familyMembers": {
+        "updated": true,
+        "summary": "2 items"
+      },
+      "paymentMethods": {
+        "updated": true,
+        "summary": "4 items"
+      },
+      "householdCycle": {
+        "updated": true,
+        "summary": "object"
+      }
+    },
+    "metadata": {
+      "modifiedSections": [
+        "staff",
+        "categories",
+        "recurringBills",
+        "familyMembers",
+        "paymentMethods",
+        "householdCycle"
+      ]
+    }
+  },
+  {
     "id": "audit-1790510349621-7sqs",
     "timestamp": "2026-09-27T11:59:09.621Z",
     "action": "UPDATE_EXPENSE",

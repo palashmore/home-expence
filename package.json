@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Full-stack Secure Household Expense Tracker & Staff Payroll System",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },

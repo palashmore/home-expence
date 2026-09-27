@@ -2,6 +2,10 @@
   "version": 2,
   "cleanUrls": true,
   "functions": {
+    "server.js": {
+      "includeFiles": "data/**",
+      "maxDuration": 15
+    },
     "api/*.js": {
       "includeFiles": "data/**",
       "maxDuration": 15
@@ -9,15 +13,11 @@
   },
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1.js"
-    },
-    {
       "handle": "filesystem"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "server.js"
     }
   ],
   "headers": [

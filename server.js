@@ -78,14 +78,15 @@ const server = http.createServer(async (req, res) => {
         }
 
         // Serve Static Files
-        let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
+        const baseDir = fs.existsSync(path.join(process.cwd(), 'index.html')) ? process.cwd() : __dirname;
+        let filePath = path.join(baseDir, pathname === '/' ? 'index.html' : pathname);
         const ext = path.extname(filePath).toLowerCase();
 
         fs.readFile(filePath, (err, content) => {
             if (err) {
                 if (err.code === 'ENOENT') {
                     // Fallback to index.html for SPA routes
-                    fs.readFile(path.join(__dirname, 'index.html'), (e, indexContent) => {
+                    fs.readFile(path.join(baseDir, 'index.html'), (e, indexContent) => {
                         if (e) {
                             res.writeHead(500);
                             res.end('Server Error loading index.html');
@@ -118,3 +119,5 @@ server.listen(PORT, () => {
     console.log(` 🔒 Security: Server-Side Auth & Validation Enabled`);
     console.log(`=======================================================`);
 });
+
+module.exports = server;

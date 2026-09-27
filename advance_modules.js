@@ -384,15 +384,10 @@
         if (paidBy.includes('palash')) {
           reimbursedByPalash += amt;
         }
-      } else {
+      } else if (!isPersonalExpense(exp)) {
         if (paidBy.includes('pallavi')) {
-          // If explicitly marked as personal non-reimbursable, skip reimbursement
-          if (exp.splitBetween === 'Personal Expense (Pallavi - Not Reimbursed)') {
-            // Personal expense of Pallavi, not reimbursed
-          } else {
-            // Household expense paid out of Pallavi's pocket -> Palash returns 100%
-            pallaviPaid += amt;
-          }
+          // Household expense paid out of Pallavi's pocket -> Palash returns 100%
+          pallaviPaid += amt;
         } else if (paidBy.includes('palash')) {
           // Direct household spend funded by Palash
           palashDirectPaid += amt;
@@ -2322,10 +2317,15 @@
   let personalChartInstance = null;
 
   function isPersonalExpense(item) {
+    if (window.isPersonalExpense && window.isPersonalExpense !== isPersonalExpense) {
+      return window.isPersonalExpense(item);
+    }
     if (!item) return false;
     if (item.isPersonal === true || item.expenseType === 'personal') return true;
     const split = (item.splitBetween || '').toLowerCase();
     if (split.includes('personal') || split.includes('not reimbursed')) return true;
+    const cat = (item.category || '').toLowerCase();
+    if (cat === 'personal expense' || cat.startsWith('personal -') || cat === 'food delivery') return true;
     return false;
   }
   window.isPersonalExpense = isPersonalExpense;

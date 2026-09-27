@@ -51,6 +51,29 @@ let trendGranularity = "monthly"; // "monthly" or "quarterly"
 let pendingDeleteExpenseId = null;
 let monthlyBudgetLimit = 50000; // Configurable budget limit
 
+// Global Personal vs Household Expense Classifier
+function isPersonalExpense(item) {
+    if (!item) return false;
+    if (item.isPersonal === true || item.expenseType === 'personal') return true;
+    const split = (item.splitBetween || '').toLowerCase();
+    if (split.includes('personal') || split.includes('not reimbursed')) return true;
+    const cat = (item.category || '').toLowerCase();
+    if (cat === 'personal expense' || cat.startsWith('personal -') || cat === 'food delivery') return true;
+    return false;
+}
+window.isPersonalExpense = isPersonalExpense;
+
+function getPersonalPayer(item) {
+    if (!item) return 'Palash';
+    const split = (item.splitBetween || '').toLowerCase();
+    if (split.includes('pallavi')) return 'Pallavi';
+    if (split.includes('palash')) return 'Palash';
+    if (item.paidBy && item.paidBy.toLowerCase().includes('pallavi')) return 'Pallavi';
+    if (item.paidBy && item.paidBy.toLowerCase().includes('palash')) return 'Palash';
+    return item.paidBy || 'Palash';
+}
+window.getPersonalPayer = getPersonalPayer;
+
 // Chart Instances
 let categoryPieChartInstance = null;
 let paidByChartInstance = null;
@@ -65,10 +88,34 @@ let dashboardFilters = {
     paidBy: "all",
     paymentMethod: "all",
     expenseType: "all", // "all", "expense", "income"
+    scope: "household", // "household" (default: pure household only) or "combined"
     dateFrom: null,
     dateTo: null,
     searchVal: ""
 };
+
+function setDashboardScope(scope) {
+    dashboardFilters.scope = scope;
+    const btnH = document.getElementById("btnScopeHousehold");
+    const btnC = document.getElementById("btnScopeCombined");
+    if (btnH && btnC) {
+        if (scope === 'combined') {
+            btnC.className = "px-2 py-0.5 rounded-md font-black transition bg-indigo-600 text-white shadow-xs flex items-center gap-1";
+            btnH.className = "px-2 py-0.5 rounded-md font-bold text-slate-300 hover:text-white transition flex items-center gap-1";
+        } else {
+            btnH.className = "px-2 py-0.5 rounded-md font-black transition bg-indigo-600 text-white shadow-xs flex items-center gap-1";
+            btnC.className = "px-2 py-0.5 rounded-md font-bold text-slate-300 hover:text-white transition flex items-center gap-1";
+        }
+    }
+    const subTitle = document.getElementById("dashboardPeriodSubtitle");
+    if (subTitle) {
+        subTitle.textContent = scope === 'combined'
+            ? "Viewing combined household expenses and personal expenditures."
+            : "Viewing verified household expenses, staff payroll, and utilities.";
+    }
+    renderDashboard(getFilteredExpenses());
+}
+window.setDashboardScope = setDashboardScope;
 
 // ================= INITIALIZATION =================
 document.addEventListener("DOMContentLoaded", () => {
@@ -693,13 +740,27 @@ function renderDashboard(filtered) {
     }
 
     // 2. Derive Financial Metrics strictly from filtered dataset
-    const expenseItems = filtered.filter(i => i.category !== "Accepted Payments (Income)");
+    const allExpenseItems = filtered.filter(i => i.category !== "Accepted Payments (Income)");
     const incomeItems = filtered.filter(i => i.category === "Accepted Payments (Income)");
 
-    const totalSpent = expenseItems.reduce((acc, i) => acc + Number(i.amount), 0);
+    // Strict Segregation: Household vs Personal Expenses
+    const householdExpenseItems = allExpenseItems.filter(i => !isPersonalExpense(i));
+    const personalExpenseItems = allExpenseItems.filter(i => isPersonalExpense(i));
+
+    const totalHouseholdSpent = householdExpenseItems.reduce((acc, i) => acc + Number(i.amount), 0);
+    const totalPersonalSpent = personalExpenseItems.reduce((acc, i) => acc + Number(i.amount), 0);
+    const totalCombinedSpent = totalHouseholdSpent + totalPersonalSpent;
+
+    const palashPersonal = personalExpenseItems.filter(i => getPersonalPayer(i) === 'Palash').reduce((acc, i) => acc + Number(i.amount), 0);
+    const pallaviPersonal = personalExpenseItems.filter(i => getPersonalPayer(i) === 'Pallavi').reduce((acc, i) => acc + Number(i.amount), 0);
+
+    const isCombinedMode = dashboardFilters.scope === 'combined';
+    // Active view items: Household Only by default, or Combined if chosen
+    const activeExpenseItems = isCombinedMode ? allExpenseItems : householdExpenseItems;
+    const totalDisplaySpent = isCombinedMode ? totalCombinedSpent : totalHouseholdSpent;
     const totalIncome = incomeItems.reduce((acc, i) => acc + Number(i.amount), 0);
-    const netCashFlow = totalIncome - totalSpent;
-    const expenseCount = expenseItems.length;
+    const netCashFlow = totalIncome - totalDisplaySpent;
+    const expenseCount = activeExpenseItems.length;
     const incomeCount = incomeItems.length;
 
     // Days in period for burn rate
@@ -709,37 +770,48 @@ function renderDashboard(filtered) {
         const yNum = dashboardFilters.year !== "all" ? Number(dashboardFilters.year) : cur.year;
         daysInPeriod = new Date(yNum, mIdx + 1, 0).getDate();
     }
-    const avgDaily = Math.round(totalSpent / (daysInPeriod || 1));
+    const avgDaily = Math.round(totalDisplaySpent / (daysInPeriod || 1));
 
-    // Highest single expense
+    // Highest single expense (from active view items)
     let highestExpenseItem = null;
-    expenseItems.forEach(i => {
+    activeExpenseItems.forEach(i => {
         if (!highestExpenseItem || Number(i.amount) > Number(highestExpenseItem.amount)) {
             highestExpenseItem = i;
         }
     });
 
     // Staff Payments
-    const staffExpenses = expenseItems.filter(i => i.category === "Maid - Madhuri" || i.category === "Chef - Nilima Nikose");
+    const staffExpenses = householdExpenseItems.filter(i => i.category === "Maid - Madhuri" || i.category === "Chef - Nilima Nikose");
     const staffTotal = staffExpenses.reduce((acc, i) => acc + Number(i.amount), 0);
 
     const madhuriPaid = staffExpenses.filter(i => i.category === "Maid - Madhuri").reduce((acc, i) => acc + Number(i.amount), 0);
     const nilimaPaid = staffExpenses.filter(i => i.category === "Chef - Nilima Nikose").reduce((acc, i) => acc + Number(i.amount), 0);
 
     // Groceries
-    const groceryItems = expenseItems.filter(i => i.category === "Grocery & Vegetables");
+    const groceryItems = householdExpenseItems.filter(i => i.category === "Grocery & Vegetables");
     const groceryTotal = groceryItems.reduce((acc, i) => acc + Number(i.amount), 0);
-    const groceryShare = totalSpent > 0 ? ((groceryTotal / totalSpent) * 100).toFixed(1) : 0;
+    const groceryShare = totalDisplaySpent > 0 ? ((groceryTotal / totalDisplaySpent) * 100).toFixed(1) : 0;
 
     // Recurring Bills Checklist Status
     const checklistStatus = calculateRecurringChecklist(filtered);
 
     // 3. Update KPI Elements in DOM
+    const periodLabelEl = document.getElementById("statPeriodLabel");
+    if (periodLabelEl) {
+        periodLabelEl.textContent = isCombinedMode ? "Total Expenses (Combined)" : "Household Expenses";
+    }
+
     const spentEl = document.getElementById("statTotalSpent");
-    if (spentEl) spentEl.textContent = formatINR(totalSpent);
+    if (spentEl) spentEl.textContent = formatINR(totalDisplaySpent);
 
     const spentCountEl = document.getElementById("statSpentCount");
-    if (spentCountEl) spentCountEl.textContent = `${expenseCount} expenses`;
+    if (spentCountEl) spentCountEl.textContent = `${expenseCount} ${isCombinedMode ? 'total' : 'household'} exp`;
+
+    const personalSpentEl = document.getElementById("statPersonalSpentVal");
+    if (personalSpentEl) personalSpentEl.textContent = formatINR(totalPersonalSpent);
+
+    const combinedSpentEl = document.getElementById("statCombinedSpentVal");
+    if (combinedSpentEl) combinedSpentEl.textContent = formatINR(totalCombinedSpent);
 
     const incomeEl = document.getElementById("statTotalIncome");
     if (incomeEl) incomeEl.textContent = formatINR(totalIncome);
@@ -770,7 +842,7 @@ function renderDashboard(filtered) {
     const avgEl = document.getElementById("statAvgPerDay");
     if (avgEl) avgEl.textContent = formatINR(avgDaily);
     const dailyDaysEl = document.getElementById("statDailyDaysCount");
-    if (dailyDaysEl) dailyDaysEl.textContent = `${daysInPeriod} days in cycle`;
+    if (dailyDaysEl) dailyDaysEl.textContent = `${daysInPeriod} days (${isCombinedMode ? 'Combined' : 'Household'})`;
 
     const highestEl = document.getElementById("statHighestExpense");
     const highestVendorEl = document.getElementById("statHighestExpenseVendor");
@@ -798,7 +870,7 @@ function renderDashboard(filtered) {
     if (groceryShareEl) groceryShareEl.textContent = `${groceryShare}% of total`;
 
     const txCountEl = document.getElementById("statTxCountTotal");
-    if (txCountEl) txCountEl.textContent = filtered.length;
+    if (txCountEl) txCountEl.textContent = isCombinedMode ? filtered.length : filtered.filter(i => !isPersonalExpense(i)).length;
 
     // Staff Card Badges
     const madhuriBadge = document.getElementById("statMadhuriStatusBadge");
@@ -843,22 +915,23 @@ function renderDashboard(filtered) {
     }
 
     // 5. Generate Dynamic Data-Backed Insights & Alerts (Requirement 19, 52)
-    renderFinancialInsights(filtered, totalSpent, totalIncome, netCashFlow);
+    renderFinancialInsights(activeExpenseItems, totalDisplaySpent, totalIncome, netCashFlow);
 
     // 6. Visualizations
-    renderCategoryPieChart(filtered);
-    renderPaidByChart(filtered);
+    const visualData = isCombinedMode ? filtered : filtered.filter(i => !isPersonalExpense(i));
+    renderCategoryPieChart(visualData);
+    renderPaidByChart(visualData);
     renderMonthlyTrendChart(expenses);
-    renderPaymentMethodChart(filtered);
+    renderPaymentMethodChart(visualData);
 
     // 7. Spending Matrix
-    renderHouseholdSpendingMatrix(filtered);
+    renderHouseholdSpendingMatrix(visualData);
 
     // 8. Budget & Checklist & Tables
-    renderBudgetProgress(totalSpent);
+    renderBudgetProgress(totalHouseholdSpent, totalPersonalSpent, totalCombinedSpent);
     renderChecklistUI(checklistStatus.items);
-    renderTopExpensesTable(expenseItems);
-    renderRecentTransactionsTable(filtered);
+    renderTopExpensesTable(activeExpenseItems);
+    renderRecentTransactionsTable(visualData);
     renderMoMAndYtd(expenses);
 
     // Advance Modules Dashboard Bridge
@@ -1328,8 +1401,10 @@ function renderHouseholdSpendingMatrix(filteredData) {
         ];
     }
 
+    const dataToMatrix = (dashboardFilters.scope === 'combined') ? filteredData : filteredData.filter(i => !isPersonalExpense(i));
+
     // Include any new categories present in the active filtered data
-    filteredData.filter(i => i.category && i.category !== "Accepted Payments (Income)").forEach(i => {
+    dataToMatrix.filter(i => i.category && i.category !== "Accepted Payments (Income)").forEach(i => {
         if (!matrixCategories.includes(i.category)) {
             matrixCategories.push(i.category);
         }
@@ -1358,7 +1433,7 @@ function renderHouseholdSpendingMatrix(filteredData) {
         matrixCategories.forEach(c => matrix[m][c] = 0);
     });
 
-    filteredData.filter(i => i.category !== "Accepted Payments (Income)").forEach(i => {
+    dataToMatrix.filter(i => i.category !== "Accepted Payments (Income)").forEach(i => {
         const m = (i.paidBy && members.includes(i.paidBy)) ? i.paidBy : "Not Specified";
         const c = i.category;
         if (matrix[m] && matrix[m][c] !== undefined) {
@@ -1398,21 +1473,23 @@ function renderHouseholdSpendingMatrix(filteredData) {
 }
 
 // ================= BUDGET, RECURRING & YTD =================
-function renderBudgetProgress(totalSpent) {
+function renderBudgetProgress(householdSpent, personalSpent = 0, combinedSpent = 0) {
     const progressBar = document.getElementById("budgetProgressBar");
     const spentVal = document.getElementById("budgetSpentVal");
     const capVal = document.getElementById("budgetCapVal");
     const remText = document.getElementById("budgetRemainingText");
     const pctText = document.getElementById("budgetPercentText");
     const pill = document.getElementById("budgetAlertPill");
+    const householdSubtext = document.getElementById("budgetHouseholdSubtext");
+    const personalSubtext = document.getElementById("budgetPersonalSubtext");
 
     const effectiveBudget = (window.masterConfig && Number(window.masterConfig.monthlyBudgetLimit)) || monthlyBudgetLimit || 50000;
 
-    if (spentVal) spentVal.textContent = formatINR(totalSpent);
+    if (spentVal) spentVal.textContent = formatINR(householdSpent);
     if (capVal) capVal.textContent = formatINR(effectiveBudget);
 
-    const pct = Math.min(100, Math.round((totalSpent / effectiveBudget) * 100));
-    const remaining = Math.max(0, effectiveBudget - totalSpent);
+    const pct = Math.min(100, Math.round((householdSpent / effectiveBudget) * 100));
+    const remaining = Math.max(0, effectiveBudget - householdSpent);
 
     if (progressBar) {
         progressBar.style.width = `${pct}%`;
@@ -1427,6 +1504,13 @@ function renderBudgetProgress(totalSpent) {
 
     if (remText) remText.textContent = `Remaining: ${formatINR(remaining)}`;
     if (pctText) pctText.textContent = `${pct}% utilized`;
+
+    if (householdSubtext) {
+        householdSubtext.textContent = `Household: ${formatINR(householdSpent)} (${pct}%)`;
+    }
+    if (personalSubtext) {
+        personalSubtext.textContent = `Personal: ${formatINR(personalSpent)} (tracked in Personal Tab)`;
+    }
 
     if (pill) {
         if (pct > 100) {
@@ -1509,10 +1593,11 @@ function renderChecklistUI(items) {
 function renderMoMAndYtd(allExpenses) {
     const cur = getCurrentPeriod();
     const curYear = cur.yearStr;
+    const isCombinedMode = dashboardFilters.scope === 'combined';
 
-    // YTD Calculations
+    // YTD Calculations (Household by default)
     const ytdItems = allExpenses.filter(i => i.date && new Date(i.date).getFullYear().toString() === curYear);
-    const ytdSpend = ytdItems.filter(i => i.category !== "Accepted Payments (Income)").reduce((a, b) => a + Number(b.amount), 0);
+    const ytdSpend = ytdItems.filter(i => i.category !== "Accepted Payments (Income)" && (isCombinedMode || !isPersonalExpense(i))).reduce((a, b) => a + Number(b.amount), 0);
     const ytdIncome = ytdItems.filter(i => i.category === "Accepted Payments (Income)").reduce((a, b) => a + Number(b.amount), 0);
     const ytdNet = ytdIncome - ytdSpend;
 
@@ -1524,7 +1609,7 @@ function renderMoMAndYtd(allExpenses) {
     if (ytdIncomeEl) ytdIncomeEl.textContent = formatINR(ytdIncome);
     if (ytdNetEl) ytdNetEl.textContent = formatINR(ytdNet);
 
-    // MoM comparison for selected month
+    // MoM comparison for selected month (Household by default)
     if (dashboardFilters.month !== "all") {
         const curMIdx = MONTHS.indexOf(dashboardFilters.month);
         const prevMIdx = (curMIdx + 11) % 12;
@@ -1532,12 +1617,12 @@ function renderMoMAndYtd(allExpenses) {
 
         const curSpend = allExpenses.filter(i => {
             const d = new Date(i.date);
-            return d.getMonth() === curMIdx && d.getFullYear().toString() === dashboardFilters.year && i.category !== "Accepted Payments (Income)";
+            return d.getMonth() === curMIdx && d.getFullYear().toString() === dashboardFilters.year && i.category !== "Accepted Payments (Income)" && (isCombinedMode || !isPersonalExpense(i));
         }).reduce((a, b) => a + Number(b.amount), 0);
 
         const prevSpend = allExpenses.filter(i => {
             const d = new Date(i.date);
-            return d.getMonth() === prevMIdx && d.getFullYear().toString() === prevYear && i.category !== "Accepted Payments (Income)";
+            return d.getMonth() === prevMIdx && d.getFullYear().toString() === prevYear && i.category !== "Accepted Payments (Income)" && (isCombinedMode || !isPersonalExpense(i));
         }).reduce((a, b) => a + Number(b.amount), 0);
 
         const momDiff = curSpend - prevSpend;

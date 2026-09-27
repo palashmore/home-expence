@@ -449,12 +449,25 @@
             <!-- Dashboard Smart Headline & Period Display -->
             <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-900 text-white p-5 rounded-3xl shadow-lg border border-indigo-800/50">
                 <div>
-                    <span class="text-[11px] font-black uppercase tracking-widest text-indigo-300">Command Center &bull; Financial Overview</span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-[11px] font-black uppercase tracking-widest text-indigo-300">Command Center &bull; Financial Overview</span>
+                        <!-- Scope Mode Switcher (Household Only vs Combined) -->
+                        <div class="inline-flex p-0.5 bg-slate-800/90 rounded-lg border border-indigo-700/60 text-[10px]">
+                            <button type="button" id="btnScopeHousehold" onclick="setDashboardScope('household')" class="px-2 py-0.5 rounded-md font-black transition bg-indigo-600 text-white shadow-xs flex items-center gap-1" title="Household Expenses only (pure bills, staff, utilities)">
+                                <i class="fa-solid fa-house-chimney text-[9px]"></i>
+                                <span>Household Only</span>
+                            </button>
+                            <button type="button" id="btnScopeCombined" onclick="setDashboardScope('combined')" class="px-2 py-0.5 rounded-md font-bold text-slate-300 hover:text-white transition flex items-center gap-1" title="Combined Household + Personal Total">
+                                <i class="fa-solid fa-layer-group text-[9px]"></i>
+                                <span>Combined</span>
+                            </button>
+                        </div>
+                    </div>
                     <h2 id="dashboardPeriodTitle" class="text-2xl sm:text-3xl font-black tracking-tight text-white mt-0.5">
                         September 2026
                     </h2>
                     <p id="dashboardPeriodSubtitle" class="text-xs text-slate-300 font-medium mt-1">
-                        Viewing verified household expenses, staff payroll, and inflows.
+                        Viewing verified household expenses, staff payroll, and utilities.
                     </p>
                 </div>
                 <div class="flex items-center gap-2 self-start sm:self-auto">
@@ -494,19 +507,35 @@
             <div class="grid grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-4">
                 
                 <!-- KPI 1: Total Expenses -->
-                <div class="glass-card p-3 sm:p-5 rounded-2xl hover-lift relative overflow-hidden border-l-4 border-l-indigo-600">
-                    <div class="flex justify-between items-start">
-                        <div class="min-w-0">
-                            <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-indigo-700 truncate" id="statPeriodLabel">Total Expenses</p>
-                            <h3 id="statTotalSpent" class="text-lg sm:text-2xl md:text-3xl font-black text-slate-900 mt-1 truncate">₹0</h3>
+                <div class="glass-card p-3 sm:p-5 rounded-2xl hover-lift relative overflow-hidden border-l-4 border-l-indigo-600 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start">
+                            <div class="min-w-0">
+                                <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-indigo-700 truncate" id="statPeriodLabel">Household Expenses</p>
+                                <h3 id="statTotalSpent" class="text-lg sm:text-2xl md:text-3xl font-black text-slate-900 mt-1 truncate">₹0</h3>
+                            </div>
+                            <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0 ml-1">
+                                <i class="fa-solid fa-house-chimney text-xs sm:text-lg"></i>
+                            </div>
                         </div>
-                        <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0 ml-1">
-                            <i class="fa-solid fa-indian-rupee-sign text-xs sm:text-lg"></i>
+                        <div class="mt-2.5 sm:mt-3 flex items-center justify-between text-[11px] sm:text-xs text-slate-500 border-t border-slate-100 pt-1.5 sm:pt-2">
+                            <span id="statSpentCount" class="font-bold text-indigo-600 truncate">0 exp</span>
+                            <span id="statMoMComparison" class="font-semibold text-slate-500 truncate">-</span>
                         </div>
                     </div>
-                    <div class="mt-2.5 sm:mt-3 flex items-center justify-between text-[11px] sm:text-xs text-slate-500 border-t border-slate-100 pt-1.5 sm:pt-2">
-                        <span id="statSpentCount" class="font-bold text-indigo-600 truncate">0 exp</span>
-                        <span id="statMoMComparison" class="font-semibold text-slate-500 truncate">-</span>
+                    <!-- Personal & Combined Summary Sub-Banner -->
+                    <div class="mt-2.5 pt-2 border-t border-dashed border-slate-200/90 text-[10px] sm:text-[11px] space-y-1">
+                        <div class="flex items-center justify-between font-semibold text-slate-600">
+                            <span class="flex items-center gap-1 text-slate-500"><i class="fa-solid fa-user-tag text-purple-500 text-[10px]"></i> Personal:</span>
+                            <button type="button" onclick="switchTab('personal')" class="text-purple-700 font-extrabold hover:underline flex items-center gap-1 group" title="Open Dedicated Personal Expenses Dashboard">
+                                <span id="statPersonalSpentVal">₹0</span>
+                                <i class="fa-solid fa-arrow-up-right-from-square text-[9px] group-hover:translate-x-0.5 transition-transform"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center justify-between text-slate-500 font-medium">
+                            <span class="flex items-center gap-1"><i class="fa-solid fa-layer-group text-slate-400 text-[10px]"></i> Combined Total:</span>
+                            <span id="statCombinedSpentVal" class="font-black text-slate-800">₹0</span>
+                        </div>
                     </div>
                 </div>
 
@@ -926,6 +955,10 @@
                         <div class="flex justify-between text-[11px] text-slate-500 font-semibold pt-0.5">
                             <span id="budgetRemainingText">Remaining: ₹50,000</span>
                             <span id="budgetPercentText">0% utilized</span>
+                        </div>
+                        <div class="flex flex-wrap justify-between items-center text-[10px] text-slate-400 border-t border-slate-200/70 pt-1 mt-1 font-semibold">
+                            <span id="budgetHouseholdSubtext" class="text-indigo-600 font-bold">Household: ₹0</span>
+                            <span id="budgetPersonalSubtext" class="text-purple-600 font-bold">Personal: ₹0 (tracked in Personal Tab)</span>
                         </div>
                     </div>
 

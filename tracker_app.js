@@ -348,6 +348,10 @@ function onFilterChange() {
     if (methodSelect) dashboardFilters.paymentMethod = methodSelect.value;
     if (typeSelect) dashboardFilters.expenseType = typeSelect.value;
 
+    if (window.syncPersonalFilterWithPaidBy) {
+        window.syncPersonalFilterWithPaidBy(dashboardFilters.paidBy);
+    }
+
     renderAllViews();
 }
 
@@ -371,6 +375,9 @@ function resetToCurrentMonth() {
     dashboardFilters.searchVal = "";
 
     syncFilterControlsToState();
+    if (window.syncPersonalFilterWithPaidBy) {
+        window.syncPersonalFilterWithPaidBy("all");
+    }
     renderAllViews();
 }
 
@@ -425,6 +432,9 @@ function quickFilterPeriod(period) {
 function quickFilterPaidBy(member) {
     dashboardFilters.paidBy = (dashboardFilters.paidBy === member) ? "all" : member;
     syncFilterControlsToState();
+    if (window.syncPersonalFilterWithPaidBy) {
+        window.syncPersonalFilterWithPaidBy(dashboardFilters.paidBy);
+    }
     renderAllViews();
 }
 

@@ -1276,6 +1276,9 @@
           if (adminView && !adminView.classList.contains('hidden')) {
             window.renderAdminView();
           }
+          if (window.renderAllViews) {
+            window.renderAllViews();
+          }
         }
       }
     } catch (err) {
@@ -2186,19 +2189,45 @@
     return item.paidBy || 'Palash';
   }
 
-  window.setPersonalViewFilter = function (person) {
-    currentPersonalFilter = person;
+  window.syncPersonalFilterWithPaidBy = function (paidBy) {
+    if (paidBy === 'Palash' || paidBy === 'Pallavi') {
+      currentPersonalFilter = paidBy;
+    } else {
+      currentPersonalFilter = 'all';
+    }
+    updatePersonalFilterPillStyles();
+    window.renderPersonalExpensesDashboard();
+  };
+
+  function updatePersonalFilterPillStyles() {
     ['All', 'Palash', 'Pallavi'].forEach(p => {
       const btn = document.getElementById('btnPersonalFilter' + p);
       if (btn) {
-        if ((p === 'All' && person === 'all') || (p === person)) {
-          btn.className = 'px-3 py-1.5 rounded-lg transition bg-purple-600 text-white shadow-sm';
+        const isActive = (p === 'All' && currentPersonalFilter === 'all') || (p === currentPersonalFilter);
+        if (isActive) {
+          btn.className = 'px-3 py-1.5 rounded-lg transition bg-purple-600 text-white shadow-sm font-black';
         } else {
-          btn.className = 'px-3 py-1.5 rounded-lg transition text-slate-300 hover:text-white';
+          btn.className = 'px-3 py-1.5 rounded-lg transition text-slate-300 hover:text-white font-semibold';
         }
       }
     });
+  }
+
+  window.setPersonalViewFilter = function (person) {
+    currentPersonalFilter = person;
+
+    // Synchronize top filter toolbar Paid By control
+    if (typeof dashboardFilters !== 'undefined') {
+      dashboardFilters.paidBy = person === 'all' ? 'all' : person;
+      const filterPaidBy = document.getElementById('filterPaidBy');
+      if (filterPaidBy) filterPaidBy.value = dashboardFilters.paidBy;
+    }
+
+    updatePersonalFilterPillStyles();
     window.renderPersonalExpensesDashboard();
+
+    // Also update active filter tags and tables
+    if (typeof renderActiveFilterTags === 'function') renderActiveFilterTags();
   };
 
   window.openPersonalExpenseModal = function () {
@@ -2235,13 +2264,35 @@
         const itemTime = itemDate.getTime();
         if (dashboardFilters.dateFrom && itemTime < new Date(dashboardFilters.dateFrom).getTime()) return false;
         if (dashboardFilters.dateTo && itemTime > new Date(dashboardFilters.dateTo).getTime()) return false;
-        return true;
+      } else {
+        const itemMonth = typeof MONTHS !== 'undefined' ? MONTHS[itemDate.getMonth()] : '';
+        const itemYear = itemDate.getFullYear().toString();
+        const matchMonth = dashboardFilters.month === 'all' || itemMonth === (dashboardFilters.month || cur.month);
+        const matchYear = dashboardFilters.year === 'all' || itemYear === (dashboardFilters.year || cur.year);
+        if (!matchMonth || !matchYear) return false;
       }
-      const itemMonth = typeof MONTHS !== 'undefined' ? MONTHS[itemDate.getMonth()] : '';
-      const itemYear = itemDate.getFullYear().toString();
-      const matchMonth = dashboardFilters.month === 'all' || itemMonth === (dashboardFilters.month || cur.month);
-      const matchYear = dashboardFilters.year === 'all' || itemYear === (dashboardFilters.year || cur.year);
-      return matchMonth && matchYear;
+
+      // Respect Category filter if selected in filter toolbar
+      if (dashboardFilters.category && dashboardFilters.category !== 'all') {
+        if (item.category !== dashboardFilters.category) return false;
+      }
+
+      // Respect Payment Method filter if selected
+      if (dashboardFilters.paymentMethod && dashboardFilters.paymentMethod !== 'all') {
+        if (item.paymentMethod !== dashboardFilters.paymentMethod) return false;
+      }
+
+      // Respect Global Search query
+      if (dashboardFilters.searchVal) {
+        const q = dashboardFilters.searchVal.toLowerCase();
+        const fullText = [
+          item.notes, item.description, item.paidTo, item.vendor,
+          item.paidBy, item.category, item.paymentMethod, item.amount, item.date
+        ].filter(Boolean).join(' ').toLowerCase();
+        if (!fullText.includes(q)) return false;
+      }
+
+      return true;
     });
   }
 
@@ -2261,7 +2312,23 @@
     const overallTotal = combinedTotal + householdTotal;
     const personalRatioPct = overallTotal > 0 ? Math.round((combinedTotal / overallTotal) * 100) : 0;
 
-    // 1. Update KPI Card 1: Palash Personal
+    // 1. Update Context Indicator
+    const filterContextText = document.getElementById('personalFilterContextText');
+    if (filterContextText) {
+      const cur = typeof getCurrentPeriod === 'function' ? getCurrentPeriod() : { month: 'September', year: '2026' };
+      const periodStr = (typeof dashboardFilters !== 'undefined' && dashboardFilters.month !== 'all') 
+        ? `${dashboardFilters.month || cur.month} ${dashboardFilters.year || cur.year}` 
+        : 'All Time';
+      const personStr = currentPersonalFilter === 'Pallavi' 
+        ? '🌸 Pallavi Only' 
+        : (currentPersonalFilter === 'Palash' ? '👤 Palash Only' : '👥 All Personal');
+      const catStr = (typeof dashboardFilters !== 'undefined' && dashboardFilters.category && dashboardFilters.category !== 'all')
+        ? ` • Category: ${dashboardFilters.category}`
+        : '';
+      filterContextText.textContent = `Period: ${periodStr} • Scope: ${personStr}${catStr}`;
+    }
+
+    // 2. Update KPI Card 1: Palash Personal
     const elPalashTotal = document.getElementById('statPersonalPalashTotal');
     const elPalashCount = document.getElementById('statPersonalPalashCount');
     const elPalashAvg = document.getElementById('statPersonalPalashAvg');
@@ -2269,7 +2336,7 @@
     if (elPalashCount) elPalashCount.textContent = `${palashItems.length} records`;
     if (elPalashAvg) elPalashAvg.textContent = `Avg: ₹${palashItems.length ? Math.round(palashTotal / palashItems.length).toLocaleString('en-IN') : '0'}`;
 
-    // 2. Update KPI Card 2: Pallavi Personal
+    // 3. Update KPI Card 2: Pallavi Personal
     const elPallaviTotal = document.getElementById('statPersonalPallaviTotal');
     const elPallaviCount = document.getElementById('statPersonalPallaviCount');
     const elPallaviAvg = document.getElementById('statPersonalPallaviAvg');
@@ -2277,45 +2344,94 @@
     if (elPallaviCount) elPallaviCount.textContent = `${pallaviItems.length} records`;
     if (elPallaviAvg) elPallaviAvg.textContent = `Avg: ₹${pallaviItems.length ? Math.round(pallaviTotal / pallaviItems.length).toLocaleString('en-IN') : '0'}`;
 
-    // 3. Update KPI Card 3: Combined Personal
+    // 4. Update KPI Card 3: Combined / Focused Personal Spend
     const elCombinedTotal = document.getElementById('statPersonalCombinedTotal');
     const elSplitRatio = document.getElementById('statPersonalSplitRatio');
-    if (elCombinedTotal) elCombinedTotal.textContent = (window.formatINR ? window.formatINR(combinedTotal) : '₹' + combinedTotal.toLocaleString('en-IN'));
-    if (elSplitRatio) {
-      const palashPct = combinedTotal > 0 ? Math.round((palashTotal / combinedTotal) * 100) : 0;
-      const pallaviPct = combinedTotal > 0 ? (100 - palashPct) : 0;
-      elSplitRatio.textContent = `Palash ${palashPct}% • Pallavi ${pallaviPct}%`;
+    const elLabelCombined = document.getElementById('labelPersonalCombined');
+    const cardPalash = document.getElementById('cardPersonalPalash');
+    const cardPallavi = document.getElementById('cardPersonalPallavi');
+
+    // Visual card highlighting depending on active filter
+    if (currentPersonalFilter === 'Pallavi') {
+      if (cardPallavi) cardPallavi.className = "glass-card p-4 sm:p-5 rounded-2xl border-2 border-pink-500 shadow-lg bg-pink-50/90 ring-4 ring-pink-200/60 transform scale-[1.02] flex flex-col justify-between transition-all duration-300";
+      if (cardPalash) cardPalash.className = "glass-card p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs bg-white/70 opacity-40 hover:opacity-80 flex flex-col justify-between transition-all duration-300";
+      if (elLabelCombined) elLabelCombined.innerHTML = '<span>🎯 Focused Spend (Pallavi)</span>';
+      if (elCombinedTotal) elCombinedTotal.textContent = (window.formatINR ? window.formatINR(pallaviTotal) : '₹' + pallaviTotal.toLocaleString('en-IN'));
+      if (elSplitRatio) elSplitRatio.textContent = '100% of active Pallavi view';
+    } else if (currentPersonalFilter === 'Palash') {
+      if (cardPalash) cardPalash.className = "glass-card p-4 sm:p-5 rounded-2xl border-2 border-indigo-500 shadow-lg bg-indigo-50/90 ring-4 ring-indigo-200/60 transform scale-[1.02] flex flex-col justify-between transition-all duration-300";
+      if (cardPallavi) cardPallavi.className = "glass-card p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs bg-white/70 opacity-40 hover:opacity-80 flex flex-col justify-between transition-all duration-300";
+      if (elLabelCombined) elLabelCombined.innerHTML = '<span>🎯 Focused Spend (Palash)</span>';
+      if (elCombinedTotal) elCombinedTotal.textContent = (window.formatINR ? window.formatINR(palashTotal) : '₹' + palashTotal.toLocaleString('en-IN'));
+      if (elSplitRatio) elSplitRatio.textContent = '100% of active Palash view';
+    } else {
+      if (cardPalash) cardPalash.className = "glass-card p-4 sm:p-5 rounded-2xl border border-indigo-200/70 shadow-sm bg-gradient-to-br from-indigo-50/60 to-white flex flex-col justify-between transition-all duration-300";
+      if (cardPallavi) cardPallavi.className = "glass-card p-4 sm:p-5 rounded-2xl border border-pink-200/70 shadow-sm bg-gradient-to-br from-pink-50/60 to-white flex flex-col justify-between transition-all duration-300";
+      if (elLabelCombined) elLabelCombined.innerHTML = '<span>💳 Combined Personal</span>';
+      if (elCombinedTotal) elCombinedTotal.textContent = (window.formatINR ? window.formatINR(combinedTotal) : '₹' + combinedTotal.toLocaleString('en-IN'));
+      if (elSplitRatio) {
+        const palashPct = combinedTotal > 0 ? Math.round((palashTotal / combinedTotal) * 100) : 0;
+        const pallaviPct = combinedTotal > 0 ? (100 - palashPct) : 0;
+        elSplitRatio.textContent = `Palash ${palashPct}% • Pallavi ${pallaviPct}%`;
+      }
     }
 
-    // 4. Update KPI Card 4: Ratio
+    // 5. Update KPI Card 4: Ratio
     const elRatioPct = document.getElementById('statPersonalRatioPct');
     const elHouseholdShared = document.getElementById('statHouseholdSharedText');
     if (elRatioPct) elRatioPct.textContent = `${personalRatioPct}%`;
     if (elHouseholdShared) elHouseholdShared.textContent = `Household: ${window.formatINR ? window.formatINR(householdTotal) : '₹' + householdTotal.toLocaleString('en-IN')}`;
 
-    const elChartBadge = document.getElementById('personalChartTotalBadge');
-    if (elChartBadge) elChartBadge.textContent = `Total: ${window.formatINR ? window.formatINR(combinedTotal) : '₹' + combinedTotal.toLocaleString('en-IN')}`;
+    // 6. Determine Focused Items for Donut Chart & Lists
+    let focusedItems = personalItems;
+    let focusedTotal = combinedTotal;
+    let activePersonName = 'Combined';
 
-    // 5. Render Category Donut Chart & Breakdown List
-    renderPersonalCategoryDonut(personalItems, combinedTotal);
+    if (currentPersonalFilter === 'Pallavi') {
+      focusedItems = pallaviItems;
+      focusedTotal = pallaviTotal;
+      activePersonName = 'Pallavi';
+    } else if (currentPersonalFilter === 'Palash') {
+      focusedItems = palashItems;
+      focusedTotal = palashTotal;
+      activePersonName = 'Palash';
+    }
 
-    // 6. Render Palash vs Pallavi Comparison Matrix
-    renderPersonalComparisonMatrix(personalItems);
+    // 7. Render Category Donut Chart & Breakdown List
+    renderPersonalCategoryDonut(focusedItems, focusedTotal, activePersonName);
 
-    // 7. Render Personal Log Table
-    renderPersonalTable(personalItems);
+    // 8. Render Palash vs Pallavi Comparison Matrix
+    renderPersonalComparisonMatrix(personalItems, currentPersonalFilter);
+
+    // 9. Render Personal Log Table
+    renderPersonalTable(focusedItems);
   };
 
-  function renderPersonalCategoryDonut(personalItems, combinedTotal) {
+  function renderPersonalCategoryDonut(items, total, activePersonName) {
     const canvas = document.getElementById('personalCategoryChart');
     const emptyMsg = document.getElementById('personalChartEmptyMsg');
     const listEl = document.getElementById('personalCategoryBreakdownList');
+    const titleEl = document.getElementById('personalChartTitle');
+    const badgeEl = document.getElementById('personalChartTotalBadge');
+
+    if (titleEl) {
+      titleEl.textContent = activePersonName === 'Combined' 
+        ? 'Personal Category Breakdown (Combined)' 
+        : (activePersonName === 'Pallavi' ? '🌸 Pallavi\'s Category Breakdown' : '👤 Palash\'s Category Breakdown');
+    }
+
+    if (badgeEl) {
+      badgeEl.textContent = `Total: ${window.formatINR ? window.formatINR(total) : '₹' + total.toLocaleString('en-IN')}`;
+    }
 
     if (!canvas) return;
 
-    if (personalItems.length === 0 || combinedTotal === 0) {
-      if (emptyMsg) emptyMsg.classList.remove('hidden');
-      if (listEl) listEl.innerHTML = '<div class="text-xs text-slate-400 font-medium py-2 text-center">No personal items logged in this period.</div>';
+    if (items.length === 0 || total === 0) {
+      if (emptyMsg) {
+        emptyMsg.classList.remove('hidden');
+        emptyMsg.textContent = `No personal expenses logged for ${activePersonName} in this period.`;
+      }
+      if (listEl) listEl.innerHTML = `<div class="text-xs text-slate-400 font-medium py-3 text-center">No personal items logged for ${activePersonName} in this period.</div>`;
       if (personalChartInstance) {
         personalChartInstance.destroy();
         personalChartInstance = null;
@@ -2326,7 +2442,7 @@
     if (emptyMsg) emptyMsg.classList.add('hidden');
 
     const catMap = {};
-    personalItems.forEach(i => {
+    items.forEach(i => {
       const cat = i.category || 'Other';
       catMap[cat] = (catMap[cat] || 0) + (Number(i.amount) || 0);
     });
@@ -2342,7 +2458,7 @@
 
     if (listEl) {
       listEl.innerHTML = sortedCats.map(([cat, amount], idx) => {
-        const pct = Math.round((amount / combinedTotal) * 100);
+        const pct = total > 0 ? Math.round((amount / total) * 100) : 0;
         const color = palette[idx % palette.length];
         return `
           <div class="flex items-center justify-between text-xs py-1 border-b border-slate-50 last:border-0">
@@ -2351,7 +2467,7 @@
               <span class="font-bold text-slate-700 truncate">${cat}</span>
             </div>
             <div class="flex items-center space-x-2 font-mono">
-              <span class="font-black text-slate-900">${window.formatINR ? window.formatINR(amount) : '₹' + amount}</span>
+              <span class="font-black text-slate-900">${window.formatINR ? window.formatINR(amount) : '₹' + amount.toLocaleString('en-IN')}</span>
               <span class="text-[10px] text-slate-400 font-semibold w-8 text-right">${pct}%</span>
             </div>
           </div>
@@ -2385,7 +2501,7 @@
               callbacks: {
                 label: function (ctx) {
                   const val = ctx.raw || 0;
-                  const pct = Math.round((val / combinedTotal) * 100);
+                  const pct = total > 0 ? Math.round((val / total) * 100) : 0;
                   return ` ${ctx.label}: ₹${val.toLocaleString('en-IN')} (${pct}%)`;
                 }
               }
@@ -2396,9 +2512,20 @@
     }
   }
 
-  function renderPersonalComparisonMatrix(personalItems) {
+  function renderPersonalComparisonMatrix(personalItems, activeFilter) {
     const container = document.getElementById('personalComparisonContainer');
+    const compTitle = document.getElementById('personalComparisonTitle');
     if (!container) return;
+
+    if (compTitle) {
+      if (activeFilter === 'Pallavi') {
+        compTitle.textContent = 'Pallavi vs Palash Category Benchmark';
+      } else if (activeFilter === 'Palash') {
+        compTitle.textContent = 'Palash vs Pallavi Category Benchmark';
+      } else {
+        compTitle.textContent = 'Palash vs Pallavi Category Comparison';
+      }
+    }
 
     if (personalItems.length === 0) {
       container.innerHTML = '<div class="text-xs text-slate-400 font-medium py-6 text-center">No personal expenses to compare.</div>';
@@ -2420,41 +2547,41 @@
       const palashPct = data.total > 0 ? Math.round((data.Palash / data.total) * 100) : 0;
       const pallaviPct = data.total > 0 ? (100 - palashPct) : 0;
 
+      const isPalashActive = activeFilter === 'Palash';
+      const isPallaviActive = activeFilter === 'Pallavi';
+
       return `
-        <div class="p-3 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-1.5">
+        <div class="p-3 bg-white border ${isPallaviActive && data.Pallavi > 0 ? 'border-pink-300 ring-1 ring-pink-100' : (isPalashActive && data.Palash > 0 ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-slate-200/80')} rounded-2xl shadow-xs space-y-1.5 transition">
           <div class="flex items-center justify-between text-xs">
             <span class="font-black text-slate-900">${cat}</span>
-            <span class="font-extrabold text-slate-600 font-mono text-[11px]">${window.formatINR ? window.formatINR(data.total) : '₹' + data.total}</span>
+            <span class="font-extrabold text-slate-600 font-mono text-[11px]">${window.formatINR ? window.formatINR(data.total) : '₹' + data.total.toLocaleString('en-IN')}</span>
           </div>
           
           <!-- Dual Progress Bar -->
           <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex">
-            <div style="width: ${palashPct}%" class="bg-indigo-500 h-full transition-all duration-300" title="Palash: ${palashPct}%"></div>
-            <div style="width: ${pallaviPct}%" class="bg-pink-500 h-full transition-all duration-300" title="Pallavi: ${pallaviPct}%"></div>
+            <div style="width: ${palashPct}%" class="${isPalashActive ? 'bg-indigo-600' : 'bg-indigo-500'} h-full transition-all duration-300" title="Palash: ${palashPct}%"></div>
+            <div style="width: ${pallaviPct}%" class="${isPallaviActive ? 'bg-pink-600' : 'bg-pink-500'} h-full transition-all duration-300" title="Pallavi: ${pallaviPct}%"></div>
           </div>
 
           <div class="flex items-center justify-between text-[11px] font-semibold text-slate-500">
-            <span class="text-indigo-700 font-bold">👤 Palash: ₹${data.Palash.toLocaleString('en-IN')} (${palashPct}%)</span>
-            <span class="text-pink-700 font-bold">🌸 Pallavi: ₹${data.Pallavi.toLocaleString('en-IN')} (${pallaviPct}%)</span>
+            <span class="${isPalashActive ? 'text-indigo-900 font-black' : 'text-indigo-700 font-bold'}">👤 Palash: ₹${data.Palash.toLocaleString('en-IN')} (${palashPct}%)</span>
+            <span class="${isPallaviActive ? 'text-pink-900 font-black' : 'text-pink-700 font-bold'}">🌸 Pallavi: ₹${data.Pallavi.toLocaleString('en-IN')} (${pallaviPct}%)</span>
           </div>
         </div>
       `;
     }).join('');
   }
 
-  function renderPersonalTable(personalItems) {
+  function renderPersonalTable(items) {
     const tbody = document.getElementById('personalExpensesTableBody');
     const emptyState = document.getElementById('personalExpensesEmptyState');
     if (!tbody) return;
 
     const search = (document.getElementById('searchPersonalExpenses')?.value || '').trim().toLowerCase();
 
-    const filtered = personalItems.filter(i => {
-      const payer = getPersonalPayer(i);
-      if (currentPersonalFilter !== 'all' && payer !== currentPersonalFilter) {
-        return false;
-      }
+    const filtered = items.filter(i => {
       if (search) {
+        const payer = getPersonalPayer(i);
         const text = `${i.notes || ''} ${i.description || ''} ${i.category || ''} ${i.paidTo || ''} ${payer}`.toLowerCase();
         if (!text.includes(search)) return false;
       }
@@ -2485,7 +2612,7 @@
           <td class="py-2.5 px-3 font-bold text-slate-900">${item.category || '-'}</td>
           <td class="py-2.5 px-3 text-slate-500 text-[11px]">${item.paymentMethod || 'UPI / Cash'}</td>
           <td class="py-2.5 px-3 text-slate-600 max-w-[200px] truncate" title="${item.notes || item.description || item.paidTo || ''}">${item.notes || item.description || item.paidTo || '-'}</td>
-          <td class="py-2.5 px-3 text-right font-black text-purple-900 font-mono text-sm">${window.formatINR ? window.formatINR(item.amount) : '₹' + item.amount}</td>
+          <td class="py-2.5 px-3 text-right font-black text-purple-900 font-mono text-sm">${window.formatINR ? window.formatINR(item.amount) : '₹' + item.amount.toLocaleString('en-IN')}</td>
           <td class="py-2.5 px-3 text-center whitespace-nowrap">
             <button onclick="editExpense('${item.id}')" class="p-1 text-slate-400 hover:text-indigo-600 transition" title="Edit expense">
               <i class="fa-solid fa-pen-to-square"></i>

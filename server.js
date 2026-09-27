@@ -124,7 +124,7 @@ const handler = async (req, res) => {
 
 const server = http.createServer(handler);
 
-if (!process.env.VERCEL) {
+if (require.main === module) {
     server.listen(PORT, () => {
         console.log(`=======================================================`);
         console.log(` 🚀 Full-Stack Household Expense Server Running Live!`);

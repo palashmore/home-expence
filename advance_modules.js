@@ -712,7 +712,39 @@
   // 4. DOMESTIC STAFF ATTENDANCE & LEAVE PAYROLL SUITE
   // ========================================================
 
+  function updateAttendanceSyncStatus(status) {
+    const el = document.getElementById('attendanceSyncStatus');
+    if (!el) return;
+    if (status === 'saving') {
+      el.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 transition-all';
+      el.innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin text-amber-600"></i> <span>Saving to Cloud...</span>';
+    } else if (status === 'saved') {
+      el.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 transition-all';
+      el.innerHTML = '<i class="fa-solid fa-cloud-arrow-up text-emerald-600"></i> <span>Auto-Saved to Cloud</span>';
+      setTimeout(() => {
+        const curEl = document.getElementById('attendanceSyncStatus');
+        if (curEl && curEl.innerHTML.includes('Auto-Saved')) {
+          curEl.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200 transition-all';
+          curEl.innerHTML = '<i class="fa-solid fa-cloud text-slate-400"></i> <span>Auto-Saved to Cloud</span>';
+        }
+      }, 2500);
+    } else if (status === 'error') {
+      el.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-300 transition-all';
+      el.innerHTML = '<i class="fa-solid fa-circle-exclamation text-rose-600"></i> <span>Sync Failed (Saved Locally)</span>';
+    }
+  }
+
   async function loadAttendanceFromApi() {
+    try {
+      const cached = localStorage.getItem('homeexpenses_staff_attendance');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === 'object') {
+          staffAttendanceState = { ...staffAttendanceState, ...parsed };
+        }
+      }
+    } catch (e) {}
+
     try {
       const res = await fetch(`/api/attendance?_t=${Date.now()}`, {
         cache: 'no-store',
@@ -723,6 +755,9 @@
         const data = json.data || json;
         if (data && typeof data === 'object') {
           staffAttendanceState = { ...staffAttendanceState, ...data };
+          try {
+            localStorage.setItem('homeexpenses_staff_attendance', JSON.stringify(staffAttendanceState));
+          } catch (e) {}
         }
       }
     } catch (e) {
@@ -732,7 +767,13 @@
 
   async function saveAttendanceToApi(staffName, monthKey, record) {
     try {
-      await fetch('/api/attendance', {
+      localStorage.setItem('homeexpenses_staff_attendance', JSON.stringify(staffAttendanceState));
+    } catch (e) {}
+
+    updateAttendanceSyncStatus('saving');
+
+    try {
+      const res = await fetch('/api/attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -743,8 +784,15 @@
           notes: record.notes || ''
         })
       });
+
+      if (res.ok) {
+        updateAttendanceSyncStatus('saved');
+      } else {
+        updateAttendanceSyncStatus('error');
+      }
     } catch (e) {
       console.error('Error saving attendance to API:', e);
+      updateAttendanceSyncStatus('error');
     }
   }
 
@@ -836,8 +884,8 @@
         else if (cur === 'H') next = 'P';
 
         monthRecord.days[d] = next;
-        saveAttendanceToApi(staffName, monthKey, monthRecord);
         window.renderAttendanceCalendar();
+        saveAttendanceToApi(staffName, monthKey, monthRecord);
       });
     });
 

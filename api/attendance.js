@@ -86,7 +86,7 @@ module.exports = async function handler(req, res) {
             // Bulk or direct dictionary update
             if (body.data || body['Maid - Madhuri'] || body['Chef - Nilima Nikose']) {
                 const toSave = body.data || body;
-                writeAttendance(toSave);
+                await writeAttendance(toSave);
                 return res.status(200).json({
                     success: true,
                     message: 'Attendance data updated successfully',
@@ -108,6 +108,8 @@ module.exports = async function handler(req, res) {
                 attendance[body.staff].months = {};
             }
 
+            const oldRecord = attendance[body.staff].months[body.month];
+
             attendance[body.staff].months[body.month] = {
                 days: body.days || {},
                 bonus: Number(body.bonus) || 0,
@@ -115,7 +117,25 @@ module.exports = async function handler(req, res) {
                 updatedAt: new Date().toISOString()
             };
 
-            writeAttendance(attendance);
+            await writeAttendance(attendance);
+
+            try {
+                await cloudSync.logAudit(
+                    'UPDATE_ATTENDANCE',
+                    `${body.staff}:${body.month}`,
+                    {
+                        staff: { old: body.staff, new: body.staff },
+                        month: { old: body.month, new: body.month },
+                        daysRecorded: {
+                            old: oldRecord ? Object.keys(oldRecord.days || {}).length : 0,
+                            new: Object.keys(body.days || {}).length
+                        }
+                    },
+                    { staff: body.staff, month: body.month }
+                );
+            } catch (auditErr) {
+                console.warn('Attendance audit log failed:', auditErr.message);
+            }
 
             return res.status(200).json({
                 success: true,

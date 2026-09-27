@@ -6,6 +6,10 @@
       "includeFiles": "data/**",
       "maxDuration": 15
     },
+    "index.js": {
+      "includeFiles": "data/**",
+      "maxDuration": 15
+    },
     "api/*.js": {
       "includeFiles": "data/**",
       "maxDuration": 15
@@ -17,7 +21,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "server.js"
+      "dest": "/server.js"
     }
   ],
   "headers": [

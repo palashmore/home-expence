@@ -29,29 +29,26 @@ const mimeTypes = {
     '.ico': 'image/x-icon'
 };
 
-const server = http.createServer(async (req, res) => {
+const handler = async (req, res) => {
     const parsedUrl = url.parse(req.url, true);
     const pathname = parsedUrl.pathname;
 
-    // Helper: Parse JSON Body for API requests
-    let bodyData = '';
-    req.on('data', chunk => { bodyData += chunk; });
-    
-    req.on('end', async () => {
-        if (bodyData) {
-            try { req.body = JSON.parse(bodyData); } catch (e) { req.body = bodyData; }
-        }
-        req.query = parsedUrl.query;
+    const processRequest = async () => {
+        if (!req.query) req.query = parsedUrl.query;
 
-        // Mock Serverless Response object methods for local execution
-        res.status = function(code) {
-            res.statusCode = code;
-            return res;
-        };
-        res.json = function(data) {
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify(data));
-        };
+        // Mock Serverless Response object methods if not present
+        if (!res.status) {
+            res.status = function(code) {
+                res.statusCode = code;
+                return res;
+            };
+        }
+        if (!res.json) {
+            res.json = function(data) {
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(data));
+            };
+        }
 
         // API Route Handlers
         if (pathname === '/api/auth') {
@@ -109,15 +106,33 @@ const server = http.createServer(async (req, res) => {
                 res.end(content, 'utf-8');
             }
         });
+    };
+
+    if (req.body !== undefined) {
+        return await processRequest();
+    }
+
+    let bodyData = '';
+    req.on('data', chunk => { bodyData += chunk; });
+    req.on('end', async () => {
+        if (bodyData) {
+            try { req.body = JSON.parse(bodyData); } catch (e) { req.body = bodyData; }
+        }
+        await processRequest();
     });
-});
+};
 
-server.listen(PORT, () => {
-    console.log(`=======================================================`);
-    console.log(` 🚀 Full-Stack Household Expense Server Running Live!`);
-    console.log(` 🌐 Server URL: http://localhost:${PORT}`);
-    console.log(` 🔒 Security: Server-Side Auth & Validation Enabled`);
-    console.log(`=======================================================`);
-});
+const server = http.createServer(handler);
 
-module.exports = server;
+if (!process.env.VERCEL) {
+    server.listen(PORT, () => {
+        console.log(`=======================================================`);
+        console.log(` 🚀 Full-Stack Household Expense Server Running Live!`);
+        console.log(` 🌐 Server URL: http://localhost:${PORT}`);
+        console.log(` 🔒 Security: Server-Side Auth & Validation Enabled`);
+        console.log(`=======================================================`);
+    });
+}
+
+module.exports = handler;
+module.exports.default = handler;

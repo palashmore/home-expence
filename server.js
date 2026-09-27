@@ -38,7 +38,10 @@ const staticFiles = [
     'advance_modules.js',
     'sw.js',
     'manifest.json',
-    'icon.svg'
+    'icon.svg',
+    'icon-192.png',
+    'icon-512.png',
+    'apple-touch-icon.png'
 ];
 
 for (const f of staticFiles) {

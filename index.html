@@ -1019,17 +1019,17 @@
                             <i class="fa-solid fa-clipboard-user text-indigo-600 mr-2"></i>
                             <span>Staff Attendance &amp; Leave Payroll Suite</span>
                         </h3>
-                        <p class="text-xs text-slate-500 font-medium mt-0.5">Click any day to toggle Present, Leave, or Half-day. Auto-calculates pro-rata deductions &amp; bonuses.</p>
+                        <p class="text-xs text-slate-500 font-medium mt-0.5">Click any day to toggle Present, Leave, or Half-day. Auto-calculates pro-rata salary and leave deductions.</p>
                     </div>
 
                     <!-- Staff Selector & Action -->
-                    <div class="flex items-center gap-2">
-                        <select id="attendanceStaffSelect" onchange="renderAttendanceCalendar()" class="bg-white border-2 border-indigo-200 text-indigo-900 text-xs font-black rounded-xl px-3 py-2 shadow-sm focus:border-indigo-500">
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                        <select id="attendanceStaffSelect" onchange="renderAttendanceCalendar()" class="w-full sm:w-auto bg-white border-2 border-indigo-200 text-indigo-900 text-xs font-black rounded-xl px-3 py-2.5 shadow-sm focus:border-indigo-500">
                             <option value="Chef - Nilima Nikose">👩‍🍳 Chef - Nilima Nikose (₹4,500/mo)</option>
                             <option value="Maid - Madhuri">🧹 Maid - Madhuri (₹800/mo)</option>
                         </select>
-                        <button onclick="generateWhatsAppVoucher()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-md transition flex items-center space-x-1.5">
-                            <i class="fa-brands fa-whatsapp text-sm"></i>
+                        <button onclick="generateWhatsAppVoucher()" class="w-full sm:w-auto justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl shadow-md transition flex items-center space-x-1.5 active:scale-95">
+                            <i class="fa-brands fa-whatsapp text-sm sm:text-base"></i>
                             <span>WhatsApp Voucher</span>
                         </button>
                     </div>
@@ -1059,7 +1059,7 @@
                         </div>
                     </div>
 
-                    <!-- Pro-Rata Salary & Bonus Calculator (4 cols) -->
+                    <!-- Pro-Rata Salary Calculator (4 cols) -->
                     <div class="lg:col-span-4 bg-slate-50/80 border border-slate-200 rounded-2xl p-5 flex flex-col justify-between space-y-4">
                         <div>
                             <h4 class="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center justify-between">
@@ -1083,10 +1083,6 @@
                                 <div class="flex justify-between text-rose-600">
                                     <span>Leave Deductions:</span>
                                     <span id="calcDeductions" class="font-black">-₹0</span>
-                                </div>
-                                <div class="flex justify-between items-center pt-1">
-                                    <span>Festival / Bonus (₹):</span>
-                                    <input type="number" id="inputStaffBonus" min="0" step="50" value="0" onchange="onBonusChange()" class="w-20 px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold text-right focus:border-indigo-500">
                                 </div>
                             </div>
                         </div>

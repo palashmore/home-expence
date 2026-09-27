@@ -858,11 +858,8 @@
     const chargeableHalfDays = Math.max(0, halfCount - (freeLeavesRemaining * 2));
 
     const leaveDeductions = (chargeableLeaves * perDayRate) + (chargeableHalfDays * (perDayRate / 2));
-    const bonusInput = document.getElementById('inputStaffBonus');
-    const bonus = bonusInput ? (parseFloat(bonusInput.value) || 0) : (monthRecord.bonus || 0);
-
     const payableDays = (presentCount + holidayCount) + (halfCount * 0.5);
-    const netPayable = Math.max(0, Math.round(baseSalary - leaveDeductions + bonus));
+    const netPayable = Math.max(0, Math.round(baseSalary - leaveDeductions));
 
     const baseEl = document.getElementById('calcBaseSalary');
     const totalDaysEl = document.getElementById('calcTotalDays');
@@ -879,9 +876,6 @@
       dedEl.innerHTML = `-₹${Math.round(leaveDeductions).toLocaleString('en-IN')} <span class="text-[10px] ${chargeableLeaves > 0 ? 'text-rose-500 font-bold' : 'text-emerald-600 font-semibold'}">(${chargeableLeaves} charged)</span>`;
     }
     if (netEl) netEl.textContent = `₹${netPayable.toLocaleString('en-IN')}`;
-    if (bonusInput && document.activeElement !== bonusInput) {
-      bonusInput.value = monthRecord.bonus || 0;
-    }
 
     // Cache calculation for Quick Pay & Voucher
     window.currentStaffCalc = {
@@ -889,28 +883,17 @@
       month: monthKey,
       baseSalary: baseSalary,
       daysInMonth: daysInMonth,
+      presentCount: presentCount,
       leaveCount: leaveCount,
       halfCount: halfCount,
+      payableDays: payableDays,
       deductions: Math.round(leaveDeductions),
-      bonus: bonus,
       netPayable: netPayable
     };
   };
 
   window.onBonusChange = function () {
-    const staffSelect = document.getElementById('attendanceStaffSelect');
-    const bonusInput = document.getElementById('inputStaffBonus');
-    if (!staffSelect || !bonusInput) return;
-
-    const staffName = staffSelect.value || 'Chef - Nilima Nikose';
-    const now = new Date();
-    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-    if (staffAttendanceState[staffName]?.months?.[monthKey]) {
-      staffAttendanceState[staffName].months[monthKey].bonus = parseFloat(bonusInput.value) || 0;
-      saveAttendanceToApi(staffName, monthKey, staffAttendanceState[staffName].months[monthKey]);
-      window.renderAttendanceCalendar();
-    }
+    // No-op retained for backwards compatibility
   };
 
   window.generateWhatsAppVoucher = function () {
@@ -920,22 +903,52 @@
       return;
     }
 
+    const expList = window.expensesData || window.expenses || [];
+    const [yearStr, monthStr] = (calc.month || '').split('-');
+    const staffNameLower = (calc.staff || '').toLowerCase();
+    const shortStaff = calc.staff.replace('Chef - ', '').replace('Maid - ', '').trim();
+    const shortStaffLower = shortStaff.toLowerCase();
+
+    // Check if salary payment has already been recorded in current month's expenses
+    const matchingPayment = expList.find(e => {
+      if (!e.date) return false;
+      const d = String(e.date).split('-');
+      const isSameMonth = d[0] === yearStr && d[1] === monthStr;
+      if (!isSameMonth) return false;
+
+      const cat = (e.category || '').toLowerCase();
+      const paidTo = (e.paidTo || '').toLowerCase();
+      const vendor = (e.vendor || '').toLowerCase();
+      const notes = (e.notes || '').toLowerCase();
+
+      return cat.includes(shortStaffLower) ||
+             paidTo.includes(shortStaffLower) ||
+             vendor.includes(shortStaffLower) ||
+             notes.includes(shortStaffLower) ||
+             staffNameLower.includes(cat);
+    });
+
+    const isPaid = !!matchingPayment;
+    const paymentStatusText = isPaid
+      ? `✅ PAID${matchingPayment.amount ? ` (₹${Number(matchingPayment.amount).toLocaleString('en-IN')})` : ''}`
+      : `⏳ NOT PAID (Pending)`;
+
     const dateFormatted = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
     const voucherText =
-`*PAYROLL & SALARY VOUCHER - HOMEEXPENSES*
+`*ATTENDANCE & SALARY UPDATE - HOMEEXPENSES*
 👤 *Staff Member:* ${calc.staff}
 📅 *Month / Cycle:* ${calc.month}
-💵 *Base Monthly Salary:* ₹${calc.baseSalary.toLocaleString('en-IN')}
-❌ *Leaves / Absences:* ${calc.leaveCount} days (${calc.halfCount} half-days)
-✂️ *Pro-rata Leave Deductions:* -₹${calc.deductions.toLocaleString('en-IN')}
-🎁 *Festive / Bonus Allowance:* +₹${calc.bonus.toLocaleString('en-IN')}
-------------------------------------------------
-✅ *NET SALARY PAYABLE: ₹${calc.netPayable.toLocaleString('en-IN')}*
-------------------------------------------------
-🗓️ *Voucher Generated:* ${dateFormatted}
-*Status:* Confirmed & Disbursed via UPI.
-Thank you for your valuable household support! 🙏`;
+━━━━━━━━━━━━━━━━━━━━━━
+📊 *Attendance & Leaves:*
+• Days Worked: ${calc.payableDays || (calc.daysInMonth - calc.leaveCount)} days
+• Leaves Taken: ${calc.leaveCount} days${calc.halfCount > 0 ? ` (${calc.halfCount} half-days)` : ''}
+
+💰 *Salary Amount:* ₹${calc.netPayable.toLocaleString('en-IN')}
+📌 *Payment Status:* ${paymentStatusText}
+━━━━━━━━━━━━━━━━━━━━━━
+🗓️ *Date:* ${dateFormatted}
+*HomeExpenses Tracker*`;
 
     const waUrl = `https://wa.me/?text=${encodeURIComponent(voucherText)}`;
     window.open(waUrl, '_blank');

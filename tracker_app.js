@@ -173,6 +173,9 @@ function switchTab(tabId) {
     if (tabId === 'admin' && window.renderAdminView) {
         window.renderAdminView();
     }
+    if (tabId === 'audit' && window.renderAuditView) {
+        window.renderAuditView();
+    }
 
     // Scroll to top when switching views on mobile/desktop
     try {

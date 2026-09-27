@@ -209,6 +209,12 @@
                     <span class="hidden sm:inline">⚙️ Admin Settings</span>
                     <span class="sm:hidden">⚙️ Admin</span>
                 </button>
+                <button onclick="switchTab('audit')" id="tab-audit" class="tab-btn shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 whitespace-nowrap">
+                    <i class="fa-solid fa-clock-rotate-left text-amber-500"></i>
+                    <span class="hidden sm:inline">Audit Trail</span>
+                    <span class="sm:hidden">Audit</span>
+                    <span id="navAuditBadge" class="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-black">●</span>
+                </button>
             </div>
             <div class="hidden md:flex items-center space-x-2 text-xs font-bold text-indigo-900 bg-indigo-50/80 px-3 py-1.5 rounded-xl border border-indigo-100 shrink-0 ml-2">
                 <i class="fa-solid fa-circle-check text-emerald-500"></i>
@@ -1571,6 +1577,87 @@
 
         </div>
 
+        <!-- ================= 7. SYSTEM AUDIT & CHANGE TRACKING DASHBOARD ================= -->
+        <div id="view-audit" class="tab-view hidden space-y-6">
+            <!-- Header Banner -->
+            <div class="glass-card p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-200/80 bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                            <span>LIVE AUDIT TRAIL</span>
+                        </span>
+                        <span class="text-xs text-slate-400 font-medium">Cloud Synchronized</span>
+                    </div>
+                    <h2 class="text-xl sm:text-2xl font-black text-white mt-1.5 flex items-center space-x-2">
+                        <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i>
+                        <span>System Change History & Audit Logs</span>
+                    </h2>
+                    <p class="text-xs text-slate-300 mt-1 max-w-2xl">
+                        Real-time tracking of amount modifications, family split reallocation, domestic staff payroll entries, and master configurations with field-level diffs.
+                    </p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="window.renderAuditView()" class="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 shadow-sm transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-arrows-rotate text-indigo-400"></i>
+                        <span>Refresh Logs</span>
+                    </button>
+                    <a href="/api/audit" target="_blank" class="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        <span>Full Screen</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                <div class="glass-card p-4 rounded-2xl border border-slate-200/80 shadow-sm bg-white/80">
+                    <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Recorded Events</div>
+                    <div class="text-2xl font-black text-slate-900 mt-1" id="inAppAuditTotal">--</div>
+                    <div class="text-[10px] text-emerald-600 font-bold mt-0.5">● Persisted in Gist Cloud</div>
+                </div>
+                <div class="glass-card p-4 rounded-2xl border border-slate-200/80 shadow-sm bg-white/80">
+                    <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Expense Updates</div>
+                    <div class="text-2xl font-black text-indigo-600 mt-1" id="inAppAuditUpdates">--</div>
+                    <div class="text-[10px] text-slate-500 font-medium mt-0.5">Amounts, splits, vendors</div>
+                </div>
+                <div class="glass-card p-4 rounded-2xl border border-slate-200/80 shadow-sm bg-white/80">
+                    <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Admin Configurations</div>
+                    <div class="text-2xl font-black text-purple-600 mt-1" id="inAppAuditConfigs">--</div>
+                    <div class="text-[10px] text-slate-500 font-medium mt-0.5">Staff, categories, rules</div>
+                </div>
+                <div class="glass-card p-4 rounded-2xl border border-slate-200/80 shadow-sm bg-white/80">
+                    <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Inserts & Deletes</div>
+                    <div class="text-2xl font-black text-emerald-600 mt-1" id="inAppAuditMutations">--</div>
+                    <div class="text-[10px] text-slate-500 font-medium mt-0.5">New records & removals</div>
+                </div>
+            </div>
+
+            <!-- Filter & Search Bar -->
+            <div class="glass-card p-4 rounded-2xl border border-slate-200/80 shadow-sm bg-white flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div class="relative flex-1 max-w-md">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="inAppAuditSearch" placeholder="Search by ID (e.g. exp-001), category, person, notes..." oninput="window.filterInAppAuditLogs()" class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="flex flex-wrap items-center gap-1.5 text-xs font-bold">
+                    <span class="text-[11px] text-slate-400 uppercase mr-1">Filter:</span>
+                    <button onclick="window.setInAppAuditFilter('ALL')" id="inAppFlt-ALL" class="inapp-flt-btn active px-3 py-1.5 rounded-lg bg-indigo-600 text-white transition">All</button>
+                    <button onclick="window.setInAppAuditFilter('UPDATE_EXPENSE')" id="inAppFlt-UPDATE_EXPENSE" class="inapp-flt-btn px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Edits</button>
+                    <button onclick="window.setInAppAuditFilter('UPDATE_CONFIG')" id="inAppFlt-UPDATE_CONFIG" class="inapp-flt-btn px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Config</button>
+                    <button onclick="window.setInAppAuditFilter('CREATE_EXPENSE')" id="inAppFlt-CREATE_EXPENSE" class="inapp-flt-btn px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition">New</button>
+                    <button onclick="window.setInAppAuditFilter('DELETE_EXPENSE')" id="inAppFlt-DELETE_EXPENSE" class="inapp-flt-btn px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition">Deletes</button>
+                </div>
+            </div>
+
+            <!-- In-App Audit Event Stream -->
+            <div id="inAppAuditList" class="space-y-3.5">
+                <div class="p-8 text-center text-slate-400">
+                    <i class="fa-solid fa-spinner animate-spin text-2xl text-indigo-500 mb-2"></i>
+                    <div class="text-xs font-bold">Loading Cloud Audit Trail...</div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <!-- ================= NATIVE MOBILE BOTTOM NAVIGATION BAR ================= -->
@@ -2079,7 +2166,7 @@
     </div>
 
     <!-- Core Application Logic -->
-    <script src="tracker_app.js?v=3.4.0"></script>
-    <script src="advance_modules.js?v=3.4.0"></script>
+    <script src="tracker_app.js?v=3.5.0"></script>
+    <script src="advance_modules.js?v=3.5.0"></script>
 </body>
 </html>

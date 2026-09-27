@@ -1777,10 +1777,164 @@ Thank you for your valuable household support! 🙏`;
     renderBillsRadar(filtered);
   };
 
+  // ========================================================
+  // 9. SYSTEM AUDIT & CHANGE HISTORY CONTROLLER
+  // ========================================================
+  let inAppAuditLogs = [];
+  let inAppAuditFilter = 'ALL';
+
+  async function renderAuditView() {
+    const listEl = document.getElementById('inAppAuditList');
+
+    try {
+      const res = await fetch(`/api/audit?format=json&_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          inAppAuditLogs = json.data;
+          
+          // Update KPI stats
+          const totalEl = document.getElementById('inAppAuditTotal');
+          const updatesEl = document.getElementById('inAppAuditUpdates');
+          const configsEl = document.getElementById('inAppAuditConfigs');
+          const mutationsEl = document.getElementById('inAppAuditMutations');
+          const navBadge = document.getElementById('navAuditBadge');
+
+          if (totalEl) totalEl.textContent = inAppAuditLogs.length;
+          if (navBadge) navBadge.textContent = inAppAuditLogs.length;
+          if (updatesEl) updatesEl.textContent = inAppAuditLogs.filter(l => l.action === 'UPDATE_EXPENSE').length;
+          if (configsEl) configsEl.textContent = inAppAuditLogs.filter(l => l.action === 'UPDATE_CONFIG').length;
+          if (mutationsEl) mutationsEl.textContent = inAppAuditLogs.filter(l => l.action === 'CREATE_EXPENSE' || l.action === 'DELETE_EXPENSE').length;
+
+          renderInAppAuditList();
+        }
+      }
+    } catch (err) {
+      console.warn('Could not load in-app audit logs:', err);
+      if (listEl) {
+        listEl.innerHTML = `<div class="p-6 text-center text-rose-500 font-bold text-xs">Error loading audit logs: ${err.message}</div>`;
+      }
+    }
+  }
+  window.renderAuditView = renderAuditView;
+
+  function renderInAppAuditList() {
+    const listEl = document.getElementById('inAppAuditList');
+    if (!listEl) return;
+
+    const search = (document.getElementById('inAppAuditSearch')?.value || '').toLowerCase().trim();
+
+    const filtered = inAppAuditLogs.filter(item => {
+      if (inAppAuditFilter !== 'ALL' && item.action !== inAppAuditFilter) return false;
+      if (!search) return true;
+      return JSON.stringify(item).toLowerCase().includes(search);
+    });
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = `
+        <div class="glass-card p-12 text-center text-slate-400 rounded-2xl border border-slate-200/80 bg-white">
+          <i class="fa-solid fa-filter-circle-xmark text-3xl mb-2 text-slate-300"></i>
+          <div class="text-xs font-bold text-slate-600">No matching audit events found</div>
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = filtered.map(item => {
+      let badge = '';
+      if (item.action === 'UPDATE_EXPENSE') {
+        badge = '<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200"><i class="fa-solid fa-pen-to-square mr-1"></i> UPDATE EXPENSE</span>';
+      } else if (item.action === 'CREATE_EXPENSE') {
+        badge = '<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200"><i class="fa-solid fa-plus mr-1"></i> NEW RECORD</span>';
+      } else if (item.action === 'DELETE_EXPENSE') {
+        badge = '<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-rose-50 text-rose-700 border border-rose-200"><i class="fa-solid fa-trash mr-1"></i> DELETE RECORD</span>';
+      } else if (item.action === 'UPDATE_CONFIG') {
+        badge = '<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-purple-50 text-purple-700 border border-purple-200"><i class="fa-solid fa-sliders mr-1"></i> ADMIN CONFIG</span>';
+      } else {
+        badge = `<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-slate-100 text-slate-700">${item.action}</span>`;
+      }
+
+      const d = new Date(item.timestamp);
+      const timeStr = isNaN(d.getTime()) ? item.timestamp : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) + ' at ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+      let diffHtml = '';
+      if (item.diff && Object.keys(item.diff).length > 0) {
+        let rows = '';
+        for (const [key, val] of Object.entries(item.diff)) {
+          if (!val || typeof val !== 'object') continue;
+          let oldVal = val.old !== undefined ? val.old : null;
+          let newVal = val.new !== undefined ? val.new : (val.updated ? val.summary || 'Updated' : null);
+
+          if (key === 'amount') {
+            if (oldVal) oldVal = '₹' + Number(oldVal).toLocaleString('en-IN');
+            if (newVal) newVal = '₹' + Number(newVal).toLocaleString('en-IN');
+          }
+
+          rows += `
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between py-1.5 border-b border-slate-100 last:border-0 text-xs gap-1">
+              <span class="font-bold text-slate-500 capitalize w-36 shrink-0">${key.replace(/([A-Z])/g, ' $1')}:</span>
+              <div class="flex items-center gap-2 flex-1 font-mono text-[11px] overflow-x-auto">
+                ${oldVal !== null ? `<span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 line-through">${oldVal}</span>` : ''}
+                ${oldVal !== null && newVal !== null ? `<i class="fa-solid fa-arrow-right text-slate-400 text-[10px]"></i>` : ''}
+                ${newVal !== null ? `<span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">${newVal}</span>` : ''}
+              </div>
+            </div>
+          `;
+        }
+        diffHtml = `<div class="bg-slate-50/80 p-3 rounded-xl border border-slate-200/60">${rows}</div>`;
+      }
+
+      let metaPills = '';
+      const meta = item.metadata || {};
+      if (meta.amount) metaPills += `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">₹${Number(meta.amount).toLocaleString('en-IN')}</span>`;
+      if (meta.category) metaPills += `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">${meta.category}</span>`;
+      if (meta.paidBy) metaPills += `<span class="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold">By: ${meta.paidBy}</span>`;
+      if (meta.splitBetween) metaPills += `<span class="px-2 py-0.5 rounded bg-amber-50 text-amber-800 text-[10px] font-bold">${meta.splitBetween}</span>`;
+
+      return `
+        <div class="glass-card p-4 rounded-2xl border border-slate-200/80 shadow-sm bg-white hover:shadow-md transition space-y-2.5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-100 pb-2.5">
+            <div class="flex items-center space-x-2">
+              ${badge}
+              <span class="px-2 py-0.5 rounded bg-slate-100 font-mono text-[11px] font-bold text-slate-600 border border-slate-200">${item.recordId}</span>
+            </div>
+            <div class="text-xs text-slate-500 font-semibold">
+              <i class="fa-regular fa-clock mr-1 text-slate-400"></i> ${timeStr}
+            </div>
+          </div>
+          ${diffHtml}
+          ${metaPills ? `<div class="flex flex-wrap items-center gap-1.5 pt-0.5">${metaPills}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  window.setInAppAuditFilter = function(filter) {
+    inAppAuditFilter = filter;
+    document.querySelectorAll('.inapp-flt-btn').forEach(btn => {
+      btn.classList.remove('bg-indigo-600', 'text-white');
+      btn.classList.add('bg-slate-100', 'text-slate-700');
+    });
+    const active = document.getElementById('inAppFlt-' + filter);
+    if (active) {
+      active.classList.remove('bg-slate-100', 'text-slate-700');
+      active.classList.add('bg-indigo-600', 'text-white');
+    }
+    renderInAppAuditList();
+  };
+
+  window.filterInAppAuditLogs = function() {
+    renderInAppAuditList();
+  };
+
   window.initAdvanceModules = function () {
     initPWA();
     loadMasterConfig();
     loadAttendanceFromApi();
+    renderAuditView();
 
     // Attach real-time input watchers to expense modal inputs
     ['inputAmount', 'inputPaidTo', 'inputCategory', 'inputDate'].forEach(id => {

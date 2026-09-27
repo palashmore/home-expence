@@ -14,7 +14,6 @@ function getAuthToken() {
   return a + b + c;
 }
 
-const GITHUB_TOKEN = getAuthToken();
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const TMP_DIR = '/tmp';
 
@@ -43,7 +42,7 @@ async function fetchFromGist() {
     const gist = await res.json();
     return gist.files || null;
   } catch (err) {
-    console.warn(`[CloudSync] Error fetching Gist:`, err.message);
+    console.warn('[CloudSync] Error fetching Gist:', err.message);
     return null;
   }
 }
@@ -68,7 +67,7 @@ async function patchToGist(filesPayload) {
     }
     return true;
   } catch (err) {
-    console.warn(`[CloudSync] Error patching Gist:`, err.message);
+    console.warn('[CloudSync] Error patching Gist:', err.message);
     return false;
   }
 }
@@ -166,21 +165,20 @@ async function logAudit(action, recordId, diff = {}, metadata = {}) {
   };
 
   // Structured Real-Time Vercel Log Output
-  console.log(`\n================================================================================`);
-  console.log(`?? [HOMEEXPENSES AUDIT LOG] [${now}]`);
-  console.log(`?? ACTION: ${action} | TARGET ID: ${recordId || 'N/A'}`);
+  console.log('================================================================================');
+  console.log(`[AUDIT LOG] [${now}] ACTION: ${action} | ID: ${recordId || 'N/A'}`);
   if (Object.keys(diff).length > 0) {
-    console.log(`?? CHANGES / DIFF:`);
+    console.log('CHANGES:');
     for (const [key, change] of Object.entries(diff)) {
       const oldVal = change.old !== undefined ? JSON.stringify(change.old) : '(none)';
       const newVal = change.new !== undefined ? JSON.stringify(change.new) : '(none)';
-      console.log(`   • ${key}: ${oldVal} ? ${newVal}`);
+      console.log(`  * ${key}: ${oldVal} -> ${newVal}`);
     }
   }
   if (Object.keys(metadata).length > 0) {
-    console.log(`?? METADATA: ${JSON.stringify(metadata)}`);
+    console.log(`METADATA: ${JSON.stringify(metadata)}`);
   }
-  console.log(`================================================================================\n`);
+  console.log('================================================================================');
 
   try {
     let logs = await readJson('audit_log.json', []);
@@ -189,7 +187,7 @@ async function logAudit(action, recordId, diff = {}, metadata = {}) {
     if (logs.length > 500) logs = logs.slice(0, 500);
     await writeJson('audit_log.json', logs);
   } catch (err) {
-    console.warn(`[AuditLog] Failed to persist audit log:`, err.message);
+    console.warn('[AuditLog] Failed to persist audit log:', err.message);
   }
 
   return entry;

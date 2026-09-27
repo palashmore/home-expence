@@ -1955,36 +1955,58 @@
             </div>
             <div class="p-6 space-y-4">
                 <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-1">
-                    <span class="text-xs font-bold text-emerald-800 uppercase tracking-wide">Calculated Net Balance</span>
+                    <span class="text-xs font-bold text-emerald-800 uppercase tracking-wide">Total Reimbursement Due</span>
                     <h3 id="settleUpModalAmount" class="text-2xl font-black text-emerald-950">₹0</h3>
                     <p id="settleUpModalDesc" class="text-xs text-emerald-700 font-semibold">Balancing shared household expenses for this period</p>
                 </div>
-                <div class="space-y-3 text-xs font-bold text-slate-700">
+                <div class="space-y-3.5 text-xs font-bold text-slate-700">
+                    <!-- Amount to Settle with Remaining Preview -->
                     <div>
-                        <label class="block mb-1">Settlement Date</label>
-                        <input type="date" id="settleUpDate" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block font-extrabold text-slate-800 uppercase tracking-wider text-[11px]">Amount to Return / Settle (₹)</label>
+                            <span id="settleRemainingPreview" class="text-[10px] text-emerald-700 font-bold">✨ Full Settlement</span>
+                        </div>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2 text-slate-400 font-black text-sm">₹</span>
+                            <input type="number" step="1" min="1" id="settleUpAmountInput" oninput="onSettleAmountChange()" class="w-full pl-7 pr-3 py-2 bg-slate-50 border-2 border-emerald-400 rounded-xl text-base font-black text-slate-900 focus:border-emerald-600 focus:bg-white transition" placeholder="Enter amount">
+                        </div>
+                        <!-- Quick Installment Chips -->
+                        <div class="flex items-center gap-1.5 mt-2 flex-wrap" id="settleQuickChips"></div>
                     </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block mb-1">Settlement Date</label>
+                            <input type="date" id="settleUpDate" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl">
+                        </div>
+                        <div>
+                            <label class="block mb-1">Transfer Mode</label>
+                            <select id="settleUpPaymentMethod" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-semibold">
+                                <option value="UPI / GPay / PhonePe">UPI / GPay / PhonePe</option>
+                                <option value="Bank Transfer">Bank Transfer / IMPS / NEFT</option>
+                                <option value="Cash">Cash</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div>
                         <label class="block mb-1">Paid By (Who transfers the money?)</label>
-                        <select id="settleUpPaidBy" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl">
+                        <select id="settleUpPaidBy" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-semibold">
                             <option value="Palash" selected>Palash (Returns/Reimburses to Pallavi)</option>
                             <option value="Pallavi">Pallavi</option>
                             <option value="Mom">Mom</option>
                             <option value="Dad">Dad</option>
                         </select>
                     </div>
+
                     <div>
-                        <label class="block mb-1">Transfer Mode</label>
-                        <select id="settleUpPaymentMethod" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl">
-                            <option value="UPI / GPay / PhonePe">UPI / GPay / PhonePe</option>
-                            <option value="Bank Transfer">Bank Transfer / IMPS / NEFT</option>
-                            <option value="Cash">Cash</option>
-                        </select>
+                        <label class="block mb-1">Optional Notes</label>
+                        <input type="text" id="settleUpNotes" placeholder="e.g. Part payment 1 of 2 via GPay" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium">
                     </div>
                 </div>
                 <div class="pt-2 flex justify-end space-x-2">
-                    <button type="button" onclick="closeSettleUpModal()" class="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl">Cancel</button>
-                    <button type="button" onclick="executeSettleUpTransaction()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow transition">Confirm &amp; Record Reimbursement</button>
+                    <button type="button" onclick="closeSettleUpModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition">Cancel</button>
+                    <button type="button" id="settleConfirmBtn" onclick="executeSettleUpTransaction()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow transition">Confirm &amp; Record Reimbursement</button>
                 </div>
             </div>
         </div>

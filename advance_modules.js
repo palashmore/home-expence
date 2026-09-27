@@ -527,13 +527,71 @@
     const descEl = document.getElementById('settleUpModalDesc');
     const dateEl = document.getElementById('settleUpDate');
     const payerEl = document.getElementById('settleUpPaidBy');
+    const inputAmt = document.getElementById('settleUpAmountInput');
+    const notesEl = document.getElementById('settleUpNotes');
 
     if (amtEl) amtEl.textContent = `₹${currentNetSettleAmount.toLocaleString('en-IN')}`;
-    if (descEl) descEl.textContent = `Palash returns ₹${currentNetSettleAmount.toLocaleString('en-IN')} to Pallavi as monthly household reimbursement (income flow).`;
+    if (descEl) descEl.textContent = `Total pending reimbursement to Pallavi is ₹${currentNetSettleAmount.toLocaleString('en-IN')}. You can return the full amount or pay in multiple partial installments.`;
+    if (inputAmt) inputAmt.value = currentNetSettleAmount;
     if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
     if (payerEl) payerEl.value = 'Palash';
+    if (notesEl) notesEl.value = '';
+
+    window.renderSettleQuickChips(currentNetSettleAmount);
+    window.onSettleAmountChange();
 
     modal.classList.remove('hidden');
+  };
+
+  window.renderSettleQuickChips = function (totalDue) {
+    const container = document.getElementById('settleQuickChips');
+    if (!container) return;
+
+    const chips = [];
+    chips.push({ label: `Pay Full (₹${totalDue.toLocaleString('en-IN')})`, val: totalDue });
+
+    if (totalDue > 500) chips.push({ label: '₹500', val: 500 });
+    if (totalDue > 1000) chips.push({ label: '₹1,000', val: 1000 });
+    if (totalDue > 2000) chips.push({ label: '₹2,000', val: 2000 });
+    if (totalDue > 5000) chips.push({ label: '₹5,000', val: 5000 });
+
+    container.innerHTML = chips.map(c => `
+      <button type="button" onclick="setSettleAmount(${c.val})" class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 transition active:scale-95">
+        ${c.label}
+      </button>
+    `).join('');
+  };
+
+  window.setSettleAmount = function (val) {
+    const input = document.getElementById('settleUpAmountInput');
+    if (input) {
+      input.value = val;
+      window.onSettleAmountChange();
+    }
+  };
+
+  window.onSettleAmountChange = function () {
+    const input = document.getElementById('settleUpAmountInput');
+    const preview = document.getElementById('settleRemainingPreview');
+    const confirmBtn = document.getElementById('settleConfirmBtn');
+    if (!input) return;
+
+    const entered = parseFloat(input.value) || 0;
+    const remaining = Math.max(0, currentNetSettleAmount - entered);
+
+    if (preview) {
+      if (entered >= currentNetSettleAmount) {
+        preview.className = 'text-[10px] text-emerald-700 font-bold';
+        preview.textContent = '✨ Full Settlement (Remaining: ₹0)';
+      } else {
+        preview.className = 'text-[10px] text-amber-700 font-bold';
+        preview.textContent = `Remaining Due: ₹${remaining.toLocaleString('en-IN')}`;
+      }
+    }
+
+    if (confirmBtn) {
+      confirmBtn.innerHTML = `Confirm &amp; Record ₹${entered > 0 ? entered.toLocaleString('en-IN') : '0'}`;
+    }
   };
 
   window.closeSettleUpModal = function () {
@@ -546,12 +604,21 @@
     const payer = document.getElementById('settleUpPaidBy')?.value || 'Palash';
     const receiver = 'Pallavi';
     const method = document.getElementById('settleUpPaymentMethod')?.value || 'UPI / GPay / PhonePe';
-    const amount = currentNetSettleAmount;
+    const customNotes = document.getElementById('settleUpNotes')?.value?.trim();
+    const inputAmt = parseFloat(document.getElementById('settleUpAmountInput')?.value);
+    const amount = (inputAmt && inputAmt > 0) ? inputAmt : currentNetSettleAmount;
 
     if (!amount || amount <= 0) {
-      alert('No outstanding balance to settle.');
+      alert('Please enter a valid amount to settle.');
       return;
     }
+
+    const isPartial = amount < currentNetSettleAmount;
+    const defaultNote = isPartial
+      ? `Partial Reimbursement: ${payer} returned ₹${amount.toLocaleString('en-IN')} of ₹${currentNetSettleAmount.toLocaleString('en-IN')} balance due to ${receiver}`
+      : `Full Reimbursement: ${payer} returned ₹${amount.toLocaleString('en-IN')} to ${receiver} for household expenses`;
+
+    const finalNotes = customNotes ? `${defaultNote} (${customNotes})` : defaultNote;
 
     const payload = {
       date: date,
@@ -561,8 +628,8 @@
       paidTo: receiver,
       vendor: receiver,
       paymentMethod: method,
-      notes: `Monthly Reimbursement: ${payer} returned ₹${amount.toLocaleString('en-IN')} to ${receiver} for household expenses`,
-      description: `Monthly Reimbursement: ${payer} returned ₹${amount.toLocaleString('en-IN')} to ${receiver} for household expenses`,
+      notes: finalNotes,
+      description: finalNotes,
       splitBetween: 'Household Expense (Palash Reimburses Pallavi 100%)',
       receipt: null
     };
@@ -576,6 +643,9 @@
       const data = await res.json();
       if (res.ok && data.success) {
         window.closeSettleUpModal();
+        if (window.showToast) {
+          window.showToast('success', 'Reimbursement Recorded!', `₹${amount.toLocaleString('en-IN')} returned to ${receiver}.`);
+        }
         if (window.loadData) {
           await window.loadData(true);
         } else if (typeof loadData === 'function') {

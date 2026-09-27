@@ -122,48 +122,124 @@ function renderMetadataPills(meta) {
   return pills ? '<div class="flex flex-wrap items-center gap-1.5 pt-1">' + pills + '</div>' : '';
 }
 
+function formatTableChanges(item) {
+  if (item.action === 'CREATE_EXPENSE') {
+    const meta = item.metadata || {};
+    return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-950/70 text-emerald-300 border border-emerald-800/60 font-semibold text-xs">' +
+      '<i class="fa-solid fa-circle-check text-emerald-400"></i> New Receipt Created (₹' + Number(meta.amount || 0).toLocaleString('en-IN') + ')</span>';
+  }
+  if (item.action === 'DELETE_EXPENSE') {
+    return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-950/70 text-rose-300 border border-rose-800/60 font-semibold text-xs">' +
+      '<i class="fa-solid fa-trash text-rose-400"></i> Transaction Removed from Ledger</span>';
+  }
+  if (item.action === 'UPDATE_CONFIG') {
+    const meta = item.metadata || {};
+    const sects = meta.modifiedSections && Array.isArray(meta.modifiedSections) ? meta.modifiedSections.join(', ') : 'Settings & Rules';
+    return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-950/70 text-purple-300 border border-purple-800/60 font-semibold text-xs">' +
+      '<i class="fa-solid fa-sliders text-purple-400"></i> Master Policy Updated (' + escapeHtml(sects) + ')</span>';
+  }
+
+  // Diff formatting
+  if (!item.diff || typeof item.diff !== 'object' || Object.keys(item.diff).length === 0) {
+    return '<span class="text-slate-500 italic text-xs">No explicit field diff</span>';
+  }
+
+  let pills = '';
+  for (const [key, val] of Object.entries(item.diff)) {
+    if (!val || typeof val !== 'object') continue;
+    let oldVal = val.old !== undefined ? val.old : null;
+    let newVal = val.new !== undefined ? val.new : (val.updated ? (val.summary || 'Updated') : null);
+
+    let deltaBadge = '';
+    if (key === 'amount' && oldVal !== null && newVal !== null && !isNaN(Number(oldVal)) && !isNaN(Number(newVal))) {
+      const numOld = Number(oldVal);
+      const numNew = Number(newVal);
+      const diffAmount = numNew - numOld;
+      const pct = numOld !== 0 ? Math.abs((diffAmount / numOld) * 100).toFixed(1) : 0;
+      if (diffAmount > 0) {
+        deltaBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-950/80 text-emerald-300 border border-emerald-700/60">+₹' + diffAmount.toLocaleString('en-IN') + ' (+' + pct + '%)</span>';
+      } else if (diffAmount < 0) {
+        deltaBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-950/80 text-rose-300 border border-rose-700/60">-₹' + Math.abs(diffAmount).toLocaleString('en-IN') + ' (-' + pct + '%)</span>';
+      }
+    }
+
+    if (key === 'amount') {
+      if (oldVal !== null) oldVal = '₹' + Number(oldVal).toLocaleString('en-IN');
+      if (newVal !== null) newVal = '₹' + Number(newVal).toLocaleString('en-IN');
+    }
+
+    const fieldLabel = escapeHtml(key.replace(/([A-Z])/g, ' $1'));
+    pills += '<div class="inline-flex flex-wrap items-center gap-1.5 bg-slate-950/90 border border-slate-800/90 rounded-lg px-2.5 py-1 text-xs m-0.5">' +
+      '<span class="font-bold text-slate-400 capitalize">' + fieldLabel + ':</span>' +
+      (oldVal !== null ? '<span class="px-1.5 py-0.5 rounded bg-rose-950/70 text-rose-300 border border-rose-800/60 line-through font-mono text-[11px]">' + escapeHtml(oldVal) + '</span>' : '') +
+      (oldVal !== null && newVal !== null ? '<i class="fa-solid fa-arrow-right text-slate-500 text-[10px]"></i>' : '') +
+      (newVal !== null ? '<span class="px-1.5 py-0.5 rounded bg-emerald-950/70 text-emerald-300 border border-emerald-800/60 font-bold font-mono text-[11px]">' + escapeHtml(newVal) + '</span>' : '') +
+      deltaBadge +
+      '</div>';
+  }
+  return pills || '<span class="text-slate-500 italic text-xs">State modified</span>';
+}
+
 function renderAuditHtml(logs) {
   const updateCount = logs.filter(l => l.action === 'UPDATE_EXPENSE').length;
   const configCount = logs.filter(l => l.action === 'UPDATE_CONFIG').length;
   const mutateCount = logs.filter(l => l.action === 'CREATE_EXPENSE' || l.action === 'DELETE_EXPENSE').length;
 
-  let cardsHtml = '';
+  let tableRowsHtml = '';
   if (logs.length === 0) {
-    cardsHtml = '<div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-12 text-center text-slate-500">' +
-      '<i class="fa-solid fa-clock-rotate-left text-3xl mb-3 text-slate-600"></i>' +
-      '<div class="text-sm font-bold text-slate-400">No audit events recorded yet</div>' +
-      '</div>';
+    tableRowsHtml = '<tr><td colspan="7" class="p-12 text-center text-slate-500 font-bold">No audit events recorded yet</td></tr>';
   } else {
-    cardsHtml = logs.map(item => {
+    tableRowsHtml = logs.map((item, idx) => {
       const relTime = formatRelativeTime(item.timestamp);
       const fullTime = formatFullTime(item.timestamp);
       const actionBadge = getActionBadge(item.action);
-      const diffBox = renderDiffBox(item.diff);
-      const metaPills = renderMetadataPills(item.metadata);
-      const searchBlob = escapeHtml((item.recordId + ' ' + item.action + ' ' + JSON.stringify(item.metadata || {}) + ' ' + JSON.stringify(item.diff || {})).toLowerCase());
+      const changeSummary = formatTableChanges(item);
+      const meta = item.metadata || {};
+      const searchBlob = escapeHtml((item.recordId + ' ' + item.action + ' ' + JSON.stringify(meta) + ' ' + JSON.stringify(item.diff || {})).toLowerCase());
 
-      const actorName = item.actor || item.user || item.metadata?.paidBy || 'System';
+      const actorName = item.actor || item.user || meta.paidBy || 'System';
+      let actorHtml = '<span class="inline-flex items-center gap-1 text-slate-300 font-bold"><i class="fa-solid fa-bolt text-amber-400 text-[10px]"></i> ' + escapeHtml(actorName) + '</span>';
+      if (actorName.toLowerCase().includes('palash')) {
+        actorHtml = '<span class="inline-flex items-center gap-1 text-indigo-300 font-bold"><i class="fa-solid fa-user-shield text-[10px]"></i> Palash</span>';
+      } else if (actorName.toLowerCase().includes('pallavi')) {
+        actorHtml = '<span class="inline-flex items-center gap-1 text-pink-300 font-bold"><i class="fa-solid fa-user-check text-[10px]"></i> Pallavi</span>';
+      }
 
-      return '<div class="audit-card bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-xl p-4.5 space-y-3 transition shadow-lg" data-action="' + escapeHtml(item.action) + '" data-search="' + searchBlob + '">' +
-        '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">' +
-        '<div class="flex flex-wrap items-center gap-2">' +
-        actionBadge +
-        '<span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-[11px] font-bold text-slate-300 border border-slate-700">' + escapeHtml(item.recordId) + '</span>' +
-        '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-indigo-300 border border-slate-700">Actor: ' + escapeHtml(actorName) + '</span>' +
-        '</div>' +
-        '<div class="text-right text-xs text-slate-400">' +
-        '<span class="font-extrabold text-slate-200">' + relTime + '</span>' +
-        '<span class="text-slate-500 ml-1.5 font-medium">(' + fullTime + ')</span>' +
-        '</div></div>' +
-        '<div>' +
-        '<div class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">' +
-        '<i class="fa-solid fa-code-compare text-indigo-400"></i>' +
-        '<span>Field-Level Differences</span>' +
-        '</div>' +
-        diffBox +
-        '</div>' +
-        metaPills +
-        '</div>';
+      let contextHtml = '<span class="text-slate-500 text-xs">—</span>';
+      if (meta.amount || meta.category) {
+        contextHtml = '<div class="font-extrabold text-white text-xs">' + (meta.amount ? '₹' + Number(meta.amount).toLocaleString('en-IN') : '') + ' <span class="text-slate-400 font-normal">(' + escapeHtml(meta.category || 'General') + ')</span></div>' +
+          '<div class="text-[10px] text-slate-400">Paid: <strong class="text-slate-300">' + escapeHtml(meta.paidBy || '—') + '</strong>' + (meta.splitBetween ? ' • <span class="text-purple-300">' + escapeHtml(meta.splitBetween) + '</span>' : '') + '</div>';
+      } else if (item.action === 'UPDATE_CONFIG') {
+        contextHtml = '<div class="font-bold text-purple-300 text-xs">Master Settings</div><div class="text-[10px] text-slate-400">Policies & Rules</div>';
+      }
+
+      const jsonStr = escapeHtml(JSON.stringify(item, null, 2));
+
+      return '<tr class="audit-row border-b border-slate-800/70 hover:bg-slate-800/40 transition" data-action="' + escapeHtml(item.action) + '" data-search="' + searchBlob + '">' +
+        '<td class="py-3 px-4 whitespace-nowrap">' +
+        '  <div class="font-extrabold text-white text-xs">' + fullTime + '</div>' +
+        '  <div class="text-[10px] text-indigo-400 font-bold">' + relTime + '</div>' +
+        '</td>' +
+        '<td class="py-3 px-3 whitespace-nowrap">' + actionBadge + '</td>' +
+        '<td class="py-3 px-3 whitespace-nowrap">' +
+        '  <span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-xs font-bold text-slate-300 border border-slate-700">' + escapeHtml(item.recordId || 'N/A') + '</span>' +
+        '</td>' +
+        '<td class="py-3 px-3 whitespace-nowrap">' + actorHtml + '</td>' +
+        '<td class="py-3 px-3 min-w-[160px]">' + contextHtml + '</td>' +
+        '<td class="py-3 px-4">' + changeSummary + '</td>' +
+        '<td class="py-3 px-3 text-center whitespace-nowrap">' +
+        '  <button onclick="toggleRowDetail(\'detail_' + idx + '\')" class="p-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-300 border border-slate-700 transition" title="Inspect Raw Payload">' +
+        '    <i class="fa-solid fa-code text-xs"></i>' +
+        '  </button>' +
+        '</td>' +
+        '</tr>' +
+        '<tr id="detail_' + idx + '" class="hidden bg-slate-950/95 border-b border-slate-800">' +
+        '<td colspan="7" class="p-4">' +
+        '  <div class="font-mono text-[11px] text-slate-300 bg-slate-900/90 p-3 rounded-xl border border-slate-800 overflow-x-auto leading-relaxed">' +
+        '    <pre><code>' + jsonStr + '</code></pre>' +
+        '  </div>' +
+        '</td>' +
+        '</tr>';
     }).join('');
   }
 
@@ -174,7 +250,7 @@ function renderAuditHtml(logs) {
 '<head>' +
 '  <meta charset="UTF-8">' +
 '  <meta name="viewport" content="width=device-width, initial-scale=1.0">' +
-'  <title>System Audit & Change History · HomeExpenses</title>' +
+'  <title>System Audit Ledger · HomeExpenses</title>' +
 '  <link rel="icon" type="image/svg+xml" href="/icon.svg">' +
 '  <script src="https://cdn.tailwindcss.com"></script>' +
 '  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">' +
@@ -193,15 +269,15 @@ function renderAuditHtml(logs) {
 '          <div>' +
 '            <div class="text-sm font-black text-white tracking-tight flex items-center space-x-1.5">' +
 '              <span>HomeExpenses</span>' +
-'              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">AUDIT</span>' +
+'              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">AUDIT LEDGER</span>' +
 '            </div>' +
-'            <div class="text-[10px] text-slate-400 font-medium">Real-Time System Change & Action Trail</div>' +
+'            <div class="text-[10px] text-slate-400 font-medium">Real-Time Ledger Change & Action Trail</div>' +
 '          </div>' +
 '        </a>' +
 '      </div>' +
 '      <div class="flex items-center space-x-3">' +
 '        <span class="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">' +
-'          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-2"></span> Live Cloud Sync Active' +
+'          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-2"></span> Live Cloud Sync' +
 '        </span>' +
 '        <button onclick="exportExcel()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/30 transition flex items-center space-x-1.5">' +
 '          <i class="fa-solid fa-file-excel"></i>' +
@@ -222,11 +298,11 @@ function renderAuditHtml(logs) {
 '    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl">' +
 '      <div>' +
 '        <h1 class="text-2xl font-black text-white flex items-center gap-2.5">' +
-'          <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i>' +
-'          <span>Audit & Change Tracking Engine</span>' +
+'          <i class="fa-solid fa-table-list text-indigo-400"></i>' +
+'          <span>System Audit & Change Ledger</span>' +
 '        </h1>' +
 '        <p class="text-xs text-slate-400 mt-1">' +
-'          Every amount edit, split allocation, domestic payroll update, and admin setting change is captured with before-and-after state diffs.' +
+'          Complete chronological tabular record of all transactions, member split re-allocations, staff payroll entries, and master configurations.' +
 '        </p>' +
 '      </div>' +
 '      <div class="flex items-center gap-2">' +
@@ -274,7 +350,26 @@ function renderAuditHtml(logs) {
 '        <button onclick="setFilterAction(\'DELETE_EXPENSE\')" id="btn-DELETE_EXPENSE" class="filter-btn px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition">Deletes</button>' +
 '      </div>' +
 '    </div>' +
-'    <div id="cardsList" class="space-y-3.5">' + cardsHtml + '</div>' +
+'    <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/90 shadow-2xl">' +
+'      <div class="overflow-x-auto">' +
+'        <table class="w-full text-left border-collapse text-xs">' +
+'          <thead>' +
+'            <tr class="bg-slate-950 text-slate-400 font-black uppercase tracking-wider text-[11px] border-b border-slate-800">' +
+'              <th class="py-3.5 px-4 w-44">Date & Time</th>' +
+'              <th class="py-3.5 px-3 w-36">Event</th>' +
+'              <th class="py-3.5 px-3 w-28">Record ID</th>' +
+'              <th class="py-3.5 px-3 w-32">Actor</th>' +
+'              <th class="py-3.5 px-3 w-48">Item Context</th>' +
+'              <th class="py-3.5 px-4 min-w-[280px]">Changes Made (Before ➔ After)</th>' +
+'              <th class="py-3.5 px-3 w-20 text-center">Inspect</th>' +
+'            </tr>' +
+'          </thead>' +
+'          <tbody id="auditTableBody" class="divide-y divide-slate-800/80 text-slate-200 font-medium">' +
+'            ' + tableRowsHtml +
+'          </tbody>' +
+'        </table>' +
+'      </div>' +
+'    </div>' +
 '  </main>' +
 '  <script>' +
 '    var currentFilter = "ALL";' +
@@ -294,13 +389,17 @@ function renderAuditHtml(logs) {
 '    }' +
 '    function filterCards() {' +
 '      var q = (document.getElementById("searchInput").value || "").toLowerCase().trim();' +
-'      document.querySelectorAll(".audit-card").forEach(function(card) {' +
-'        var action = card.getAttribute("data-action");' +
-'        var search = card.getAttribute("data-search") || "";' +
+'      document.querySelectorAll(".audit-row").forEach(function(row) {' +
+'        var action = row.getAttribute("data-action");' +
+'        var search = row.getAttribute("data-search") || "";' +
 '        var matchesFilter = (currentFilter === "ALL" || action === currentFilter);' +
 '        var matchesQuery = (!q || search.indexOf(q) !== -1);' +
-'        card.style.display = (matchesFilter && matchesQuery) ? "block" : "none";' +
+'        row.style.display = (matchesFilter && matchesQuery) ? "" : "none";' +
 '      });' +
+'    }' +
+'    function toggleRowDetail(id) {' +
+'      var el = document.getElementById(id);' +
+'      if (el) el.classList.toggle("hidden");' +
 '    }' +
 '    function exportExcel() {' +
 '      if (!auditData || auditData.length === 0) { alert("No logs to export"); return; }' +
@@ -319,7 +418,7 @@ function renderAuditHtml(logs) {
 '      });' +
 '      var ws = XLSX.utils.json_to_sheet(rows);' +
 '      var wb = XLSX.utils.book_new();' +
-'      XLSX.utils.book_append_sheet(wb, ws, "Audit Trail");' +
+'      XLSX.utils.book_append_sheet(wb, ws, "Audit Ledger");' +
 '      XLSX.writeFile(wb, "HomeExpenses_Audit_Log.xlsx");' +
 '    }' +
 '  </script>' +

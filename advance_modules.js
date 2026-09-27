@@ -2055,8 +2055,8 @@
   window.renderAuditView = renderAuditView;
 
   function renderInAppAuditList() {
-    const listEl = document.getElementById('inAppAuditList');
-    if (!listEl) return;
+    const tbody = document.getElementById('inAppAuditTbody') || document.getElementById('inAppAuditList');
+    if (!tbody) return;
 
     const search = (document.getElementById('inAppAuditSearch')?.value || '').toLowerCase().trim();
     const actorFilter = (document.getElementById('inAppAuditActorFilter')?.value || 'ALL').trim();
@@ -2079,58 +2079,47 @@
     });
 
     if (filtered.length === 0) {
-      listEl.innerHTML = `
-        <div class="glass-card p-12 text-center text-slate-400 rounded-3xl border border-slate-200/80 bg-white">
-          <div class="w-14 h-14 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center text-2xl text-slate-400 mb-3 shadow-inner">
-            <i class="fa-solid fa-filter-circle-xmark"></i>
-          </div>
-          <div class="text-sm font-extrabold text-slate-700">No matching audit events found</div>
-          <div class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Try resetting active filters or searching by different record IDs, categories, or members.</div>
-          <button onclick="document.getElementById('inAppAuditSearch').value=''; document.getElementById('inAppAuditActorFilter').value='ALL'; window.setInAppAuditFilter('ALL');" class="mt-4 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition">
-            Reset Audit Filters
-          </button>
-        </div>
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="p-12 text-center text-slate-400">
+            <div class="w-12 h-12 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center text-xl text-slate-400 mb-2">
+              <i class="fa-solid fa-filter-circle-xmark"></i>
+            </div>
+            <div class="text-sm font-bold text-slate-700">No matching audit events found</div>
+            <div class="text-xs text-slate-400 mt-0.5">Try resetting active filters or searching by different terms.</div>
+            <button onclick="document.getElementById('inAppAuditSearch').value=''; document.getElementById('inAppAuditActorFilter').value='ALL'; window.setInAppAuditFilter('ALL');" class="mt-3 px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition">
+              Reset Filters
+            </button>
+          </td>
+        </tr>
       `;
       return;
     }
 
-    listEl.innerHTML = filtered.map((item, idx) => {
+    tbody.innerHTML = filtered.map((item, idx) => {
       let badge = '';
-      let actionBorder = 'border-slate-200/80';
-      let nodeColor = 'bg-slate-400';
-      
       if (item.action === 'UPDATE_EXPENSE') {
-        badge = '<span class="audit-badge-luxe bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm"><i class="fa-solid fa-pen-to-square text-indigo-600"></i> Expense Adjusted</span>';
-        actionBorder = 'hover:border-indigo-300';
-        nodeColor = 'bg-indigo-500 ring-4 ring-indigo-100';
+        badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap"><i class="fa-solid fa-pen-to-square"></i> Edit</span>';
       } else if (item.action === 'CREATE_EXPENSE') {
-        badge = '<span class="audit-badge-luxe bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm"><i class="fa-solid fa-plus text-emerald-600"></i> New Record Added</span>';
-        actionBorder = 'hover:border-emerald-300';
-        nodeColor = 'bg-emerald-500 ring-4 ring-emerald-100';
+        badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap"><i class="fa-solid fa-plus"></i> New</span>';
       } else if (item.action === 'DELETE_EXPENSE') {
-        badge = '<span class="audit-badge-luxe bg-rose-50 text-rose-700 border border-rose-200 shadow-sm"><i class="fa-solid fa-trash text-rose-600"></i> Record Removed</span>';
-        actionBorder = 'hover:border-rose-300';
-        nodeColor = 'bg-rose-500 ring-4 ring-rose-100';
+        badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap"><i class="fa-solid fa-trash"></i> Delete</span>';
       } else if (item.action === 'UPDATE_CONFIG') {
-        badge = '<span class="audit-badge-luxe bg-purple-50 text-purple-700 border border-purple-200 shadow-sm"><i class="fa-solid fa-sliders text-purple-600"></i> System Policy Modified</span>';
-        actionBorder = 'hover:border-purple-300';
-        nodeColor = 'bg-purple-500 ring-4 ring-purple-100';
+        badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap"><i class="fa-solid fa-sliders"></i> Config</span>';
       } else {
-        badge = `<span class="audit-badge-luxe bg-slate-100 text-slate-700 border border-slate-200">${item.action}</span>`;
+        badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap">${item.action}</span>`;
       }
 
-      // Determine Actor
-      let actorName = item.actor || item.user || item.metadata?.paidBy || 'System Engine';
-      let actorPill = '';
+      const meta = item.metadata || {};
+      let actorName = item.actor || item.user || meta.paidBy || 'System';
+      let actorHtml = `<span class="inline-flex items-center gap-1 font-bold text-slate-600 text-xs whitespace-nowrap"><i class="fa-solid fa-bolt text-amber-500 text-[10px]"></i> ${actorName}</span>`;
       if (actorName.toLowerCase().includes('palash')) {
-        actorPill = '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200"><i class="fa-solid fa-user-shield text-[10px] text-indigo-600"></i> Palash (Admin)</span>';
+        actorHtml = '<span class="inline-flex items-center gap-1 font-bold text-indigo-700 text-xs whitespace-nowrap"><i class="fa-solid fa-user-shield text-[10px] text-indigo-500"></i> Palash</span>';
       } else if (actorName.toLowerCase().includes('pallavi')) {
-        actorPill = '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-pink-50 text-pink-700 border border-pink-200"><i class="fa-solid fa-user-check text-[10px] text-pink-600"></i> Pallavi</span>';
-      } else {
-        actorPill = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200"><i class="fa-solid fa-bolt text-[10px] text-amber-500"></i> ${actorName}</span>`;
+        actorHtml = '<span class="inline-flex items-center gap-1 font-bold text-pink-700 text-xs whitespace-nowrap"><i class="fa-solid fa-user-check text-[10px] text-pink-500"></i> Pallavi</span>';
       }
 
-      // Format Times
+      // Times
       const d = new Date(item.timestamp);
       let relTime = 'Recent';
       let fullTime = item.timestamp;
@@ -2146,43 +2135,35 @@
         else if (diffHours < 24) relTime = `${diffHours}h ago`;
         else relTime = `${diffDays}d ago`;
 
-        fullTime = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' at ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        fullTime = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       }
 
-      // Detailed Forensic Diff Table
-      let diffHtml = '';
-      if (item.diff && Object.keys(item.diff).length > 0) {
-        let rows = '';
+      // Context
+      let contextHtml = '<span class="text-slate-400 text-xs">—</span>';
+      if (meta.amount || meta.category) {
+        contextHtml = `
+          <div class="font-black text-slate-900 text-xs">${meta.amount ? '₹' + Number(meta.amount).toLocaleString('en-IN') : ''} <span class="font-normal text-slate-500">(${meta.category || 'General'})</span></div>
+          <div class="text-[10px] text-slate-500">Paid: <strong class="text-slate-700">${meta.paidBy || '—'}</strong>${meta.splitBetween ? ' • <span class="text-purple-700 font-semibold">' + meta.splitBetween + '</span>' : ''}</div>
+        `;
+      } else if (item.action === 'UPDATE_CONFIG') {
+        contextHtml = '<div class="font-bold text-purple-700 text-xs">Master Settings</div><div class="text-[10px] text-slate-500">Configuration & Rules</div>';
+      }
+
+      // Change summary
+      let changeHtml = '';
+      if (item.action === 'CREATE_EXPENSE') {
+        changeHtml = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs"><i class="fa-solid fa-circle-check text-emerald-600"></i> New Receipt Created (₹${Number(meta.amount || 0).toLocaleString('en-IN')})</span>`;
+      } else if (item.action === 'DELETE_EXPENSE') {
+        changeHtml = '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 text-rose-800 border border-rose-200 font-bold text-xs"><i class="fa-solid fa-trash text-rose-600"></i> Transaction Removed from Ledger</span>';
+      } else if (item.action === 'UPDATE_CONFIG') {
+        const sects = meta.modifiedSections && Array.isArray(meta.modifiedSections) ? meta.modifiedSections.join(', ') : 'Rules & Budgets';
+        changeHtml = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-50 text-purple-800 border border-purple-200 font-bold text-xs"><i class="fa-solid fa-sliders text-purple-600"></i> Master Policy Updated (${sects})</span>`;
+      } else if (item.diff && typeof item.diff === 'object' && Object.keys(item.diff).length > 0) {
+        let diffPills = '';
         for (const [key, val] of Object.entries(item.diff)) {
           if (!val || typeof val !== 'object') continue;
           let oldVal = val.old !== undefined ? val.old : null;
           let newVal = val.new !== undefined ? val.new : (val.updated ? val.summary || 'Updated' : null);
-
-          // Get field icon & label
-          let fieldIcon = 'fa-tag';
-          let fieldColor = 'text-slate-500';
-          if (key.includes('amount') || key.includes('salary') || key.includes('budget')) {
-            fieldIcon = 'fa-indian-rupee-sign';
-            fieldColor = 'text-emerald-600';
-          } else if (key.includes('category')) {
-            fieldIcon = 'fa-shapes';
-            fieldColor = 'text-indigo-600';
-          } else if (key.includes('paidBy') || key.includes('person')) {
-            fieldIcon = 'fa-user';
-            fieldColor = 'text-sky-600';
-          } else if (key.includes('split')) {
-            fieldIcon = 'fa-arrows-split-up-and-left';
-            fieldColor = 'text-purple-600';
-          } else if (key.includes('date')) {
-            fieldIcon = 'fa-calendar-days';
-            fieldColor = 'text-amber-600';
-          } else if (key.includes('payment') || key.includes('method')) {
-            fieldIcon = 'fa-credit-card';
-            fieldColor = 'text-teal-600';
-          } else if (key.includes('notes')) {
-            fieldIcon = 'fa-note-sticky';
-            fieldColor = 'text-amber-500';
-          }
 
           let deltaBadge = '';
           if (key === 'amount' && oldVal !== null && newVal !== null && !isNaN(Number(oldVal)) && !isNaN(Number(newVal))) {
@@ -2191,105 +2172,62 @@
             const diffAmount = numNew - numOld;
             const pct = numOld !== 0 ? Math.abs((diffAmount / numOld) * 100).toFixed(1) : 0;
             if (diffAmount > 0) {
-              deltaBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300"><i class="fa-solid fa-arrow-trend-up mr-1"></i>+₹${diffAmount.toLocaleString('en-IN')} (+${pct}%)</span>`;
+              deltaBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">+₹${diffAmount.toLocaleString('en-IN')} (+${pct}%)</span>`;
             } else if (diffAmount < 0) {
-              deltaBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-arrow-trend-down mr-1"></i>-₹${Math.abs(diffAmount).toLocaleString('en-IN')} (-${pct}%)</span>`;
+              deltaBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300">-₹${Math.abs(diffAmount).toLocaleString('en-IN')} (-${pct}%)</span>`;
             }
           }
 
-          let formattedOld = oldVal !== null ? (typeof oldVal === 'object' ? JSON.stringify(oldVal) : String(oldVal)) : '';
-          let formattedNew = newVal !== null ? (typeof newVal === 'object' ? JSON.stringify(newVal) : String(newVal)) : '';
-
           if (key === 'amount') {
-            if (oldVal !== null) formattedOld = '₹' + Number(oldVal).toLocaleString('en-IN');
-            if (newVal !== null) formattedNew = '₹' + Number(newVal).toLocaleString('en-IN');
+            if (oldVal !== null) oldVal = '₹' + Number(oldVal).toLocaleString('en-IN');
+            if (newVal !== null) newVal = '₹' + Number(newVal).toLocaleString('en-IN');
           }
 
           const fieldLabel = key.replace(/([A-Z])/g, ' $1');
-
-          rows += `
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between py-2 border-b border-slate-100/90 last:border-0 text-xs gap-1.5">
-              <div class="flex items-center gap-1.5 w-40 shrink-0 font-bold text-slate-600 capitalize">
-                <i class="fa-solid ${fieldIcon} ${fieldColor} text-xs"></i>
-                <span>${fieldLabel}:</span>
-              </div>
-              <div class="flex flex-wrap items-center gap-2 flex-1 font-mono text-xs overflow-x-auto">
-                ${formattedOld ? `<span class="px-2.5 py-1 rounded-lg bg-rose-50/90 text-rose-700 border border-rose-200 line-through">${formattedOld}</span>` : ''}
-                ${formattedOld && formattedNew ? `<i class="fa-solid fa-arrow-right text-slate-400 text-[11px]"></i>` : ''}
-                ${formattedNew ? `<span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 font-extrabold shadow-sm">${formattedNew}</span>` : ''}
-                ${deltaBadge}
-              </div>
+          diffPills += `
+            <div class="inline-flex flex-wrap items-center gap-1.5 bg-slate-50 border border-slate-200/90 rounded-lg px-2.5 py-1 text-xs m-0.5">
+              <span class="font-bold text-slate-500 capitalize">${fieldLabel}:</span>
+              ${oldVal !== null ? `<span class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 line-through font-mono text-[11px]">${oldVal}</span>` : ''}
+              ${oldVal !== null && newVal !== null ? `<i class="fa-solid fa-arrow-right text-slate-400 text-[10px]"></i>` : ''}
+              ${newVal !== null ? `<span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold font-mono text-[11px]">${newVal}</span>` : ''}
+              ${deltaBadge}
             </div>
           `;
         }
-        diffHtml = `
-          <div class="mt-2.5 bg-slate-50/90 rounded-2xl p-3 sm:p-3.5 border border-slate-200/80 shadow-inner">
-            <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
-              <i class="fa-solid fa-code-compare text-indigo-500"></i>
-              <span>Forensic State Diff</span>
-            </div>
-            ${rows}
-          </div>
-        `;
+        changeHtml = diffPills || '<span class="text-slate-400 italic text-xs">State modified</span>';
+      } else {
+        changeHtml = '<span class="text-slate-400 italic text-xs">No explicit field diff</span>';
       }
 
-      // Metadata Pills Ribbon
-      let metaPills = '';
-      const meta = item.metadata || {};
-      if (meta.amount) {
-        metaPills += `<span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-[11px] font-black border border-slate-200 flex items-center gap-1"><i class="fa-solid fa-indian-rupee-sign text-emerald-600 text-[10px]"></i> ₹${Number(meta.amount).toLocaleString('en-IN')}</span>`;
-      }
-      if (meta.category) {
-        metaPills += `<span class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-800 text-[11px] font-bold border border-indigo-100 flex items-center gap-1"><i class="fa-solid fa-tag text-indigo-500 text-[10px]"></i> ${meta.category}</span>`;
-      }
-      if (meta.paidBy) {
-        metaPills += `<span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200">Paid By: <strong>${meta.paidBy}</strong></span>`;
-      }
-      if (meta.splitBetween) {
-        metaPills += `<span class="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-800 text-[11px] font-bold border border-purple-100">Split: <strong>${meta.splitBetween}</strong></span>`;
-      }
-      if (meta.paymentMethod) {
-        metaPills += `<span class="px-2.5 py-1 rounded-lg bg-teal-50 text-teal-800 text-[11px] font-bold border border-teal-100"><i class="fa-solid fa-credit-card text-teal-600 text-[10px] mr-1"></i>${meta.paymentMethod}</span>`;
-      }
-
-      const inspectId = `inspect_audit_${idx}`;
+      const inspectId = `inAppDetail_${idx}`;
       const jsonStr = JSON.stringify(item, null, 2);
 
       return `
-        <div class="audit-card-luxe p-4 sm:p-5 border ${actionBorder} transition-all space-y-3">
-          <!-- Top Row: Badge, ID, Actor, and Timestamp -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full ${nodeColor}"></span>
-              ${badge}
-              <span class="px-2.5 py-1 rounded-lg bg-slate-100 font-mono text-[11px] font-black text-slate-700 border border-slate-200" title="System Record ID">${item.recordId || 'N/A'}</span>
-              ${actorPill}
-            </div>
-            <div class="text-right text-xs text-slate-500 font-semibold flex items-center sm:justify-end gap-2">
-              <span class="font-black text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">${relTime}</span>
-              <span class="text-slate-400 font-normal">(${fullTime})</span>
-            </div>
-          </div>
-
-          <!-- Diff Table -->
-          ${diffHtml}
-
-          <!-- Metadata Context Ribbon -->
-          ${metaPills ? `<div class="flex flex-wrap items-center gap-2 pt-1">${metaPills}</div>` : ''}
-
-          <!-- Collapsible JSON Inspector -->
-          <div class="pt-1 border-t border-slate-100 flex items-center justify-between">
-            <button onclick="window.toggleAuditInspect('${inspectId}')" class="text-[11px] font-bold text-slate-400 hover:text-indigo-600 flex items-center gap-1.5 transition py-1">
+        <tr class="hover:bg-slate-50/80 transition text-xs border-b border-slate-100 last:border-0">
+          <td class="py-3 px-4 whitespace-nowrap">
+            <div class="font-extrabold text-slate-900 text-xs">${fullTime}</div>
+            <div class="text-[10px] text-indigo-600 font-bold">${relTime}</div>
+          </td>
+          <td class="py-3 px-3 whitespace-nowrap">${badge}</td>
+          <td class="py-3 px-3 whitespace-nowrap">
+            <span class="px-2 py-0.5 rounded bg-slate-100 font-mono text-xs font-bold text-slate-700 border border-slate-200">${item.recordId || 'N/A'}</span>
+          </td>
+          <td class="py-3 px-3 whitespace-nowrap">${actorHtml}</td>
+          <td class="py-3 px-3 min-w-[160px]">${contextHtml}</td>
+          <td class="py-3 px-4">${changeHtml}</td>
+          <td class="py-3 px-3 text-center whitespace-nowrap">
+            <button onclick="window.toggleAuditInspect('${inspectId}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition" title="Inspect Raw Payload">
               <i class="fa-solid fa-code text-xs"></i>
-              <span>Inspect Raw Payload & Checksum</span>
-              <i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i>
             </button>
-            <span class="text-[10px] text-slate-400 font-mono">Gist Sync Verified</span>
-          </div>
-          <div id="${inspectId}" class="hidden mt-2 p-3 bg-slate-950 text-slate-300 rounded-xl font-mono text-[11px] overflow-x-auto border border-slate-800">
-            <pre class="leading-relaxed"><code>${jsonStr}</code></pre>
-          </div>
-        </div>
+          </td>
+        </tr>
+        <tr id="${inspectId}" class="hidden bg-slate-950 text-slate-300 border-b border-slate-800">
+          <td colspan="7" class="p-4">
+            <div class="font-mono text-[11px] bg-slate-900 p-3 rounded-xl border border-slate-800 overflow-x-auto leading-relaxed">
+              <pre><code>${jsonStr}</code></pre>
+            </div>
+          </td>
+        </tr>
       `;
     }).join('');
   }

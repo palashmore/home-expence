@@ -2053,12 +2053,31 @@
                 </div>
             </div>
 
-            <!-- In-App Audit Event Stream -->
-            <div id="inAppAuditList" class="space-y-4">
-                <div class="glass-card p-12 text-center text-slate-400 rounded-3xl border border-slate-200/80 bg-white">
-                    <i class="fa-solid fa-spinner animate-spin text-3xl text-indigo-500 mb-3"></i>
-                    <div class="text-sm font-bold text-slate-700">Connecting to Cloud Audit Stream...</div>
-                    <div class="text-xs text-slate-400 mt-1">Fetching cryptographic tamper-evident records</div>
+            <!-- In-App Audit Event Stream Table -->
+            <div class="glass-card rounded-2xl border border-slate-200/80 shadow-md bg-white overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 font-extrabold uppercase tracking-wider text-[11px] border-b border-slate-200">
+                                <th class="py-3.5 px-4 w-44">Date &amp; Time</th>
+                                <th class="py-3.5 px-3 w-36">Event</th>
+                                <th class="py-3.5 px-3 w-28">Record ID</th>
+                                <th class="py-3.5 px-3 w-32">Actor</th>
+                                <th class="py-3.5 px-3 w-48">Item Context</th>
+                                <th class="py-3.5 px-4 min-w-[280px]">Changes Made (Before ➔ After)</th>
+                                <th class="py-3.5 px-3 w-20 text-center">Inspect</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inAppAuditTbody" class="divide-y divide-slate-100 text-slate-700 font-medium">
+                            <tr>
+                                <td colspan="7" class="p-12 text-center text-slate-400">
+                                    <i class="fa-solid fa-spinner animate-spin text-3xl text-indigo-500 mb-3"></i>
+                                    <div class="text-sm font-bold text-slate-700">Connecting to Cloud Audit Stream...</div>
+                                    <div class="text-xs text-slate-400 mt-1">Fetching cryptographic tamper-evident records</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

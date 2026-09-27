@@ -1,5 +1,75 @@
 [
   {
+    "id": "audit-1790532300884-x4b9",
+    "timestamp": "2026-09-27T18:05:00.884Z",
+    "action": "UPDATE_EXPENSE",
+    "recordId": "exp-009",
+    "diff": {
+      "splitBetween": {
+        "new": "Household Expense (Palash Reimburses Pallavi 100%)"
+      }
+    },
+    "metadata": {
+      "category": "Flat Maintenance",
+      "amount": 1500,
+      "paidBy": "Palash",
+      "splitBetween": "Household Expense (Palash Reimburses Pallavi 100%)",
+      "date": "2026-09-06"
+    }
+  },
+  {
+    "id": "audit-1790531771755-v5u7",
+    "timestamp": "2026-09-27T17:56:11.755Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "masterConfig",
+    "diff": {
+      "staff": {
+        "updated": true,
+        "summary": "2 items"
+      },
+      "categories": {
+        "updated": true,
+        "summary": "10 items"
+      },
+      "recurringBills": {
+        "updated": true,
+        "summary": "6 items"
+      },
+      "familyMembers": {
+        "updated": true,
+        "summary": "2 items"
+      },
+      "paymentMethods": {
+        "updated": true,
+        "summary": "4 items"
+      },
+      "householdCycle": {
+        "updated": true,
+        "summary": "object"
+      },
+      "monthlyBudgetLimit": {
+        "updated": true,
+        "summary": "number"
+      },
+      "splitRules": {
+        "updated": true,
+        "summary": "4 items"
+      }
+    },
+    "metadata": {
+      "modifiedSections": [
+        "staff",
+        "categories",
+        "recurringBills",
+        "familyMembers",
+        "paymentMethods",
+        "householdCycle",
+        "monthlyBudgetLimit",
+        "splitRules"
+      ]
+    }
+  },
+  {
     "id": "audit-1790531177401-wh5v",
     "timestamp": "2026-09-27T17:46:17.399Z",
     "action": "UPDATE_CONFIG",

@@ -66,6 +66,19 @@ function renderDiffBox(diff) {
     let formattedOld = oldVal !== null ? (typeof oldVal === 'object' ? JSON.stringify(oldVal) : String(oldVal)) : '';
     let formattedNew = newVal !== null ? (typeof newVal === 'object' ? JSON.stringify(newVal) : String(newVal)) : '';
 
+    let deltaBadge = '';
+    if (key === 'amount' && oldVal !== null && newVal !== null && !isNaN(Number(oldVal)) && !isNaN(Number(newVal))) {
+      const numOld = Number(oldVal);
+      const numNew = Number(newVal);
+      const diffAmount = numNew - numOld;
+      const pct = numOld !== 0 ? Math.abs((diffAmount / numOld) * 100).toFixed(1) : 0;
+      if (diffAmount > 0) {
+        deltaBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-950/80 text-emerald-300 border border-emerald-700/60">+₹' + diffAmount.toLocaleString('en-IN') + ' (+' + pct + '%)</span>';
+      } else if (diffAmount < 0) {
+        deltaBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-950/80 text-rose-300 border border-rose-700/60">-₹' + Math.abs(diffAmount).toLocaleString('en-IN') + ' (-' + pct + '%)</span>';
+      }
+    }
+
     if (key === 'amount') {
       if (oldVal !== null) formattedOld = '₹' + Number(oldVal).toLocaleString('en-IN');
       if (newVal !== null) formattedNew = '₹' + Number(newVal).toLocaleString('en-IN');
@@ -74,10 +87,11 @@ function renderDiffBox(diff) {
     const fieldLabel = escapeHtml(key.replace(/([A-Z])/g, ' $1'));
     rows += '<div class="flex flex-col sm:flex-row sm:items-center justify-between py-2 border-b border-slate-800/60 last:border-0 text-xs gap-1.5">' +
       '<span class="font-bold text-slate-400 capitalize w-36 shrink-0">' + fieldLabel + ':</span>' +
-      '<div class="flex items-center gap-2 flex-1 font-mono text-[11px] overflow-x-auto">' +
+      '<div class="flex flex-wrap items-center gap-2 flex-1 font-mono text-[11px] overflow-x-auto">' +
       (formattedOld ? '<span class="px-2 py-0.5 rounded bg-rose-950/60 text-rose-300 border border-rose-800/60 line-through">' + escapeHtml(formattedOld) + '</span>' : '') +
       (formattedOld && formattedNew ? '<i class="fa-solid fa-arrow-right text-slate-500 text-[10px]"></i>' : '') +
       (formattedNew ? '<span class="px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-800/60 font-semibold">' + escapeHtml(formattedNew) + '</span>' : '') +
+      deltaBadge +
       '</div></div>';
   }
 
@@ -128,11 +142,14 @@ function renderAuditHtml(logs) {
       const metaPills = renderMetadataPills(item.metadata);
       const searchBlob = escapeHtml((item.recordId + ' ' + item.action + ' ' + JSON.stringify(item.metadata || {}) + ' ' + JSON.stringify(item.diff || {})).toLowerCase());
 
+      const actorName = item.actor || item.user || item.metadata?.paidBy || 'System';
+
       return '<div class="audit-card bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-xl p-4.5 space-y-3 transition shadow-lg" data-action="' + escapeHtml(item.action) + '" data-search="' + searchBlob + '">' +
         '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">' +
-        '<div class="flex items-center space-x-2.5">' +
+        '<div class="flex flex-wrap items-center gap-2">' +
         actionBadge +
         '<span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-[11px] font-bold text-slate-300 border border-slate-700">' + escapeHtml(item.recordId) + '</span>' +
+        '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-indigo-300 border border-slate-700">Actor: ' + escapeHtml(actorName) + '</span>' +
         '</div>' +
         '<div class="text-right text-xs text-slate-400">' +
         '<span class="font-extrabold text-slate-200">' + relTime + '</span>' +
@@ -150,6 +167,8 @@ function renderAuditHtml(logs) {
     }).join('');
   }
 
+  const rawJsonLogs = JSON.stringify(logs);
+
   return '<!DOCTYPE html>' +
 '<html lang="en">' +
 '<head>' +
@@ -160,6 +179,7 @@ function renderAuditHtml(logs) {
 '  <script src="https://cdn.tailwindcss.com"></script>' +
 '  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">' +
 '  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">' +
+'  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>' +
 '  <style>body { font-family: "Plus Jakarta Sans", sans-serif; }</style>' +
 '</head>' +
 '<body class="bg-slate-950 text-slate-100 min-h-screen selection:bg-indigo-500 selection:text-white">' +
@@ -183,6 +203,10 @@ function renderAuditHtml(logs) {
 '        <span class="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">' +
 '          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-2"></span> Live Cloud Sync Active' +
 '        </span>' +
+'        <button onclick="exportExcel()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/30 transition flex items-center space-x-1.5">' +
+'          <i class="fa-solid fa-file-excel"></i>' +
+'          <span>Export Excel</span>' +
+'        </button>' +
 '        <button onclick="window.location.reload()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center space-x-1.5">' +
 '          <i class="fa-solid fa-arrows-rotate text-indigo-400"></i>' +
 '          <span>Refresh</span>' +
@@ -254,6 +278,7 @@ function renderAuditHtml(logs) {
 '  </main>' +
 '  <script>' +
 '    var currentFilter = "ALL";' +
+'    var auditData = ' + rawJsonLogs + ';' +
 '    function setFilterAction(action) {' +
 '      currentFilter = action;' +
 '      document.querySelectorAll(".filter-btn").forEach(function(b) {' +
@@ -276,6 +301,26 @@ function renderAuditHtml(logs) {
 '        var matchesQuery = (!q || search.indexOf(q) !== -1);' +
 '        card.style.display = (matchesFilter && matchesQuery) ? "block" : "none";' +
 '      });' +
+'    }' +
+'    function exportExcel() {' +
+'      if (!auditData || auditData.length === 0) { alert("No logs to export"); return; }' +
+'      var rows = auditData.map(function(item) {' +
+'        var meta = item.metadata || {};' +
+'        return {' +
+'          Timestamp: item.timestamp,' +
+'          Action: item.action,' +
+'          RecordId: item.recordId,' +
+'          Actor: item.actor || item.user || meta.paidBy || "System",' +
+'          Amount: meta.amount || "",' +
+'          Category: meta.category || "",' +
+'          PaidBy: meta.paidBy || "",' +
+'          SplitBetween: meta.splitBetween || ""' +
+'        };' +
+'      });' +
+'      var ws = XLSX.utils.json_to_sheet(rows);' +
+'      var wb = XLSX.utils.book_new();' +
+'      XLSX.utils.book_append_sheet(wb, ws, "Audit Trail");' +
+'      XLSX.writeFile(wb, "HomeExpenses_Audit_Log.xlsx");' +
 '    }' +
 '  </script>' +
 '</body>' +

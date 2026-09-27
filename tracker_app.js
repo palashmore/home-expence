@@ -128,8 +128,32 @@ function changeTheme(themeName, render = true) {
     localStorage.setItem("household_app_theme", themeName);
     const selector = document.getElementById("themeSelector");
     if (selector) selector.value = themeName;
+    const mobileSelector = document.getElementById("mobileThemeSelector");
+    if (mobileSelector) mobileSelector.value = themeName;
     if (render) renderAllViews();
 }
+
+function toggleMobileActionMenu() {
+    const menu = document.getElementById("mobileActionDropdown");
+    if (menu) menu.classList.toggle("hidden");
+}
+window.toggleMobileActionMenu = toggleMobileActionMenu;
+
+// Global listener to close dropdowns when clicked outside
+document.addEventListener("click", function(e) {
+    const mobileMenu = document.getElementById("mobileActionDropdown");
+    const mobileBtn = document.getElementById("btnMobileActionMenu");
+    if (mobileMenu && !mobileMenu.classList.contains("hidden")) {
+        if (!mobileMenu.contains(e.target) && !mobileBtn?.contains(e.target)) {
+            mobileMenu.classList.add("hidden");
+        }
+    }
+    const exportMenu = document.getElementById("exportDropdownMenu");
+    const exportBtn = e.target.closest("button[onclick*='toggleExportMenu']");
+    if (exportMenu && !exportMenu.classList.contains("hidden") && !exportMenu.contains(e.target) && !exportBtn) {
+        exportMenu.classList.add("hidden");
+    }
+});
 
 function setDefaultDateToToday() {
     const cur = getCurrentPeriod();

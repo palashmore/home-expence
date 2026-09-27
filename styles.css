@@ -1,0 +1,468 @@
+/* Modern UI/UX Styles for Household Expense Tracker */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+    --font-primary: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+body {
+    font-family: var(--font-primary);
+    background: radial-gradient(circle at top left, #f8fafc, #edf2f7 60%, #e2e8f0);
+    color: #1e293b;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Glassmorphism & Card Elevation */
+.glass-card {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.glass-nav {
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    transition: background-color 0.3s ease;
+}
+
+/* Hover Lift Animation */
+.hover-lift {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.08);
+}
+
+/* Tab Button Active State */
+.tab-btn {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-btn.active {
+    background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+
+.tab-btn.active i {
+    color: #ffffff !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 6px;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Modal Overlay & Animation */
+.modal-backdrop {
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: opacity 0.25s ease-in-out;
+}
+
+.modal-content {
+    animation: modalSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Custom Select Dropdowns & Inputs */
+select, input, textarea {
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+select:focus, input:focus, textarea:focus {
+    outline: none;
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+}
+
+/* ================= PRESET THEMES ================= */
+
+/* 1. Luxe Indigo (Default) */
+[data-theme="indigo"] body {
+    background: radial-gradient(circle at top left, #f8fafc, #edf2f7 60%, #e2e8f0);
+}
+
+/* 2. Midnight Dark Mode */
+[data-theme="dark"] body {
+    background: radial-gradient(circle at top left, #0f172a, #020617 85%) !important;
+    color: #f1f5f9 !important;
+}
+[data-theme="dark"] .glass-card {
+    background: rgba(15, 23, 42, 0.85) !important;
+    border-color: rgba(51, 65, 85, 0.8) !important;
+    color: #f8fafc !important;
+}
+[data-theme="dark"] .glass-nav {
+    background: rgba(2, 6, 23, 0.95) !important;
+    border-color: rgba(30, 41, 59, 0.8) !important;
+}
+[data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3, [data-theme="dark"] h4, [data-theme="dark"] .text-slate-900, [data-theme="dark"] .text-slate-800 {
+    color: #f8fafc !important;
+}
+[data-theme="dark"] .text-slate-500, [data-theme="dark"] .text-slate-600 {
+    color: #94a3b8 !important;
+}
+[data-theme="dark"] select, [data-theme="dark"] input, [data-theme="dark"] textarea {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+}
+[data-theme="dark"] .tab-btn.active {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+    color: #ffffff !important;
+}
+
+/* 3. Emerald Mint Fresh */
+[data-theme="emerald"] body {
+    background: radial-gradient(circle at top left, #f0fdf4, #dcfce7 60%, #bbf7d0) !important;
+    color: #064e3b !important;
+}
+[data-theme="emerald"] .glass-nav {
+    background: rgba(6, 78, 59, 0.95) !important;
+}
+[data-theme="emerald"] .tab-btn.active {
+    background: linear-gradient(135deg, #059669, #10b981) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+}
+
+/* 4. Sunset Rose & Amber */
+[data-theme="rose"] body {
+    background: radial-gradient(circle at top left, #fff1f2, #ffe4e6 60%, #fecdd3) !important;
+    color: #881337 !important;
+}
+[data-theme="rose"] .glass-nav {
+    background: rgba(136, 19, 55, 0.95) !important;
+}
+[data-theme="rose"] .tab-btn.active {
+    background: linear-gradient(135deg, #e11d48, #f43f5e) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25);
+}
+
+/* Luxury Command Center Custom Elements */
+.quick-chip {
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+.quick-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+.quick-chip.active-chip {
+    background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
+    color: #ffffff !important;
+    border-color: #4f46e5 !important;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3) !important;
+}
+
+.active-filter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 9999px;
+    background: #eef2ff;
+    color: #3730a3;
+    border: 1px solid #c7d2fe;
+    font-weight: 700;
+    font-size: 11px;
+}
+.active-filter-tag button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: rgba(79, 70, 229, 0.15);
+    color: #4338ca;
+    margin-left: 2px;
+}
+.active-filter-tag button:hover {
+    background: #ef4444;
+    color: #ffffff;
+}
+
+/* Spending Matrix Styling */
+#spendingMatrixThead th, #spendingMatrixTbody td {
+    padding: 8px 12px;
+    white-space: nowrap;
+}
+#spendingMatrixTbody tr:hover {
+    background-color: rgba(99, 102, 241, 0.05);
+}
+
+/* Toast Notifications */
+.toast-item {
+    pointer-events: auto;
+    animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: all 0.3s ease;
+}
+.toast-item.toast-out {
+    opacity: 0;
+    transform: translateX(100%) scale(0.9);
+}
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Staff Attendance Calendar */
+.att-day-btn {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    font-weight: 800;
+    font-size: 0.75rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    border-width: 2px;
+}
+.att-present {
+    background-color: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #065f46;
+}
+.att-present:hover {
+    background-color: #d1fae5;
+}
+.att-leave {
+    background-color: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+}
+.att-leave:hover {
+    background-color: #fee2e2;
+}
+.att-half {
+    background-color: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+}
+.att-half:hover {
+    background-color: #fef3c7;
+}
+.att-holiday {
+    background-color: #f0fdf4;
+    border-color: #bae6fd;
+    color: #0369a1;
+}
+
+/* Upcoming Bills Radar */
+.bill-card-paid {
+    background: linear-gradient(135deg, rgba(236, 253, 245, 0.9) 0%, rgba(209, 250, 229, 0.5) 100%);
+    border-color: #a7f3d0;
+}
+.bill-card-due {
+    background: linear-gradient(135deg, rgba(254, 242, 242, 0.9) 0%, rgba(254, 226, 226, 0.5) 100%);
+    border-color: #fecaca;
+    animation: duePulse 2s infinite;
+}
+.bill-card-sched {
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.5) 100%);
+    border-color: #e2e8f0;
+}
+@keyframes duePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.015); border-color: #f87171; }
+}
+
+/* Splitwise Balance Cards */
+.split-balance-positive {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    border-color: #6ee7b7;
+    color: #065f46;
+}
+.split-balance-negative {
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border-color: #fca5a5;
+    color: #991b1b;
+}
+
+/* Print Styles & Executive 2-Page PDF Report */
+#printableExecutiveReport {
+    display: none;
+}
+
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 10mm 12mm;
+    }
+    header, nav, .tab-btn, button, #filterCategory, #filterYear, #filterMonth, #themeSelector,
+    #mainContentArea, .modal-backdrop, #toastContainer, #dashboardAnomalyBanner, #btnInstallPwa {
+        display: none !important;
+    }
+    body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-size: 11pt !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    #printableExecutiveReport {
+        display: block !important;
+        visibility: visible !important;
+    }
+    .print-page-break {
+        page-break-after: always;
+        break-after: page;
+    }
+    .no-print {
+        display: none !important;
+    }
+}
+
+/* ================= MOBILE-FIRST RESPONSIVE & PWA NATIVE STYLES ================= */
+
+html, body {
+    overflow-x: hidden;
+    width: 100%;
+    min-width: 320px;
+    -webkit-text-size-adjust: 100%;
+}
+
+:root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+}
+
+/* Safe area padding for mobile notches and bottom bars */
+.safe-pb {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Prevent auto-zoom on iOS Safari when focusing form inputs */
+@media (max-width: 640px) {
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+}
+
+/* Horizontal scrollable tab strip for mobile */
+.nav-tabs-scroll {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.nav-tabs-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+/* Native Mobile Bottom Navigation */
+.bnav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 2px;
+    font-size: 10px;
+    line-height: 1.1;
+    font-weight: 700;
+    color: #94a3b8;
+    transition: color 0.15s ease, transform 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+}
+.bnav-btn:hover {
+    color: #e2e8f0;
+}
+.bnav-btn.active {
+    color: #818cf8 !important;
+}
+.bnav-btn i {
+    font-size: 17px;
+    margin-bottom: 2px;
+}
+.bnav-btn.active i {
+    color: #818cf8 !important;
+    transform: scale(1.08);
+}
+
+/* Mobile Modal Enhancements */
+@media (max-width: 640px) {
+    .modal-backdrop {
+        padding: 10px !important;
+    }
+    .modal-content {
+        max-height: 94vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    .modal-content form, .modal-content .modal-scroll-body {
+        max-height: calc(94vh - 120px) !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Calendar day buttons on mobile */
+    .att-day-btn {
+        font-size: 11px !important;
+        border-width: 1.5px !important;
+        padding: 2px !important;
+        border-radius: 0.5rem !important;
+    }
+}
+
+/* Momentum scrolling for tables */
+.table-scroll-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+/* Standalone PWA detection helper */
+@media all and (display-mode: standalone) {
+    #mobilePwaBanner {
+        display: none !important;
+    }
+}

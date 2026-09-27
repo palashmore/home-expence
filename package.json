@@ -1,0 +1,17 @@
+{
+  "name": "household-expense-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Full-stack Secure Household Expense Tracker & Staff Payroll System",
+  "scripts": {
+    "build": "echo Project ready for deployment",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cookie": "^0.6.0",
+    "dotenv": "^16.4.5",
+    "googleapis": "^182.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "xlsx": "^0.18.5"
+  }
+}

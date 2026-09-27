@@ -1,0 +1,2085 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="indigo">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>HomeExpenses · Luxury Household Finance Command Center</title>
+    <!-- PWA Web App Manifest & Mobile Meta -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="HomeExpenses">
+    <meta name="format-detection" content="telephone=no">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS (XLSX) for Excel Export & Import -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css?v=3.4.0">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col antialiased">
+
+    <!-- Mobile PWA Quick Install Banner -->
+    <div id="mobilePwaBanner" class="sm:hidden bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-900 text-white px-3 py-2 flex items-center justify-between border-b border-indigo-500/30 shadow-md">
+        <div class="flex items-center space-x-2 min-w-0">
+            <div class="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-[11px] font-black shadow shrink-0">
+                <i class="fa-solid fa-mobile-screen"></i>
+            </div>
+            <div class="min-w-0 truncate">
+                <div class="text-xs font-bold leading-tight truncate">Install HOMEEXPENSES</div>
+                <div class="text-[10px] text-indigo-300 truncate">Fast, offline-ready mobile app</div>
+            </div>
+        </div>
+        <div class="flex items-center space-x-1.5 shrink-0 ml-2">
+            <button onclick="installPwaApp()" class="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-lg shadow transition flex items-center space-x-1">
+                <i class="fa-solid fa-download text-[10px]"></i>
+                <span>Install</span>
+            </button>
+            <button onclick="dismissMobilePwaBanner()" class="text-slate-400 hover:text-white p-1 text-xs">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Top Command Navigation Bar -->
+    <header class="glass-nav border-b border-slate-800/90 sticky top-0 z-40 shadow-xl">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-14 sm:h-16 items-center gap-2">
+                
+                <!-- Logo & Brand Header -->
+                <div class="flex items-center space-x-2 sm:space-x-3 shrink min-w-0">
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-indigo-500 via-violet-600 to-emerald-400 flex items-center justify-center text-white shadow-md shadow-indigo-500/25 shrink-0">
+                        <i class="fa-solid fa-vault text-sm sm:text-lg"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5 sm:gap-2">
+                            <h1 class="text-base sm:text-xl font-black text-white tracking-tight truncate">
+                                <span>HomeExpenses</span>
+                            </h1>
+                            <span id="hdrPeriodBadge" class="hidden xs:inline-block text-[10px] sm:text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 truncate max-w-[100px] sm:max-w-none">
+                                Current Month
+                            </span>
+                        </div>
+                        <div class="hidden sm:flex items-center space-x-2 text-[11px] text-slate-400 font-medium">
+                            <span class="inline-flex items-center text-emerald-400 font-bold">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-1"></span> Live
+                            </span>
+                            <span>&bull;</span>
+                            <span id="hdrTxCount">0 Transactions</span>
+                            <span>&bull;</span>
+                            <span>Updated <span id="hdrLastUpdated">Just now</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Command Actions & Theme Switcher -->
+                <div class="flex items-center space-x-1 sm:space-x-2.5 shrink-0">
+                    
+                    <!-- Live Theme Switcher (Desktop only) -->
+                    <div class="hidden sm:flex items-center space-x-1.5 bg-slate-800/90 text-slate-200 border border-slate-700/90 rounded-xl px-2.5 py-1.5 shadow-sm text-xs font-semibold">
+                        <i class="fa-solid fa-palette text-amber-400"></i>
+                        <select id="themeSelector" onchange="changeTheme(this.value)" class="bg-transparent text-slate-200 text-xs font-bold focus:outline-none cursor-pointer border-none p-0">
+                            <option value="indigo" class="bg-slate-900 text-white">✨ Luxe Indigo</option>
+                            <option value="dark" class="bg-slate-900 text-white">🌙 Midnight Dark</option>
+                            <option value="emerald" class="bg-slate-900 text-white">🌿 Emerald Mint</option>
+                            <option value="rose" class="bg-slate-900 text-white">🌅 Sunset Rose</option>
+                        </select>
+                    </div>
+
+                    <!-- PWA Install App Action -->
+                    <button id="btnInstallPwa" onclick="installPwaApp()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl shadow-md transition flex items-center space-x-1 sm:space-x-1.5" title="Install or Download App to Mobile">
+                        <i class="fa-solid fa-mobile-screen-button text-xs sm:text-sm"></i>
+                        <span class="hidden sm:inline">Install App</span>
+                        <span class="sm:hidden text-[11px]">Install</span>
+                    </button>
+
+                    <!-- Reset to Current Month Shortcut -->
+                    <button onclick="resetToCurrentMonth()" title="Reset to Current Month & Year" class="bg-slate-800/90 hover:bg-slate-700 text-indigo-300 font-bold text-xs p-2 sm:px-3 sm:py-2 rounded-xl border border-indigo-500/30 shadow-sm transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-calendar-day text-indigo-400"></i>
+                        <span class="hidden md:inline">Current Month</span>
+                    </button>
+
+                    <!-- Add Expense Primary Action -->
+                    <button id="btnQuickAdd" onclick="openExpenseModal()" class="bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white font-extrabold text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/40 active:scale-95 transition-all flex items-center space-x-1.5 sm:space-x-2">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        <span class="hidden sm:inline">Add Expense</span>
+                        <span class="sm:hidden font-bold">Add</span>
+                    </button>
+                    
+                    <!-- Export Options Menu -->
+                    <div class="relative inline-block text-left">
+                        <button onclick="toggleExportMenu()" class="bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs sm:text-sm p-2 sm:px-3.5 sm:py-2 rounded-xl border border-slate-700 shadow-sm transition flex items-center space-x-1 sm:space-x-1.5">
+                            <i class="fa-solid fa-file-excel text-emerald-400"></i>
+                            <span class="hidden sm:inline">Export & Reports</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] ml-0.5 sm:ml-1 text-slate-400"></i>
+                        </button>
+                        <div id="exportDropdownMenu" class="hidden absolute right-0 mt-2 w-64 rounded-2xl shadow-2xl bg-white border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100">
+                            <div class="py-1">
+                                <button onclick="installPwaApp(); toggleExportMenu();" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-emerald-50 hover:text-emerald-700 flex items-center justify-between">
+                                    <span class="flex items-center gap-2"><i class="fa-solid fa-mobile-screen text-emerald-600"></i> Download / Install App</span>
+                                    <span class="text-[10px] bg-emerald-100 text-emerald-800 font-black px-1.5 py-0.5 rounded">iOS / Android</span>
+                                </button>
+                                <button onclick="generateExecutiveReport(); toggleExportMenu();" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-between">
+                                    <span class="flex items-center gap-2"><i class="fa-solid fa-file-pdf text-rose-500"></i> Executive PDF Report</span>
+                                    <span class="text-[10px] bg-rose-100 text-rose-800 font-black px-1.5 py-0.5 rounded">Print / PDF</span>
+                                </button>
+                                <button onclick="exportToExcel('filtered'); toggleExportMenu();" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-between">
+                                    <span class="flex items-center gap-2"><i class="fa-solid fa-file-excel text-emerald-600"></i> Export Filtered Excel</span>
+                                    <span class="text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded">Active</span>
+                                </button>
+                                <button onclick="exportToExcel('all'); toggleExportMenu();" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-between">
+                                    <span class="flex items-center gap-2"><i class="fa-solid fa-file-lines text-slate-500"></i> Export Complete History</span>
+                                    <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">All-Time</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Import Excel Action -->
+                    <label class="cursor-pointer bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-semibold text-xs sm:text-sm px-3.5 py-2 rounded-xl border border-slate-700 transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i>
+                        <span class="hidden sm:inline">Import</span>
+                        <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden" onchange="importFromExcel(event)">
+                    </label>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Command Body -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-5 space-y-4 sm:space-y-5 pb-24 md:pb-6">
+
+        <!-- Navigation Tabs Bar -->
+        <div class="glass-card rounded-2xl p-1 sm:p-1.5 border border-slate-200/80 shadow-sm flex items-center justify-between overflow-hidden">
+            <div class="nav-tabs-scroll flex items-center gap-1 sm:gap-1.5 w-full md:w-auto py-0.5 px-0.5">
+                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition flex items-center space-x-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span class="hidden sm:inline">Dashboard & Command Center</span>
+                    <span class="sm:hidden">Dashboard</span>
+                </button>
+                <button onclick="switchTab('expenses')" id="tab-expenses" class="tab-btn shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 whitespace-nowrap">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span class="hidden sm:inline">Daily Expenses Log</span>
+                    <span class="sm:hidden">Daily Log</span>
+                </button>
+                <button onclick="switchTab('staff')" id="tab-staff" class="tab-btn shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 whitespace-nowrap">
+                    <i class="fa-solid fa-users-gear"></i>
+                    <span class="hidden sm:inline">Staff Payments (Madhuri & Nilima)</span>
+                    <span class="sm:hidden">Staff</span>
+                </button>
+                <button onclick="switchTab('matrix')" id="tab-matrix" class="tab-btn shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 whitespace-nowrap">
+                    <i class="fa-solid fa-table-cells"></i>
+                    <span class="hidden sm:inline">Monthly Pivot Matrix</span>
+                    <span class="sm:hidden">Pivot Matrix</span>
+                </button>
+                <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 whitespace-nowrap">
+                    <i class="fa-solid fa-database"></i>
+                    <span class="hidden sm:inline">Excel & Data Management</span>
+                    <span class="sm:hidden">Excel Data</span>
+                </button>
+                <button onclick="switchTab('admin')" id="tab-admin" class="tab-btn shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 whitespace-nowrap">
+                    <i class="fa-solid fa-sliders text-indigo-500"></i>
+                    <span class="hidden sm:inline">⚙️ Admin Settings</span>
+                    <span class="sm:hidden">⚙️ Admin</span>
+                </button>
+            </div>
+            <div class="hidden md:flex items-center space-x-2 text-xs font-bold text-indigo-900 bg-indigo-50/80 px-3 py-1.5 rounded-xl border border-indigo-100 shrink-0 ml-2">
+                <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                <span id="recordCountBadge">Status: Online</span>
+            </div>
+        </div>
+
+        <!-- ================= ADVANCED MULTI-DIMENSIONAL FILTER TOOLBAR ================= -->
+        <section class="glass-card p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-3.5">
+            
+            <!-- Primary Filter Dropdowns -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                
+                <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
+                    
+                    <div class="col-span-2 sm:col-span-1">
+                        <span class="text-xs font-extrabold uppercase tracking-wider text-indigo-950 flex items-center space-x-1.5 bg-indigo-100/70 text-indigo-800 px-3 py-1.5 rounded-xl border border-indigo-200 shadow-sm w-fit">
+                            <i class="fa-solid fa-sliders text-indigo-600"></i>
+                            <span>Filters:</span>
+                        </span>
+                    </div>
+
+                    <!-- Month Filter (Dynamically defaults to Current Month) -->
+                    <div class="relative w-full sm:w-auto">
+                        <select id="filterMonth" onchange="onFilterChange()" class="w-full bg-white border border-slate-300 text-slate-800 text-xs sm:text-sm rounded-xl px-3 py-2 font-bold focus:border-indigo-500 shadow-sm pr-7">
+                            <!-- Populated dynamically by JS -->
+                        </select>
+                    </div>
+
+                    <!-- Year Filter (Dynamically defaults to Current Year) -->
+                    <div class="relative w-full sm:w-auto">
+                        <select id="filterYear" onchange="onFilterChange()" class="w-full bg-white border border-slate-300 text-slate-800 text-xs sm:text-sm rounded-xl px-3 py-2 font-bold focus:border-indigo-500 shadow-sm pr-7">
+                            <!-- Populated dynamically by JS -->
+                        </select>
+                    </div>
+
+                    <!-- Category Filter -->
+                    <div class="relative w-full sm:w-auto">
+                        <select id="filterCategory" onchange="onFilterChange()" class="w-full bg-white border border-slate-300 text-slate-800 text-xs sm:text-sm rounded-xl px-3 py-2 font-semibold focus:border-indigo-500 shadow-sm pr-7 truncate">
+                            <option value="all">All Categories</option>
+                            <option value="Electricity Bill">⚡ Electricity Bill</option>
+                            <option value="Flat Maintenance">🏢 Flat Maintenance</option>
+                            <option value="Dish Bill (DTH)">📺 Dish Bill (DTH)</option>
+                            <option value="Grocery & Vegetables">🛒 Grocery & Vegetables</option>
+                            <option value="Maid - Madhuri">🧹 Maid - Madhuri</option>
+                            <option value="Chef - Nilima Nikose">👩‍🍳 Chef - Nilima Nikose</option>
+                            <option value="Gas & Water">🔥 Gas & Water</option>
+                            <option value="Wifi & Internet">📶 Wifi & Internet</option>
+                            <option value="Accepted Payments (Income)">💰 Accepted Payments (Income)</option>
+                            <option value="Shopping & Miscellaneous">🛍️ Shopping & Miscellaneous</option>
+                        </select>
+                    </div>
+
+                    <!-- PAID BY Filter -->
+                    <div class="relative w-full sm:w-auto">
+                        <select id="filterPaidBy" onchange="onFilterChange()" class="w-full bg-white border-2 border-indigo-200 text-indigo-900 text-xs sm:text-sm rounded-xl px-3 py-2 font-black focus:border-indigo-500 shadow-sm pr-7">
+                            <option value="all">Paid By: All</option>
+                            <option value="Palash">👤 Palash</option>
+                            <option value="Pallavi">👩 Pallavi</option>
+                            <option value="Mom">👵 Mom</option>
+                            <option value="Dad">👴 Dad</option>
+                            <option value="Not Specified">❓ Not Specified</option>
+                        </select>
+                    </div>
+
+                    <!-- Payment Method Filter -->
+                    <div class="relative w-full sm:w-auto">
+                        <select id="filterPaymentMethod" onchange="onFilterChange()" class="w-full bg-white border border-slate-300 text-slate-800 text-xs sm:text-sm rounded-xl px-3 py-2 font-semibold focus:border-indigo-500 shadow-sm pr-7 truncate">
+                            <option value="all">All Payment Methods</option>
+                            <option value="UPI / GPay / PhonePe">UPI / GPay / PhonePe</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Net Banking">Net Banking</option>
+                            <option value="Credit Card">Credit Card</option>
+                            <option value="Auto Debit">Auto Debit</option>
+                        </select>
+                    </div>
+
+                    <!-- Expense Type Filter (Debit vs Credit) -->
+                    <div class="relative w-full sm:w-auto">
+                        <select id="filterExpenseType" onchange="onFilterChange()" class="w-full bg-white border border-slate-300 text-slate-800 text-xs sm:text-sm rounded-xl px-3 py-2 font-semibold focus:border-indigo-500 shadow-sm pr-7">
+                            <option value="all">All Flow Types</option>
+                            <option value="expense">Expenses Only (Debits)</option>
+                            <option value="income">Income Only (Credits)</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <!-- Filter Controls / Action Buttons -->
+                <div class="flex items-center gap-2 w-full sm:w-auto justify-end pt-1 sm:pt-0">
+                    <button onclick="toggleCustomDateRange()" class="flex-1 sm:flex-none justify-center px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-calendar-range text-indigo-600"></i>
+                        <span>Date Range</span>
+                    </button>
+                    <button onclick="resetAllFilters()" class="flex-1 sm:flex-none justify-center px-3 py-2 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-700 text-xs font-bold rounded-xl border border-slate-200 hover:border-red-200 transition flex items-center space-x-1">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        <span>Reset</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Custom Date Range Collapse Drawer -->
+            <div id="customDateDrawer" class="hidden p-3.5 bg-indigo-50/70 border border-indigo-100 rounded-xl flex flex-wrap items-center gap-3">
+                <span class="text-xs font-extrabold text-indigo-900 flex items-center gap-1.5">
+                    <i class="fa-solid fa-calendar-days text-indigo-600"></i> Custom Date Range:
+                </span>
+                <div class="flex items-center space-x-2 text-xs font-bold">
+                    <label class="text-slate-600">From:</label>
+                    <input type="date" id="filterDateFrom" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold focus:border-indigo-500">
+                </div>
+                <div class="flex items-center space-x-2 text-xs font-bold">
+                    <label class="text-slate-600">To:</label>
+                    <input type="date" id="filterDateTo" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold focus:border-indigo-500">
+                </div>
+                <button onclick="applyCustomDateRange()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
+                    Apply Range
+                </button>
+                <button onclick="clearCustomDateRange()" class="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-600 text-xs font-bold rounded-lg border border-slate-200 transition">
+                    Clear
+                </button>
+            </div>
+
+            <!-- Quick Filter Chips -->
+            <div class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-200/60 text-xs">
+                <span class="text-[11px] font-extrabold uppercase text-slate-400 mr-1">Quick Select:</span>
+                
+                <button onclick="quickFilterPeriod('this-month')" class="quick-chip px-2.5 py-1 rounded-lg font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 transition">
+                    This Month
+                </button>
+                <button onclick="quickFilterPeriod('last-month')" class="quick-chip px-2.5 py-1 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">
+                    Last Month
+                </button>
+                <button onclick="quickFilterPeriod('this-year')" class="quick-chip px-2.5 py-1 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">
+                    This Year
+                </button>
+                <button onclick="quickFilterPeriod('all-time')" class="quick-chip px-2.5 py-1 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">
+                    All-Time History
+                </button>
+
+                <span class="text-slate-300 mx-1">|</span>
+
+                <!-- Paid By Chips -->
+                <button onclick="quickFilterPaidBy('Palash')" class="quick-chip px-2.5 py-1 rounded-lg font-bold bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 transition">
+                    👤 Palash
+                </button>
+                <button onclick="quickFilterPaidBy('Pallavi')" class="quick-chip px-2.5 py-1 rounded-lg font-bold bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 transition">
+                    👩 Pallavi
+                </button>
+                <button onclick="quickFilterPaidBy('Mom')" class="quick-chip px-2.5 py-1 rounded-lg font-bold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition">
+                    👵 Mom
+                </button>
+                <button onclick="quickFilterPaidBy('Dad')" class="quick-chip px-2.5 py-1 rounded-lg font-bold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition">
+                    👴 Dad
+                </button>
+
+                <span class="text-slate-300 mx-1">|</span>
+
+                <button onclick="quickFilterFlow('expense')" class="quick-chip px-2.5 py-1 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-rose-700 border border-slate-200 transition">
+                    Expenses Only
+                </button>
+                <button onclick="quickFilterFlow('income')" class="quick-chip px-2.5 py-1 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-emerald-700 border border-slate-200 transition">
+                    Income Only
+                </button>
+            </div>
+
+            <!-- Active Filter Badges Container -->
+            <div id="activeFilterTags" class="hidden flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+                <!-- Populated dynamically with '×' chips -->
+            </div>
+        </section>
+
+        <!-- ================= TAB 1: LUXURY DASHBOARD COMMAND CENTER ================= -->
+        <div id="view-dashboard" class="tab-view space-y-6">
+            
+            <!-- Dashboard Smart Headline & Period Display -->
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-900 text-white p-5 rounded-3xl shadow-lg border border-indigo-800/50">
+                <div>
+                    <span class="text-[11px] font-black uppercase tracking-widest text-indigo-300">Command Center &bull; Financial Overview</span>
+                    <h2 id="dashboardPeriodTitle" class="text-2xl sm:text-3xl font-black tracking-tight text-white mt-0.5">
+                        September 2026
+                    </h2>
+                    <p id="dashboardPeriodSubtitle" class="text-xs text-slate-300 font-medium mt-1">
+                        Viewing verified household expenses, staff payroll, and inflows.
+                    </p>
+                </div>
+                <div class="flex items-center gap-2 self-start sm:self-auto">
+                    <button onclick="openExpenseModal()" class="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-xs font-black rounded-xl shadow-md transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Record Expense</span>
+                    </button>
+                    <button onclick="exportToExcel('filtered')" class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-file-arrow-down text-emerald-400"></i>
+                        <span>Export View</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Contextual Data-Backed Financial Insights & Alerts -->
+            <div id="financialInsightsContainer" class="space-y-2"></div>
+            <div id="staffPaymentAlertContainer"></div>
+
+            <!-- Smart Anomaly & Duplicate Detection Alert Banner -->
+            <div id="dashboardAnomalyBanner" class="hidden glass-card bg-amber-500/10 border-2 border-amber-400/40 rounded-2xl p-4 shadow-sm flex items-start justify-between">
+                <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center text-sm font-black shrink-0 mt-0.5 shadow-md shadow-amber-500/30">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                            <span>Smart Anomaly &amp; Duplicate Radar</span>
+                            <span id="anomalyCountBadge" class="bg-amber-200 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-full">0 Alerts</span>
+                        </h4>
+                        <div id="anomalyListContent" class="text-xs font-bold text-amber-900 mt-1 space-y-1"></div>
+                    </div>
+                </div>
+                <button onclick="dismissAnomalyBanner()" class="text-amber-700 hover:text-amber-950 p-1 text-xs font-bold"><i class="fa-solid fa-xmark text-sm"></i></button>
+            </div>
+
+            <!-- ================= 10 SUMMARY KPI METRIC CARDS ================= -->
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-4">
+                
+                <!-- KPI 1: Total Expenses -->
+                <div class="glass-card p-3 sm:p-5 rounded-2xl hover-lift relative overflow-hidden border-l-4 border-l-indigo-600">
+                    <div class="flex justify-between items-start">
+                        <div class="min-w-0">
+                            <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-indigo-700 truncate" id="statPeriodLabel">Total Expenses</p>
+                            <h3 id="statTotalSpent" class="text-lg sm:text-2xl md:text-3xl font-black text-slate-900 mt-1 truncate">₹0</h3>
+                        </div>
+                        <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0 ml-1">
+                            <i class="fa-solid fa-indian-rupee-sign text-xs sm:text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 sm:mt-3 flex items-center justify-between text-[11px] sm:text-xs text-slate-500 border-t border-slate-100 pt-1.5 sm:pt-2">
+                        <span id="statSpentCount" class="font-bold text-indigo-600 truncate">0 exp</span>
+                        <span id="statMoMComparison" class="font-semibold text-slate-500 truncate">-</span>
+                    </div>
+                </div>
+
+                <!-- KPI 2: Total Income / Received -->
+                <div class="glass-card p-3 sm:p-5 rounded-2xl hover-lift relative overflow-hidden border-l-4 border-l-emerald-500">
+                    <div class="flex justify-between items-start">
+                        <div class="min-w-0">
+                            <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 truncate">Total Inflow</p>
+                            <h3 id="statTotalIncome" class="text-lg sm:text-2xl md:text-3xl font-black text-slate-900 mt-1 truncate">₹0</h3>
+                        </div>
+                        <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold shrink-0 ml-1">
+                            <i class="fa-solid fa-arrow-down-left text-xs sm:text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 sm:mt-3 flex items-center justify-between text-[11px] sm:text-xs text-slate-500 border-t border-slate-100 pt-1.5 sm:pt-2">
+                        <span id="statIncomeCount" class="font-bold text-emerald-600 truncate">0 credits</span>
+                        <span class="text-slate-400">Accepted</span>
+                    </div>
+                </div>
+
+                <!-- KPI 3: Net Cash Flow -->
+                <div class="glass-card p-3 sm:p-5 rounded-2xl hover-lift relative overflow-hidden border-l-4 border-l-sky-500">
+                    <div class="flex justify-between items-start">
+                        <div class="min-w-0">
+                            <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-sky-700 truncate">Net Cash Flow</p>
+                            <h3 id="statNetCashFlow" class="text-lg sm:text-2xl md:text-3xl font-black text-slate-900 mt-1 truncate">₹0</h3>
+                        </div>
+                        <div id="statNetCashFlowIcon" class="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold shrink-0 ml-1">
+                            <i class="fa-solid fa-scale-balanced text-xs sm:text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 sm:mt-3 flex items-center justify-between text-[11px] sm:text-xs border-t border-slate-100 pt-1.5 sm:pt-2">
+                        <span id="statNetCashFlowBadge" class="font-bold text-slate-600 truncate">Balanced</span>
+                        <span class="text-slate-400 text-[10px]">Net</span>
+                    </div>
+                </div>
+
+                <!-- KPI 4: Average Daily Expense -->
+                <div class="glass-card p-3 sm:p-5 rounded-2xl hover-lift relative overflow-hidden border-l-4 border-l-violet-500">
+                    <div class="flex justify-between items-start">
+                        <div class="min-w-0">
+                            <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-violet-700 truncate">Daily Average</p>
+                            <h3 id="statAvgPerDay" class="text-lg sm:text-2xl md:text-3xl font-black text-slate-900 mt-1 truncate">₹0</h3>
+                        </div>
+                        <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center font-bold shrink-0 ml-1">
+                            <i class="fa-solid fa-calendar-day text-xs sm:text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 sm:mt-3 flex items-center justify-between text-[11px] sm:text-xs text-slate-500 border-t border-slate-100 pt-1.5 sm:pt-2">
+                        <span id="statDailyDaysCount" class="font-semibold text-slate-500 truncate">30 days</span>
+                        <span class="text-slate-400">Burn</span>
+                    </div>
+                </div>
+
+                <!-- KPI 5: Highest Single Expense -->
+                <div class="glass-card p-3 sm:p-5 rounded-2xl hover-lift relative overflow-hidden border-l-4 border-l-rose-500">
+                    <div class="flex justify-between items-start">
+                        <div class="min-w-0">
+                            <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-rose-700 truncate">Highest Expense</p>
+                            <h3 id="statHighestExpense" class="text-lg sm:text-2xl md:text-3xl font-black text-slate-900 mt-1 truncate">₹0</h3>
+                        </div>
+                        <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold shrink-0 ml-1">
+                            <i class="fa-solid fa-arrow-trend-up text-xs sm:text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 sm:mt-3 flex items-center justify-between text-[11px] sm:text-xs text-slate-500 border-t border-slate-100 pt-1.5 sm:pt-2 truncate">
+                        <span id="statHighestExpenseVendor" class="font-bold text-slate-700 truncate">-</span>
+                    </div>
+                </div>
+
+                <!-- KPI 6: Staff Payments (Madhuri & Nilima) -->
+                <div class="glass-card p-3 sm:p-5 rounded-2xl hover-lift relative overflow-hidden border-l-4 border-l-amber-500">
+                    <div class="flex justify-between items-start">
+                        <div class="min-w-0">
+                            <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-amber-700 truncate">Staff Payroll</p>
+                            <h3 id="statStaffTotal" class="text-lg sm:text-2xl font-black text-slate-900 mt-1 truncate">₹0</h3>
+                        </div>
+                        <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold shrink-0 ml-1">
+                            <i class="fa-solid fa-user-tie text-xs sm:text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 sm:mt-3 flex items-center justify-between text-[11px] sm:text-xs text-slate-500 border-t border-slate-100 pt-1.5 sm:pt-2">
+                        <span id="statStaffPayrollBadge" class="font-bold text-amber-700 truncate">Staff</span>
+                        <span id="statStaffStatusSummary" class="font-semibold text-slate-500 truncate">Pending</span>
+                    </div>
+                </div>
+
+                <!-- KPI 7: Grocery & Vegetables -->
+                <div class="glass-card p-3 sm:p-5 rounded-2xl hover-lift relative overflow-hidden border-l-4 border-l-emerald-600">
+                    <div class="flex justify-between items-start">
+                        <div class="min-w-0">
+                            <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-emerald-800 truncate">Groceries</p>
+                            <h3 id="statGroceryTotal" class="text-lg sm:text-2xl font-black text-slate-900 mt-1 truncate">₹0</h3>
+                        </div>
+                        <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold shrink-0 ml-1">
+                            <i class="fa-solid fa-cart-shopping text-xs sm:text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 sm:mt-3 flex items-center justify-between text-[11px] sm:text-xs text-slate-500 border-t border-slate-100 pt-1.5 sm:pt-2">
+                        <span id="statGroceryCount" class="font-bold text-emerald-800 truncate">0 orders</span>
+                        <span id="statGroceryShare" class="text-slate-400">Share</span>
+                    </div>
+                </div>
+
+                <!-- KPI 8: Transactions Count -->
+                <div class="glass-card p-3 sm:p-5 rounded-2xl hover-lift relative overflow-hidden border-l-4 border-l-indigo-400">
+                    <div class="flex justify-between items-start">
+                        <div class="min-w-0">
+                            <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-indigo-600 truncate">Transactions</p>
+                            <h3 id="statTxCountTotal" class="text-lg sm:text-2xl font-black text-slate-900 mt-1 truncate">0</h3>
+                        </div>
+                        <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0 ml-1">
+                            <i class="fa-solid fa-receipt text-xs sm:text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 sm:mt-3 flex items-center justify-between text-[11px] sm:text-xs text-slate-500 border-t border-slate-100 pt-1.5 sm:pt-2">
+                        <span class="text-slate-500 font-semibold truncate">Ledger</span>
+                        <span id="statActiveFilterCount" class="font-bold text-indigo-700 truncate">In view</span>
+                    </div>
+                </div>
+
+                <!-- KPI 9: Pending Recurring Bills -->
+                <div class="glass-card p-3 sm:p-5 rounded-2xl hover-lift relative overflow-hidden border-l-4 border-l-orange-500">
+                    <div class="flex justify-between items-start">
+                        <div class="min-w-0">
+                            <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-orange-700 truncate">Pending Bills</p>
+                            <h3 id="statPendingBillsCount" class="text-lg sm:text-2xl font-black text-slate-900 mt-1 truncate">0</h3>
+                        </div>
+                        <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center font-bold shrink-0 ml-1">
+                            <i class="fa-solid fa-clock text-xs sm:text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 sm:mt-3 flex items-center justify-between text-[11px] sm:text-xs text-slate-500 border-t border-slate-100 pt-1.5 sm:pt-2">
+                        <span id="statPendingBillsText" class="font-bold text-orange-600 truncate">Due soon</span>
+                        <span class="text-slate-400">Bills</span>
+                    </div>
+                </div>
+
+                <!-- KPI 10: Paid Recurring Bills -->
+                <div class="glass-card p-3 sm:p-5 rounded-2xl hover-lift relative overflow-hidden border-l-4 border-l-teal-500">
+                    <div class="flex justify-between items-start">
+                        <div class="min-w-0">
+                            <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-teal-700 truncate">Paid Utilities</p>
+                            <h3 id="statPaidBillsCount" class="text-lg sm:text-2xl font-black text-slate-900 mt-1 truncate">0</h3>
+                        </div>
+                        <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold shrink-0 ml-1">
+                            <i class="fa-solid fa-circle-check text-xs sm:text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 sm:mt-3 flex items-center justify-between text-[11px] sm:text-xs text-slate-500 border-t border-slate-100 pt-1.5 sm:pt-2">
+                        <span id="statPaidBillsText" class="font-bold text-teal-700 truncate">Done</span>
+                        <span class="text-slate-400">Completed</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ================= SPENDING VISUALIZATIONS & ANALYTICS ================= -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Chart 1: Where Your Money Goes (Category Breakdown Donut) -->
+                <div class="lg:col-span-6 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-extrabold text-slate-900 flex items-center">
+                                <i class="fa-solid fa-chart-pie text-indigo-600 mr-2"></i>
+                                <span>Where Your Money Goes</span>
+                            </h3>
+                            <span class="text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/70 px-2 py-0.5 rounded-md">Click Category to Filter</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-3 font-medium">Interactive category distribution for the filtered period.</p>
+                    </div>
+                    <div class="relative h-64 flex items-center justify-center">
+                        <canvas id="categoryPieChart"></canvas>
+                    </div>
+                    <div id="categoryChartLegend" class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs"></div>
+                </div>
+
+                <!-- Chart 2: Expenses by "PAID BY" (Palash vs Pallavi vs Mom vs Dad) -->
+                <div class="lg:col-span-6 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-extrabold text-slate-900 flex items-center">
+                                <i class="fa-solid fa-users text-violet-600 mr-2"></i>
+                                <span>Expenses by Family Member (Paid By)</span>
+                            </h3>
+                            <span class="text-[11px] font-bold bg-violet-50 text-violet-700 border border-violet-200/70 px-2 py-0.5 rounded-md">Click Member to Filter</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-3 font-medium">Who is funding household expenses across active filters.</p>
+                    </div>
+                    <div class="relative h-64 flex items-center justify-center">
+                        <canvas id="paidByDonutChart"></canvas>
+                    </div>
+                    <div id="paidByStatsGrid" class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs"></div>
+                </div>
+
+                <!-- Chart 3: Monthly Trend (Expenses vs Income vs Net Flow) -->
+                <div class="lg:col-span-8 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-extrabold text-slate-900 flex items-center">
+                                <i class="fa-solid fa-chart-column text-indigo-600 mr-2"></i>
+                                <span>Monthly Expense & Cash Flow Trend</span>
+                            </h3>
+                            <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
+                                <button onclick="setTrendGranularity('monthly')" id="btnTrendMonthly" class="px-2.5 py-1 rounded-lg bg-white text-indigo-700 shadow-sm font-extrabold">Monthly</button>
+                                <button onclick="setTrendGranularity('quarterly')" id="btnTrendQuarterly" class="px-2.5 py-1 rounded-lg hover:text-slate-900">Quarterly</button>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-3 font-medium">Month-by-month cash outflows vs inflows for the selected year.</p>
+                    </div>
+                    <div class="relative h-72">
+                        <canvas id="monthlyTrendChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 4: Payment Methods Analytics -->
+                <div class="lg:col-span-4 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-extrabold text-slate-900 flex items-center">
+                                <i class="fa-solid fa-credit-card text-emerald-600 mr-2"></i>
+                                <span>Payment Methods</span>
+                            </h3>
+                            <span class="text-xs font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md">Mode Share</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-3 font-medium">Breakdown of payments made by UPI, Cash, Cards.</p>
+                    </div>
+                    <div class="relative h-56 flex items-center justify-center">
+                        <canvas id="paymentMethodChart"></canvas>
+                    </div>
+                    <div id="paymentMethodList" class="mt-4 pt-3 border-t border-slate-100 space-y-2 text-xs"></div>
+                </div>
+
+            </div>
+
+            <!-- ================= HOUSEHOLD SPENDING MATRIX (PAID BY × CATEGORY) ================= -->
+            <div class="glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900 flex items-center">
+                            <i class="fa-solid fa-table-cells-large text-indigo-600 mr-2"></i>
+                            <span>Household Spending Matrix (Paid By × Category)</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 font-medium">Cross-tabulation showing how much each family member paid per category in the filtered period.</p>
+                    </div>
+                    <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-xl">Auto-Cross-Tabulated</span>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead id="spendingMatrixThead" class="bg-slate-900 text-slate-200 uppercase font-black tracking-wider">
+                            <!-- Populated dynamically -->
+                        </thead>
+                        <tbody id="spendingMatrixTbody" class="divide-y divide-slate-200 text-slate-700 font-semibold">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ================= ADVANCE MODULE: HOUSEHOLD SPLITWISE SETTLEMENT ================= -->
+            <div class="glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900 flex items-center">
+                            <i class="fa-solid fa-scale-unbalanced-flip text-emerald-600 mr-2"></i>
+                            <span>Household Splitwise Settlement Matrix (Who Owes Whom)</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 font-medium">Automatic balance reconciliation between Palash &amp; Pallavi for shared household expenses.</p>
+                    </div>
+                    <div id="settleUpActionContainer">
+                        <button onclick="openSettleUpModal()" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-handshake"></i>
+                            <span>1-Click Settle Up</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="splitwiseCardsGrid">
+                    <!-- Populated dynamically: Palash share, Pallavi share, Net Settlement verdict -->
+                </div>
+            </div>
+
+            <!-- ================= ADVANCE MODULE: UPCOMING BILLS RADAR & 15-DAY CASH RUNWAY ================= -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Upcoming Bills Radar (8 cols) -->
+                <div class="lg:col-span-8 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="text-sm font-extrabold text-slate-900 flex items-center">
+                                <i class="fa-solid fa-satellite-dish text-indigo-600 mr-2"></i>
+                                <span>Upcoming Bills Due Date Radar</span>
+                            </h3>
+                            <p class="text-xs text-slate-500 font-medium">Tracking recurring monthly bills and automated cycle deadlines.</p>
+                        </div>
+                        <span class="text-[11px] font-bold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg border border-indigo-200">Live Cycle Radar</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" id="billsRadarGrid">
+                        <!-- Populated dynamically: MSCB Electricity, Flat Maint, Dish TV, Wifi, Madhuri, Nilima -->
+                    </div>
+                </div>
+
+                <!-- 15-Day Cash Flow Runway Predictor (4 cols) -->
+                <div class="lg:col-span-4 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-3">
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-sm font-extrabold text-slate-900 flex items-center">
+                                <i class="fa-solid fa-gauge-high text-violet-600 mr-2"></i>
+                                <span>15-Day Runway Predictor</span>
+                            </h3>
+                            <span class="text-[10px] font-black uppercase tracking-wider text-violet-700 bg-violet-50 px-2 py-0.5 rounded">Forecast</span>
+                        </div>
+                        <p class="text-xs text-slate-500 font-medium mt-1">Estimated liquidity required for upcoming commitments.</p>
+                    </div>
+                    <div class="p-4 bg-gradient-to-br from-indigo-50/70 to-violet-50/70 border border-indigo-100 rounded-xl space-y-2">
+                        <div class="flex justify-between items-baseline">
+                            <span class="text-xs font-bold text-slate-600">Committed Outflow:</span>
+                            <span id="runwayTotalNeeded" class="text-xl font-black text-indigo-950">₹0</span>
+                        </div>
+                        <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                            <div id="runwayProgressBar" class="bg-gradient-to-r from-indigo-500 to-violet-600 h-full w-0 transition-all duration-500"></div>
+                        </div>
+                        <p id="runwayDetailNote" class="text-[11px] font-semibold text-slate-500 pt-1">Calculating upcoming obligations...</p>
+                    </div>
+                    <div id="runwayItemsList" class="space-y-1.5 text-xs border-t border-slate-100 pt-2 font-medium"></div>
+                </div>
+            </div>
+
+            <!-- ================= STAFF PAYMENTS & BUDGET / RECURRING SUMMARY ================= -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Staff Payments Dedicated Status (Madhuri & Nilima) -->
+                <div class="lg:col-span-6 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="text-base font-extrabold text-slate-900 flex items-center">
+                                <i class="fa-solid fa-hand-holding-dollar text-indigo-600 mr-2"></i>
+                                <span>Staff Payroll Ledger (Current Period)</span>
+                            </h3>
+                            <p class="text-xs text-slate-500 font-medium">Dedicated payment status for Maid and Chef</p>
+                        </div>
+                        <button onclick="switchTab('staff')" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center space-x-1">
+                            <span>Open Staff View</span>
+                            <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Madhuri (Maid) -->
+                        <div class="p-4 rounded-xl bg-indigo-50/70 border border-indigo-100 space-y-2.5">
+                            <div class="flex justify-between items-start">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
+                                        <i class="fa-solid fa-broom"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-extrabold text-slate-900">Madhuri (Maid)</h4>
+                                        <span class="text-[10px] text-slate-500 font-bold">21st of Month Cycle</span>
+                                    </div>
+                                </div>
+                                <span id="statMadhuriStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800">Pending</span>
+                            </div>
+                            <div class="flex justify-between items-baseline pt-2 border-t border-indigo-100/80 text-xs">
+                                <span class="text-slate-500">Paid in Period:</span>
+                                <span id="statMadhuriPaid" class="font-extrabold text-slate-900 text-sm">₹0</span>
+                            </div>
+                            <button onclick="quickPayItem('Maid - Madhuri', 800, 'Madhuri')" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
+                                Pay Madhuri ₹800
+                            </button>
+                        </div>
+
+                        <!-- Nilima Nikose (Chef) -->
+                        <div class="p-4 rounded-xl bg-amber-50/70 border border-amber-100 space-y-2.5">
+                            <div class="flex justify-between items-start">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold text-xs">
+                                        <i class="fa-solid fa-utensils"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-extrabold text-slate-900">Nilima Nikose (Chef)</h4>
+                                        <span class="text-[10px] text-slate-500 font-bold">Month End (30th) Cycle</span>
+                                    </div>
+                                </div>
+                                <span id="statNilimaStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800">Pending</span>
+                            </div>
+                            <div class="flex justify-between items-baseline pt-2 border-t border-amber-100/80 text-xs">
+                                <span class="text-slate-500">Paid in Period:</span>
+                                <span id="statNilimaPaid" class="font-extrabold text-slate-900 text-sm">₹0</span>
+                            </div>
+                            <button onclick="quickPayItem('Chef - Nilima Nikose', 4500, 'Nilima Nikose')" class="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
+                                Pay Nilima ₹4,500
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monthly Budget & Year-To-Date (YTD) Summary -->
+                <div class="lg:col-span-6 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-base font-extrabold text-slate-900 flex items-center">
+                            <i class="fa-solid fa-piggy-bank text-emerald-600 mr-2"></i>
+                            <span>Budget Tracking & Year-to-Date (YTD)</span>
+                        </h3>
+                        <span id="budgetAlertPill" class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">On Track</span>
+                    </div>
+
+                    <!-- Budget Progress Bar -->
+                    <div class="space-y-1.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <div class="flex justify-between text-xs font-extrabold text-slate-700">
+                            <span>Monthly Household Budget</span>
+                            <span><span id="budgetSpentVal">₹0</span> / <span id="budgetCapVal">₹50,000</span></span>
+                        </div>
+                        <div class="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
+                            <div id="budgetProgressBar" class="bg-gradient-to-r from-emerald-500 via-indigo-500 to-rose-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <div class="flex justify-between text-[11px] text-slate-500 font-semibold pt-0.5">
+                            <span id="budgetRemainingText">Remaining: ₹50,000</span>
+                            <span id="budgetPercentText">0% utilized</span>
+                        </div>
+                    </div>
+
+                    <!-- YTD Snapshot Grid -->
+                    <div class="grid grid-cols-3 gap-3 pt-2 text-xs">
+                        <div class="p-3 rounded-xl bg-slate-100 border border-slate-200">
+                            <span class="text-[10px] font-black uppercase text-slate-500">YTD Total Spend</span>
+                            <p id="ytdTotalSpend" class="text-base font-black text-slate-900 mt-0.5">₹0</p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-100 border border-slate-200">
+                            <span class="text-[10px] font-black uppercase text-slate-500">YTD Inflow</span>
+                            <p id="ytdTotalIncome" class="text-base font-black text-emerald-700 mt-0.5">₹0</p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-100 border border-slate-200">
+                            <span class="text-[10px] font-black uppercase text-slate-500">YTD Net Flow</span>
+                            <p id="ytdNetFlow" class="text-base font-black text-indigo-700 mt-0.5">₹0</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ================= RECURRING FIXED BILLS CHECKLIST ================= -->
+            <div class="glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900 flex items-center">
+                            <i class="fa-solid fa-clipboard-check text-indigo-600 mr-2"></i>
+                            <span>Recurring Household Utilities Checklist (Selected Period)</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 font-medium">Verify completion of standard monthly bills & utilities</p>
+                    </div>
+                    <button onclick="openQuickFillModal()" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold px-3.5 py-2 rounded-xl border border-indigo-200 transition shadow-sm">
+                        <i class="fa-solid fa-bolt mr-1 text-amber-500"></i> Quick Pay Checklist
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3" id="checklistContainer">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- ================= TOP EXPENSES & RECENT TRANSACTIONS ================= -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Top 5 Largest Expenses -->
+                <div class="lg:col-span-6 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-sm font-extrabold text-slate-900 flex items-center">
+                            <i class="fa-solid fa-ranking-star text-amber-500 mr-2"></i>
+                            <span>Top Outflows (Highest Transactions)</span>
+                        </h3>
+                        <span class="text-[11px] font-bold text-slate-400">Ranked by Amount</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-100 text-slate-600 font-bold">
+                                <tr>
+                                    <th class="py-2 px-3">Date</th>
+                                    <th class="py-2 px-3">Category</th>
+                                    <th class="py-2 px-3">Vendor / Notes</th>
+                                    <th class="py-2 px-3">Paid By</th>
+                                    <th class="py-2 px-3 text-right">Amount (₹)</th>
+                                    <th class="py-2 px-3 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topExpensesTableBody" class="divide-y divide-slate-100 font-medium">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Latest 10 Recent Transactions -->
+                <div class="lg:col-span-6 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-sm font-extrabold text-slate-900 flex items-center">
+                            <i class="fa-solid fa-clock-rotate-left text-indigo-600 mr-2"></i>
+                            <span>Recent Activity (Latest 10)</span>
+                        </h3>
+                        <button onclick="switchTab('expenses')" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center space-x-1">
+                            <span>View All</span>
+                            <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-100 text-slate-600 font-bold">
+                                <tr>
+                                    <th class="py-2 px-3">Date</th>
+                                    <th class="py-2 px-3">Category</th>
+                                    <th class="py-2 px-3">Paid By</th>
+                                    <th class="py-2 px-3">Mode</th>
+                                    <th class="py-2 px-3 text-right">Amount (₹)</th>
+                                    <th class="py-2 px-3 text-center">Receipt</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentTransactionsTableBody" class="divide-y divide-slate-100 font-medium">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Empty State Container for Filtered Dashboard -->
+            <div id="emptyDashboardState" class="hidden p-12 text-center glass-card rounded-3xl border border-slate-200">
+                <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner">
+                    <i class="fa-solid fa-calendar-xmark"></i>
+                </div>
+                <h4 id="emptyDashboardTitle" class="text-lg font-black text-slate-900">No records found for this period</h4>
+                <p id="emptyDashboardDesc" class="text-xs text-slate-500 mt-1 max-w-md mx-auto font-medium">
+                    No transactions match your active filters. Click "+ Add Expense" to record a new transaction or reset filters.
+                </p>
+                <div class="mt-5 flex items-center justify-center space-x-3">
+                    <button onclick="openExpenseModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-xl shadow-md transition">
+                        + Add Expense
+                    </button>
+                    <button onclick="resetAllFilters()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
+                        Reset Filters
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ================= TAB 2: DAILY EXPENSES LOG ================= -->
+        <div id="view-expenses" class="tab-view hidden space-y-4">
+            <div class="glass-card p-4 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div class="flex-1 w-full md:w-auto relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="searchExpenses" oninput="applyFilters()" placeholder="Search expenses by note, vendor, category, Paid By (Palash, Pallavi)..." class="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 text-slate-800 text-sm rounded-xl focus:border-indigo-500 shadow-sm">
+                </div>
+                <div class="flex items-center space-x-3 w-full md:w-auto justify-end">
+                    <button onclick="openExpenseModal()" class="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold text-xs sm:text-sm px-4 py-2 rounded-xl shadow-md hover:shadow-indigo-500/25 transition flex items-center space-x-2">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        <span>New Expense Record</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Expense Table Card -->
+            <!-- ================= ADVANCE MODULE: STAFF ATTENDANCE & LEAVE PAYROLL SUITE ================= -->
+            <div class="glass-card p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-5">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-200 pb-4">
+                    <div>
+                        <h3 class="text-lg font-black text-slate-900 flex items-center">
+                            <i class="fa-solid fa-clipboard-user text-indigo-600 mr-2"></i>
+                            <span>Staff Attendance &amp; Leave Payroll Suite</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 font-medium mt-0.5">Click any day to toggle Present, Leave, or Half-day. Auto-calculates pro-rata deductions &amp; bonuses.</p>
+                    </div>
+
+                    <!-- Staff Selector & Action -->
+                    <div class="flex items-center gap-2">
+                        <select id="attendanceStaffSelect" onchange="renderAttendanceCalendar()" class="bg-white border-2 border-indigo-200 text-indigo-900 text-xs font-black rounded-xl px-3 py-2 shadow-sm focus:border-indigo-500">
+                            <option value="Chef - Nilima Nikose">👩‍🍳 Chef - Nilima Nikose (₹4,500/mo)</option>
+                            <option value="Maid - Madhuri">🧹 Maid - Madhuri (₹800/mo)</option>
+                        </select>
+                        <button onclick="generateWhatsAppVoucher()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-md transition flex items-center space-x-1.5">
+                            <i class="fa-brands fa-whatsapp text-sm"></i>
+                            <span>WhatsApp Voucher</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Calendar Grid (8 cols) -->
+                    <div class="lg:col-span-8 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-slate-700 uppercase tracking-wider" id="attendanceMonthTitle">September 2026 Attendance</span>
+                            <div class="flex items-center gap-2 text-[10px] font-bold">
+                                <span class="flex items-center gap-1 text-emerald-700"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> Present</span>
+                                <span class="flex items-center gap-1 text-rose-700"><span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span> Leave</span>
+                                <span class="flex items-center gap-1 text-amber-700"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Half</span>
+                                <span class="flex items-center gap-1 text-sky-700"><span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span> Holiday</span>
+                            </div>
+                        </div>
+
+                        <!-- Days of Week Header -->
+                        <div class="grid grid-cols-7 gap-1.5 text-center text-[11px] font-black text-slate-400 uppercase py-1">
+                            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                        </div>
+
+                        <!-- Calendar Days Grid Container -->
+                        <div id="attendanceDaysGrid" class="grid grid-cols-7 gap-1.5">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Pro-Rata Salary & Bonus Calculator (4 cols) -->
+                    <div class="lg:col-span-4 bg-slate-50/80 border border-slate-200 rounded-2xl p-5 flex flex-col justify-between space-y-4">
+                        <div>
+                            <h4 class="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center justify-between">
+                                <span>Payroll Calculation</span>
+                                <span class="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Pro-Rata</span>
+                            </h4>
+
+                            <div class="mt-4 space-y-2.5 text-xs font-semibold text-slate-600">
+                                <div class="flex justify-between">
+                                    <span>Base Monthly Salary:</span>
+                                    <span id="calcBaseSalary" class="font-black text-slate-900">₹4,500</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Total Days in Month:</span>
+                                    <span id="calcTotalDays" class="font-bold text-slate-900">30</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Days Worked / Payable:</span>
+                                    <span id="calcPayableDays" class="font-bold text-emerald-600">30</span>
+                                </div>
+                                <div class="flex justify-between text-rose-600">
+                                    <span>Leave Deductions:</span>
+                                    <span id="calcDeductions" class="font-black">-₹0</span>
+                                </div>
+                                <div class="flex justify-between items-center pt-1">
+                                    <span>Festival / Bonus (₹):</span>
+                                    <input type="number" id="inputStaffBonus" min="0" step="50" value="0" onchange="onBonusChange()" class="w-20 px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold text-right focus:border-indigo-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-200">
+                            <span class="text-[11px] font-extrabold uppercase text-slate-500">Net Payable Salary:</span>
+                            <div class="flex justify-between items-baseline mt-0.5">
+                                <h3 id="calcNetPayable" class="text-2xl font-black text-indigo-600">₹4,500</h3>
+                                <button onclick="quickPayCalculatedSalary()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-xl shadow transition">
+                                    Record Payment
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-900 text-slate-200 text-xs uppercase font-extrabold tracking-wider">
+                                <th class="py-3.5 px-4">Date</th>
+                                <th class="py-3.5 px-4">Category</th>
+                                <th class="py-3.5 px-4">Description / Notes</th>
+                                <th class="py-3.5 px-4">Paid By</th>
+                                <th class="py-3.5 px-4">Paid To</th>
+                                <th class="py-3.5 px-4">Mode</th>
+                                <th class="py-3.5 px-4 text-right">Amount (₹)</th>
+                                <th class="py-3.5 px-4 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenseTableBody" class="divide-y divide-slate-200 text-sm text-slate-700 font-medium">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Empty State -->
+                <div id="emptyExpenseState" class="hidden p-10 text-center">
+                    <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner">
+                        <i class="fa-solid fa-receipt"></i>
+                    </div>
+                    <h4 class="text-base font-bold text-slate-800">No expense records found</h4>
+                    <p class="text-xs text-slate-500 mt-1 font-medium">Try clearing your search filter or click "New Expense Record" to add one.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 3: STAFF PAYMENTS ================= -->
+        <div id="view-staff" class="tab-view hidden space-y-6">
+            <!-- Staff Overview Headers -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Maid: Madhuri -->
+                <div class="glass-card p-6 rounded-2xl border border-slate-200/80 shadow-sm relative border-l-4 border-l-indigo-600 hover-lift">
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center text-2xl font-bold shadow-md shadow-indigo-500/20">
+                                <i class="fa-solid fa-broom"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-black text-slate-900">Madhuri</h3>
+                                <p class="text-xs text-slate-500 font-semibold">Household Maid (Cleaning & Washing)</p>
+                                <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                    <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200">
+                                        <i class="fa-solid fa-calendar-check mr-1"></i>Month Ends: 21st Date
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="openStaffPaymentModal('Madhuri')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md transition">
+                            <i class="fa-solid fa-indian-rupee-sign mr-1"></i> Pay ₹800
+                        </button>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-slate-100 grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-[11px] text-slate-400 uppercase font-extrabold">Total Paid (Selected Period)</span>
+                            <p id="staffMadhuriPeriodTotal" class="text-xl font-black text-indigo-900 mt-0.5">₹0</p>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-slate-400 uppercase font-extrabold">Selected Month Status</span>
+                            <p id="staffMadhuriBadge" class="mt-1">
+                                <span class="px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-md">Pending</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chef: Nilima Nikose -->
+                <div class="glass-card p-6 rounded-2xl border border-slate-200/80 shadow-sm relative border-l-4 border-l-amber-500 hover-lift">
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center text-2xl font-bold shadow-md shadow-amber-500/20">
+                                <i class="fa-solid fa-utensils"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-black text-slate-900">Nilima Nikose</h3>
+                                <p class="text-xs text-slate-500 font-semibold">Household Chef (Cooking & Meals)</p>
+                                <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                    <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                                        <i class="fa-solid fa-calendar-check mr-1"></i>Month Ends: 30th Date
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="openStaffPaymentModal('Nilima Nikose')" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md transition">
+                            <i class="fa-solid fa-indian-rupee-sign mr-1"></i> Pay ₹4500
+                        </button>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-slate-100 grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-[11px] text-slate-400 uppercase font-extrabold">Total Paid (Selected Period)</span>
+                            <p id="staffNilimaPeriodTotal" class="text-xl font-black text-amber-900 mt-0.5">₹0</p>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-slate-400 uppercase font-extrabold">Selected Month Status</span>
+                            <p id="staffNilimaBadge" class="mt-1">
+                                <span class="px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-md">Pending</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Staff Payment History Table -->
+            <div class="glass-card rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                    <h3 class="text-sm font-extrabold text-slate-900 flex items-center">
+                        <i class="fa-solid fa-clock-rotate-left text-indigo-600 mr-2"></i>
+                        Staff Payment History (Filtered Period)
+                    </h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-900 text-slate-200 text-xs uppercase font-extrabold tracking-wider">
+                                <th class="py-3 px-4">Payment Date</th>
+                                <th class="py-3 px-4">Staff Member</th>
+                                <th class="py-3 px-4">Billing Cycle Date</th>
+                                <th class="py-3 px-4">Paid By</th>
+                                <th class="py-3 px-4">Mode</th>
+                                <th class="py-3 px-4">Remarks / Notes</th>
+                                <th class="py-3 px-4 text-right">Amount Paid</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staffTableBody" class="divide-y divide-slate-200 text-sm text-slate-700 font-medium">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 4: MONTHLY PIVOT MATRIX ================= -->
+        <div id="view-matrix" class="tab-view hidden space-y-4">
+            <div class="glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-2">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900 flex items-center">
+                            <i class="fa-solid fa-table-cells text-indigo-600 mr-2"></i>
+                            Monthly Summary Pivot Matrix
+                        </h3>
+                        <p class="text-xs text-slate-500 font-medium">Cross-tabulation of category totals across all recorded calendar months.</p>
+                    </div>
+                    <button onclick="exportToExcel('all')" class="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-file-arrow-down text-emerald-400"></i>
+                        <span>Download Full Matrix</span>
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead id="matrixThead" class="bg-slate-900 text-slate-200 uppercase font-black tracking-wider">
+                            <!-- Populated dynamically -->
+                        </thead>
+                        <tbody id="matrixTbody" class="divide-y divide-slate-200 font-medium text-slate-700">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 5: EXCEL & DATA MANAGEMENT ================= -->
+        <div id="view-settings" class="tab-view hidden space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Export Card -->
+                <div class="glass-card p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-bold">
+                            <i class="fa-solid fa-file-excel"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-black text-slate-900">Microsoft Excel Export</h3>
+                            <p class="text-xs text-slate-500 font-medium">Download complete 4-worksheet spreadsheet</p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Generates a comprehensive multi-sheet workbook containing Daily Expenses Log, Monthly Summary Matrix, Staff Payments Ledger (Madhuri & Nilima), and Category Summary with complete Paid By details.
+                    </p>
+                    <div class="flex flex-wrap gap-2 pt-2">
+                        <button onclick="exportToExcel('filtered')" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md transition flex items-center space-x-2">
+                            <i class="fa-solid fa-download"></i>
+                            <span>Export Current Filtered View</span>
+                        </button>
+                        <button onclick="exportToExcel('all')" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition flex items-center space-x-2">
+                            <i class="fa-solid fa-database"></i>
+                            <span>Export All-Time History</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Import Card -->
+                <div class="glass-card p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl font-bold">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-black text-slate-900">Import Excel Spreadsheet</h3>
+                            <p class="text-xs text-slate-500 font-medium">Restore or merge previous .xlsx records</p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Upload any previously exported HomeExpenses workbook. Supports the Paid By column, maps staff records, validates dates/amounts, and merges records without duplicate collisions.
+                    </p>
+                    <div class="pt-2">
+                        <label class="cursor-pointer inline-flex items-center space-x-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-md transition">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <span>Select Excel File (.xlsx)</span>
+                            <input type="file" accept=".xlsx, .xls" class="hidden" onchange="importFromExcel(event)">
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 6: ADMIN & MASTER SETTINGS CENTER ================= -->
+        <div id="view-admin" class="tab-view hidden space-y-6">
+
+            <!-- Admin Banner Header -->
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 rounded-3xl shadow-xl border border-indigo-500/30">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[11px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/20 px-2.5 py-0.5 rounded-full border border-indigo-400/30">
+                            ⚙️ Master Configuration Console
+                        </span>
+                        <span class="text-[11px] font-bold text-emerald-400 bg-emerald-500/20 px-2.5 py-0.5 rounded-full border border-emerald-400/30">
+                            ⚡ Zero-Auth Active (Direct Access)
+                        </span>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-white mt-1.5">
+                        Admin &amp; Master Settings
+                    </h2>
+                    <p class="text-xs text-slate-300 font-medium mt-1 max-w-2xl">
+                        Manage domestic staff payroll rules, free paid leave quotas (e.g., 4 days for Chef), recurring utility bill due dates, categories, family members, and billing cycles.
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                    <button onclick="saveAdminConfigFromUI()" class="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-black rounded-xl shadow-lg shadow-indigo-500/30 transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Save All Changes</span>
+                    </button>
+                    <button onclick="resetAdminConfigToDefaults()" class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl border border-slate-700 transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-arrow-rotate-left text-amber-400"></i>
+                        <span>Reset Defaults</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Admin Grid: 5 Core Config Cards -->
+            <div class="space-y-6">
+
+                <!-- CARD 1: Domestic Staff & Leave Policy Configurator -->
+                <div class="glass-card p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-slate-100 pb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-lg">
+                                <i class="fa-solid fa-users-gear"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-black text-slate-900">1. Domestic Staff &amp; Paid Leave Policies</h3>
+                                <p class="text-xs text-slate-500 font-medium">Set monthly salaries, payday cycle date, and <strong>free paid leave allowance</strong> before salary cuts begin.</p>
+                            </div>
+                        </div>
+                        <button onclick="openAdminAddStaffModal()" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold rounded-xl shadow-sm transition flex items-center space-x-1.5 self-start sm:self-auto">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Add Staff Member</span>
+                        </button>
+                    </div>
+
+                    <!-- Staff Table Container -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-900 text-slate-200 uppercase font-black tracking-wider">
+                                    <th class="py-3 px-3">Staff Name</th>
+                                    <th class="py-3 px-3">Role</th>
+                                    <th class="py-3 px-3">Base Salary (₹)</th>
+                                    <th class="py-3 px-3 bg-indigo-950/80 text-indigo-200 border-x border-indigo-800">
+                                        <div class="flex items-center space-x-1">
+                                            <span>Allowed Paid Leaves</span>
+                                            <span class="text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-black">Quota</span>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-3">Billing Cycle Payday</th>
+                                    <th class="py-3 px-3">Cycle Type</th>
+                                    <th class="py-3 px-3 text-center">Status</th>
+                                    <th class="py-3 px-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminStaffTableBody" class="divide-y divide-slate-200 font-medium text-slate-700">
+                                <!-- Dynamically populated by renderAdminView() -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center space-x-2">
+                        <i class="fa-solid fa-circle-info text-amber-600 text-sm shrink-0"></i>
+                        <span><strong>Policy Rule:</strong> If Chef is granted 4 allowed paid leaves, taking 4 leaves results in <strong>₹0 salary deduction</strong>. Deduction only applies starting from the 5th leave day.</span>
+                    </div>
+                </div>
+
+                <!-- CARD 2: Utility Due Date Radar & Recurring Bills -->
+                <div class="glass-card p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-slate-100 pb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-lg">
+                                <i class="fa-solid fa-calendar-check"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-black text-slate-900">2. Utility Due Date Radar &amp; Recurring Bills</h3>
+                                <p class="text-xs text-slate-500 font-medium">Configure monthly bill due days (1–31) and budgeted obligations. Directly feeds the 15-Day Runway &amp; Radar.</p>
+                            </div>
+                        </div>
+                        <button onclick="openAdminAddBillModal()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition flex items-center space-x-1.5 self-start sm:self-auto">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Add Recurring Bill</span>
+                        </button>
+                    </div>
+
+                    <!-- Bills Table Container -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-900 text-slate-200 uppercase font-black tracking-wider">
+                                    <th class="py-3 px-3">Icon</th>
+                                    <th class="py-3 px-3">Bill Name</th>
+                                    <th class="py-3 px-3">Expense Category</th>
+                                    <th class="py-3 px-3">Due Day of Month</th>
+                                    <th class="py-3 px-3">Approx / Budgeted (₹)</th>
+                                    <th class="py-3 px-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminBillsTableBody" class="divide-y divide-slate-200 font-medium text-slate-700">
+                                <!-- Dynamically populated by renderAdminView() -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- CARD 3: Expense Categories & Payee Auto-Fill -->
+                <div class="glass-card p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-slate-100 pb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg">
+                                <i class="fa-solid fa-tags"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-black text-slate-900">3. Expense Categories &amp; Payee Auto-Fill</h3>
+                                <p class="text-xs text-slate-500 font-medium">Add, remove, or modify spending categories, icons, and preset vendor defaults for quick recording.</p>
+                            </div>
+                        </div>
+                        <button onclick="openAdminAddCategoryModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition flex items-center space-x-1.5 self-start sm:self-auto">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Add Category</span>
+                        </button>
+                    </div>
+
+                    <!-- Categories Grid Container -->
+                    <div id="adminCategoriesGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        <!-- Dynamically populated by renderAdminView() -->
+                    </div>
+                </div>
+
+                <!-- CARD 4: Family Members ("Paid By") & Payment Modes -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Family Members -->
+                    <div class="glass-card p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+                        <div class="flex items-center space-x-3 border-b border-slate-100 pb-3">
+                            <div class="w-9 h-9 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center font-bold text-base">
+                                <i class="fa-solid fa-user-group"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-black text-slate-900">Family Members ("Paid By")</h4>
+                                <p class="text-[11px] text-slate-500 font-medium">Household payers for filters &amp; expense entries.</p>
+                            </div>
+                        </div>
+
+                        <div id="adminFamilyMembersList" class="flex flex-wrap gap-2">
+                            <!-- Populated by JS -->
+                        </div>
+
+                        <div class="flex gap-2 pt-2 border-t border-slate-100">
+                            <input type="text" id="adminNewMemberInput" placeholder="New member name..." class="flex-1 px-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-xl font-semibold focus:border-indigo-500">
+                            <button onclick="adminAddFamilyMember()" class="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center space-x-1">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Add</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Payment Methods -->
+                    <div class="glass-card p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+                        <div class="flex items-center space-x-3 border-b border-slate-100 pb-3">
+                            <div class="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-base">
+                                <i class="fa-solid fa-credit-card"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-black text-slate-900">Payment Modes &amp; Channels</h4>
+                                <p class="text-[11px] text-slate-500 font-medium">Selectable payment methods (UPI, Card, Cash, etc.)</p>
+                            </div>
+                        </div>
+
+                        <div id="adminPaymentMethodsList" class="flex flex-wrap gap-2">
+                            <!-- Populated by JS -->
+                        </div>
+
+                        <div class="flex gap-2 pt-2 border-t border-slate-100">
+                            <input type="text" id="adminNewPaymentMethodInput" placeholder="New payment mode..." class="flex-1 px-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-xl font-semibold focus:border-indigo-500">
+                            <button onclick="adminAddPaymentMethod()" class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center space-x-1">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Add</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 5: Household Expense Cycle Window Settings -->
+                <div class="glass-card p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+                    <div class="flex items-center space-x-3 border-b border-slate-100 pb-3">
+                        <div class="w-10 h-10 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-lg">
+                            <i class="fa-solid fa-rotate"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-black text-slate-900">5. Monthly Household Expense Cycle Settings</h3>
+                            <p class="text-xs text-slate-500 font-medium">Configure whether expenses and reimbursements align to calendar month or a custom cycle (e.g., 5th to 5th).</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <label class="flex items-start space-x-3 p-4 border border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-50 transition">
+                            <input type="radio" name="adminCycleType" id="adminCycleTypeCalendar" value="calendar" onchange="onAdminCycleTypeChange()" class="mt-1 text-indigo-600 focus:ring-indigo-500">
+                            <div>
+                                <span class="text-xs font-black text-slate-900 block">Standard Calendar Month</span>
+                                <span class="text-[11px] text-slate-500 font-medium">Cycles run from 1st of the month to the last day (e.g. 1 Sep to 30 Sep).</span>
+                            </div>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-4 border border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-50 transition">
+                            <input type="radio" name="adminCycleType" id="adminCycleTypeCustom" value="custom" onchange="onAdminCycleTypeChange()" class="mt-1 text-indigo-600 focus:ring-indigo-500">
+                            <div>
+                                <span class="text-xs font-black text-slate-900 block">Custom Household Billing Cycle</span>
+                                <span class="text-[11px] text-slate-500 font-medium">Cycles run from a specific date of the current month to the next (e.g. 5th Sep to 5th Oct).</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div id="adminCustomCycleInputs" class="hidden p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Cycle Start Day (e.g. 5)</label>
+                                <input type="number" min="1" max="31" id="adminCycleStartDay" value="5" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Cycle End Day (e.g. 5)</label>
+                                <input type="number" min="1" max="31" id="adminCycleEndDay" value="5" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-slate-600 font-medium">
+                            <i class="fa-solid fa-calendar-days text-indigo-600 mr-1"></i>
+                            <strong>Active Cycle Window:</strong> 5th of current month to 5th of next month (e.g. 5 Sep to 5 Oct).
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- ================= NATIVE MOBILE BOTTOM NAVIGATION BAR ================= -->
+    <nav id="mobileBottomNav" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800/90 py-1 px-1.5 flex justify-around items-center shadow-2xl safe-pb">
+        <button onclick="switchTab('dashboard')" id="bnav-dashboard" class="bnav-btn active">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>Dashboard</span>
+        </button>
+        <button onclick="switchTab('expenses')" id="bnav-expenses" class="bnav-btn">
+            <i class="fa-solid fa-list-check"></i>
+            <span>Daily Log</span>
+        </button>
+        <!-- Center Floating Action: Quick Add Expense -->
+        <button onclick="openExpenseModal()" class="w-11 h-11 -mt-5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/40 active:scale-95 transition-transform" title="Add Expense">
+            <i class="fa-solid fa-plus text-base font-black"></i>
+        </button>
+        <button onclick="switchTab('staff')" id="bnav-staff" class="bnav-btn">
+            <i class="fa-solid fa-users-gear"></i>
+            <span>Staff</span>
+        </button>
+        <button onclick="switchTab('matrix')" id="bnav-matrix" class="bnav-btn">
+            <i class="fa-solid fa-table-cells"></i>
+            <span>Matrix</span>
+        </button>
+        <button onclick="switchTab('admin')" id="bnav-admin" class="bnav-btn">
+            <i class="fa-solid fa-sliders"></i>
+            <span>Admin</span>
+        </button>
+    </nav>
+
+    <!-- ================= MODAL 1: ADD / EDIT HOUSEHOLD EXPENSE ================= -->
+    <div id="expenseModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-2 sm:p-4">
+        <div class="modal-content glass-card bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full max-h-[92vh] flex flex-col overflow-hidden transform transition-all">
+            <!-- Modal Header (Fixed) -->
+            <div class="bg-slate-900 text-white px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center border-b border-slate-800 shrink-0">
+                <h3 id="modalTitle" class="text-sm sm:text-base font-extrabold flex items-center">
+                    <i class="fa-solid fa-pen-to-square text-indigo-400 mr-2"></i> Add Household Expense
+                </h3>
+                <button onclick="closeExpenseModal()" class="text-slate-400 hover:text-white transition p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Form (Scrollable body with sticky footer) -->
+            <form id="expenseForm" onsubmit="saveExpense(event)" class="flex flex-col flex-1 overflow-hidden">
+                <div class="p-4 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto flex-1">
+                    <input type="hidden" id="expenseId">
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <!-- Date -->
+                        <div>
+                            <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Date</label>
+                            <input type="date" id="inputDate" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:border-indigo-500">
+                        </div>
+                        <!-- Amount -->
+                        <div>
+                            <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Amount (₹)</label>
+                            <input type="number" step="0.01" min="0.01" id="inputAmount" placeholder="e.g. 2500" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:border-indigo-500">
+                        </div>
+                    </div>
+
+                    <!-- Expense Category -->
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Expense Category</label>
+                        <select id="inputCategory" onchange="onCategoryChange()" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:border-indigo-500">
+                            <option value="Electricity Bill">⚡ Electricity Bill</option>
+                            <option value="Flat Maintenance">🏢 Flat Maintenance</option>
+                            <option value="Dish Bill (DTH)">📺 Dish Bill (DTH)</option>
+                            <option value="Grocery & Vegetables">🛒 Grocery & Vegetables</option>
+                            <option value="Maid - Madhuri">🧹 Maid - Madhuri</option>
+                            <option value="Chef - Nilima Nikose">👩‍🍳 Chef - Nilima Nikose</option>
+                            <option value="Gas & Water">🔥 Gas & Water</option>
+                            <option value="Wifi & Internet">📶 Wifi & Internet</option>
+                            <option value="Accepted Payments (Income)">💰 Accepted Payments (Income)</option>
+                            <option value="Shopping & Miscellaneous">🛍️ Shopping & Miscellaneous</option>
+                        </select>
+                    </div>
+
+                    <!-- PAID BY FIELD (Palash, Pallavi, Mom, Dad) -->
+                    <div>
+                        <label class="block text-xs font-extrabold text-indigo-900 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>Paid By</span>
+                            <span class="text-[10px] text-slate-400 font-bold">Who funded this payment?</span>
+                        </label>
+                        <select id="inputPaidBy" required class="w-full px-3 py-2 bg-indigo-50/50 border-2 border-indigo-200 rounded-xl text-sm font-bold text-indigo-950 focus:border-indigo-500">
+                            <option value="Palash" selected>Palash</option>
+                            <option value="Pallavi">Pallavi</option>
+                            <option value="Mom">Mom</option>
+                            <option value="Dad">Dad</option>
+                            <option value="Not Specified">Not Specified</option>
+                        </select>
+                    </div>
+
+                    <!-- SPLIT BETWEEN FIELD -->
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>Split Between</span>
+                            <span class="text-[10px] text-indigo-600 font-bold">Household Allocation</span>
+                        </label>
+                        <select id="inputSplitBetween" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:border-indigo-500">
+                            <option value="Household Expense (Palash Reimburses Pallavi 100%)" selected>🏠 Household Expense (Palash Covers / Reimburses Pallavi 100%)</option>
+                            <option value="Personal Expense (Pallavi - Not Reimbursed)">🌸 Personal Expense (Pallavi - Not Reimbursed)</option>
+                            <option value="Personal Expense (Palash)">💼 Personal Expense (Palash)</option>
+                            <option value="Equal (50/50)">🤝 Optional 50/50 Split</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <!-- Paid To / Vendor -->
+                        <div>
+                            <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Paid To / Vendor</label>
+                            <input type="text" id="inputPaidTo" placeholder="e.g. Madhuri, Nilima, Blinkit, MSEDCL" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium focus:border-indigo-500">
+                        </div>
+                        <!-- Payment Mode -->
+                        <div>
+                            <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Payment Method</label>
+                            <select id="inputPaymentMethod" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:border-indigo-500">
+                                <option value="UPI / GPay / PhonePe">UPI / GPay / PhonePe</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Net Banking">Net Banking</option>
+                                <option value="Credit Card">Credit Card</option>
+                                <option value="Auto Debit">Auto Debit</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Notes / Description -->
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Notes / Description</label>
+                        <textarea id="inputNotes" rows="2" placeholder="Optional details (e.g., Grocery vegetables, Monthly staff salary, Meter reading)" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium focus:border-indigo-500"></textarea>
+                    </div>
+
+                    <!-- Receipt File Upload Dropzone -->
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Payment Receipt / Screenshot</label>
+                        <div class="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-2.5 sm:p-3 bg-slate-50 text-center transition cursor-pointer" onclick="document.getElementById('inputReceipt').click()">
+                            <input type="file" id="inputReceipt" accept="image/*" class="hidden" onchange="previewReceiptInput(event)">
+                            <div id="receiptUploadPlaceholder" class="flex flex-col items-center justify-center py-2 text-slate-500">
+                                <i class="fa-solid fa-cloud-arrow-up text-xl sm:text-2xl text-indigo-600 mb-1"></i>
+                                <p class="text-xs font-bold text-slate-800">Click or Drag & Drop Receipt / Screenshot</p>
+                                <p class="text-[10px] text-slate-400 font-semibold">Attach GPay, PhonePe, Paytm or bill receipt image</p>
+                            </div>
+                            <div id="receiptUploadPreview" class="hidden flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-xl p-2">
+                                <div class="flex items-center space-x-2 overflow-hidden">
+                                    <img id="receiptPreviewImg" src="" class="w-10 h-10 object-cover rounded-lg border border-slate-200">
+                                    <span id="receiptFileName" class="text-xs font-bold text-indigo-900 truncate max-w-[180px]">Receipt attached</span>
+                                </div>
+                                <button type="button" onclick="removeReceiptInput(event)" class="text-red-600 hover:text-red-700 text-xs px-2.5 py-1 bg-white rounded-lg border border-slate-200 shadow-sm font-bold">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Real-Time Anomaly & Duplicate Alert Box -->
+                    <div id="anomalyWarningBox" class="hidden bg-amber-50 border-2 border-amber-300 rounded-xl p-3 text-xs text-amber-900 font-bold space-y-1"></div>
+                </div>
+
+                <!-- Modal Actions (Sticky Footer) -->
+                <div class="px-4 py-3 sm:px-6 sm:py-4 bg-slate-50 border-t border-slate-200 flex justify-end space-x-2.5 shrink-0">
+                    <button type="button" onclick="closeExpenseModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition">Cancel</button>
+                    <button type="submit" id="btnSubmitExpense" class="px-5 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Save Expense Record</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 2: TRANSACTION DETAIL VIEW ================= -->
+    <div id="transactionDetailModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-2 sm:p-4">
+        <div class="modal-content glass-card bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden">
+            <div class="bg-slate-900 text-white px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center shrink-0">
+                <h3 class="text-sm font-black flex items-center">
+                    <i class="fa-solid fa-receipt text-indigo-400 mr-2"></i> Transaction Details
+                </h3>
+                <button onclick="closeTransactionDetailModal()" class="text-slate-400 hover:text-white transition p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <span id="detailCategoryBadge" class="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200">Category</span>
+                        <h4 id="detailAmount" class="text-2xl font-black text-slate-900 mt-1">₹0</h4>
+                        <p id="detailDate" class="text-xs text-slate-500 font-semibold mt-0.5">Date</p>
+                    </div>
+                    <div id="detailPaidByBadge" class="text-xs font-black px-3 py-1 rounded-xl bg-violet-100 text-violet-800 border border-violet-200">
+                        Paid By: Palash
+                    </div>
+                </div>
+
+                <div class="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
+                    <div class="flex justify-between py-1">
+                        <span class="font-bold text-slate-400">Paid To / Vendor:</span>
+                        <span id="detailPaidTo" class="font-bold text-slate-800">-</span>
+                    </div>
+                    <div class="flex justify-between py-1">
+                        <span class="font-bold text-slate-400">Payment Mode:</span>
+                        <span id="detailPaymentMethod" class="font-bold text-slate-800">UPI</span>
+                    </div>
+                    <div class="flex justify-between py-1">
+                        <span class="font-bold text-slate-400">Billing Cycle:</span>
+                        <span id="detailBillingCycle" class="font-bold text-slate-800">Standard</span>
+                    </div>
+                    <div class="py-1">
+                        <span class="font-bold text-slate-400 block mb-0.5">Notes / Description:</span>
+                        <p id="detailNotes" class="font-medium text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200">-</p>
+                    </div>
+                </div>
+
+                <div id="detailReceiptContainer" class="hidden pt-2 border-t border-slate-100">
+                    <span class="font-bold text-slate-400 text-xs block mb-1.5">Attached Receipt:</span>
+                    <img id="detailReceiptImg" src="" onclick="viewReceiptFull(this.src)" class="w-full h-40 object-cover rounded-xl border border-slate-200 cursor-pointer shadow-sm">
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex justify-between items-center">
+                    <button id="btnDetailDelete" class="px-3.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl border border-red-200 transition">
+                        Delete
+                    </button>
+                    <div class="flex space-x-2">
+                        <button onclick="closeTransactionDetailModal()" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">Close</button>
+                        <button id="btnDetailEdit" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow transition">Edit</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 3: DELETE CONFIRMATION ================= -->
+    <div id="deleteConfirmModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="modal-content glass-card bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 text-center space-y-4">
+            <div class="w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto text-xl font-bold">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h4 class="text-base font-black text-slate-900">Delete Expense Record?</h4>
+                <p class="text-xs text-slate-500 mt-1 font-medium">Are you sure you want to permanently delete this transaction?</p>
+                <div id="deleteConfirmDetails" class="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 text-left"></div>
+            </div>
+            <div class="flex justify-center space-x-2 pt-2">
+                <button onclick="closeDeleteConfirmModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition">Cancel</button>
+                <button id="btnConfirmDeleteAction" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-md transition">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 4: QUICK PAY CHECKLIST MODAL ================= -->
+    <div id="quickFillModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="modal-content glass-card bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
+                <h3 class="text-sm font-extrabold flex items-center">
+                    <i class="fa-solid fa-bolt text-amber-400 mr-2"></i> Quick Pay Monthly Checklist
+                </h3>
+                <button onclick="closeQuickFillModal()" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <p class="text-xs text-slate-600">Select standard utility or recurring staff payment to pre-fill the form:</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-bold" id="quickPayItemsContainer">
+                    <!-- Populated dynamically -->
+                </div>
+                <div class="pt-2 flex justify-end">
+                    <button onclick="closeQuickFillModal()" class="px-4 py-1.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 5: RECEIPT VIEWER (ENLARGED) ================= -->
+    <div id="receiptModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-4" onclick="closeReceiptModal()">
+        <div class="modal-content bg-slate-900/90 rounded-2xl p-4 max-w-2xl w-full text-center relative" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-3 text-white">
+                <span class="text-xs font-bold text-slate-300">Payment Receipt Preview</span>
+                <button onclick="closeReceiptModal()" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <img id="enlargedReceiptImg" src="" class="max-h-[75vh] w-auto mx-auto rounded-xl shadow-2xl border border-slate-700">
+        </div>
+    </div>
+
+    <!-- ================= MODAL: 1-CLICK SETTLE UP ================= -->
+    <div id="settleUpModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="modal-content glass-card bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-6 py-4 flex justify-between items-center">
+                <h3 class="text-sm font-extrabold flex items-center">
+                    <i class="fa-solid fa-handshake mr-2"></i> Household Settlement (Settle Up)
+                </h3>
+                <button onclick="closeSettleUpModal()" class="text-emerald-100 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-1">
+                    <span class="text-xs font-bold text-emerald-800 uppercase tracking-wide">Calculated Net Balance</span>
+                    <h3 id="settleUpModalAmount" class="text-2xl font-black text-emerald-950">₹0</h3>
+                    <p id="settleUpModalDesc" class="text-xs text-emerald-700 font-semibold">Balancing shared household expenses for this period</p>
+                </div>
+                <div class="space-y-3 text-xs font-bold text-slate-700">
+                    <div>
+                        <label class="block mb-1">Settlement Date</label>
+                        <input type="date" id="settleUpDate" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl">
+                    </div>
+                    <div>
+                        <label class="block mb-1">Paid By (Who transfers the money?)</label>
+                        <select id="settleUpPaidBy" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl">
+                            <option value="Palash" selected>Palash (Returns/Reimburses to Pallavi)</option>
+                            <option value="Pallavi">Pallavi</option>
+                            <option value="Mom">Mom</option>
+                            <option value="Dad">Dad</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block mb-1">Transfer Mode</label>
+                        <select id="settleUpPaymentMethod" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl">
+                            <option value="UPI / GPay / PhonePe">UPI / GPay / PhonePe</option>
+                            <option value="Bank Transfer">Bank Transfer / IMPS / NEFT</option>
+                            <option value="Cash">Cash</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="closeSettleUpModal()" class="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl">Cancel</button>
+                    <button type="button" onclick="executeSettleUpTransaction()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow transition">Confirm &amp; Record Reimbursement</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: PWA MOBILE & DESKTOP INSTALL GUIDE ================= -->
+    <div id="pwaInstallGuideModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="modal-content glass-card bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-6 py-4 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-mobile-screen-button text-lg"></i>
+                    <h3 class="text-sm font-extrabold" id="pwaGuideTitle">Install HOMEEXPENSES App</h3>
+                </div>
+                <button onclick="closePwaGuideModal()" class="text-emerald-100 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4" id="pwaGuideBody">
+                <!-- Dynamically populated with iOS / Android / Desktop step-by-step instructions -->
+            </div>
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button onclick="closePwaGuideModal()" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow transition">
+                    Got It
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= PRINT-READY LUXURY EXECUTIVE PDF REPORT CONTAINER ================= -->
+    <div id="printableExecutiveReport" class="p-8 max-w-4xl mx-auto space-y-6">
+        <!-- Dynamically rendered during print execution -->
+    </div>
+
+    <!-- Toast Notification System -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col space-y-3 pointer-events-none max-w-sm w-full"></div>
+
+
+    <!-- ================= ADMIN MODAL 1: ADD STAFF MEMBER ================= -->
+    <div id="adminAddStaffModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="modal-content glass-card bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center border-b border-slate-800">
+                <h3 class="text-sm font-extrabold flex items-center">
+                    <i class="fa-solid fa-user-plus text-amber-400 mr-2"></i> Add Domestic Staff Member
+                </h3>
+                <button onclick="closeAdminAddStaffModal()" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="adminAddStaffForm" onsubmit="adminSaveNewStaff(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Full Name &amp; Title</label>
+                    <input type="text" id="adminNewStaffName" placeholder="e.g. Driver - Ramesh" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Short Name</label>
+                        <input type="text" id="adminNewStaffShortName" placeholder="e.g. Ramesh" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Role / Duty</label>
+                        <input type="text" id="adminNewStaffRole" placeholder="e.g. Car Driver" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:border-indigo-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Base Salary (₹)</label>
+                        <input type="number" min="0" step="50" id="adminNewStaffSalary" placeholder="e.g. 5000" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Allowed Paid Leaves</label>
+                        <input type="number" min="0" max="31" id="adminNewStaffLeaves" value="4" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Payday Date (1-31)</label>
+                        <input type="number" min="1" max="31" id="adminNewStaffCycleDay" value="30" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Cycle Type</label>
+                        <select id="adminNewStaffCycleType" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:border-indigo-500">
+                            <option value="calendar_month">Calendar Month</option>
+                            <option value="custom_cycle">Custom Cycle</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button type="button" onclick="closeAdminAddStaffModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow">Add Staff Member</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= ADMIN MODAL 2: ADD RECURRING BILL ================= -->
+    <div id="adminAddBillModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="modal-content glass-card bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center border-b border-slate-800">
+                <h3 class="text-sm font-extrabold flex items-center">
+                    <i class="fa-solid fa-file-invoice text-indigo-400 mr-2"></i> Add Recurring Utility Bill
+                </h3>
+                <button onclick="closeAdminAddBillModal()" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="adminAddBillForm" onsubmit="adminSaveNewBill(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Bill Name</label>
+                    <input type="text" id="adminNewBillName" placeholder="e.g. Piped Gas (MGL)" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Category</label>
+                        <select id="adminNewBillCategory" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:border-indigo-500">
+                            <!-- Populated with categories -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Icon (Emoji)</label>
+                        <input type="text" id="adminNewBillIcon" value="⚡" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-center font-bold focus:border-indigo-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Due Day of Month (1-31)</label>
+                        <input type="number" min="1" max="31" id="adminNewBillDueDay" value="10" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Approx Amount (₹)</label>
+                        <input type="number" min="0" step="10" id="adminNewBillAmount" placeholder="e.g. 1500" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button type="button" onclick="closeAdminAddBillModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow">Add Bill</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= ADMIN MODAL 3: ADD CATEGORY ================= -->
+    <div id="adminAddCategoryModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="modal-content glass-card bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center border-b border-slate-800">
+                <h3 class="text-sm font-extrabold flex items-center">
+                    <i class="fa-solid fa-tag text-emerald-400 mr-2"></i> Add Expense Category
+                </h3>
+                <button onclick="closeAdminAddCategoryModal()" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="adminAddCategoryForm" onsubmit="adminSaveNewCategory(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Category Name</label>
+                    <input type="text" id="adminNewCatName" placeholder="e.g. Pet Care & Vet" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Icon (Emoji)</label>
+                        <input type="text" id="adminNewCatIcon" value="🐾" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-center font-bold focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Type</label>
+                        <select id="adminNewCatType" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:border-indigo-500">
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                            <option value="transfer">Transfer / Settlement</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Default Payee / Vendor (Optional)</label>
+                    <input type="text" id="adminNewCatPayee" placeholder="e.g. Heads Up For Tails" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:border-indigo-500">
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button type="button" onclick="closeAdminAddCategoryModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow">Add Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Core Application Logic -->
+    <script src="app.js?v=3.3.0"></script>
+    <script src="advance_modules.js?v=3.3.0"></script>
+</body>
+</html>

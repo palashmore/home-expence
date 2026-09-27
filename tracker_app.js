@@ -3,8 +3,11 @@
 // Full-Stack Client State Engine, Filter System & Advanced Analytics
 // =====================================================================
 
+// Safe environment guard
+const _win = typeof window !== 'undefined' ? window : {};
+
 // Preset Categories
-let CATEGORIES = window.CATEGORIES || [
+let CATEGORIES = _win.CATEGORIES || [
     "Electricity Bill",
     "Flat Maintenance",
     "Dish Bill (DTH)",
@@ -17,9 +20,11 @@ let CATEGORIES = window.CATEGORIES || [
     "Shopping & Miscellaneous"
 ];
 
-let FAMILY_MEMBERS = window.FAMILY_MEMBERS || ["Palash", "Pallavi", "Mom", "Dad"];
-window.FAMILY_MEMBERS = FAMILY_MEMBERS;
-window.CATEGORIES = CATEGORIES;
+let FAMILY_MEMBERS = _win.FAMILY_MEMBERS || ["Palash", "Pallavi", "Mom", "Dad"];
+if (typeof window !== 'undefined') {
+    window.FAMILY_MEMBERS = FAMILY_MEMBERS;
+    window.CATEGORIES = CATEGORIES;
+}
 
 const MONTHS = [
     "January", "February", "March", "April", "May", "June",

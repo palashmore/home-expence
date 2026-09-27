@@ -2,3 +2,10 @@
 .vscode
 node_modules
 *.log
+server.js
+import_excel_to_seed.js
+sync_to_google_sheet.js
+schema.sql
+initial_expenses.json
+*.zip
+scratch/

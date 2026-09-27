@@ -12,6 +12,7 @@
 
 (function () {
   'use strict';
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
   // In-memory state
   let staffAttendanceState = {

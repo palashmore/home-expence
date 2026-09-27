@@ -61,11 +61,22 @@ const DEFAULT_CONFIG = {
   }
 };
 
+const TMP_CONFIG = path.join('/tmp', 'config.json');
+
 function readConfig() {
+  try {
+    if (fs.existsSync(TMP_CONFIG)) {
+      const raw = fs.readFileSync(TMP_CONFIG, 'utf8');
+      return JSON.parse(raw);
+    }
+  } catch (err) {}
+
   try {
     if (fs.existsSync(CONFIG_FILE)) {
       const raw = fs.readFileSync(CONFIG_FILE, 'utf8');
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      try { fs.writeFileSync(TMP_CONFIG, JSON.stringify(parsed, null, 2), 'utf8'); } catch (e) {}
+      return parsed;
     }
   } catch (err) {
     console.warn('Error reading config.json:', err.message);
@@ -75,14 +86,18 @@ function readConfig() {
 
 function writeConfig(data) {
   try {
+    fs.writeFileSync(TMP_CONFIG, JSON.stringify(data, null, 2), 'utf8');
+  } catch (e) {}
+
+  try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2), 'utf8');
     return true;
   } catch (err) {
-    console.error('Error writing config.json:', err.message);
-    return false;
+    console.warn('Warning: Could not write to data/config.json (serverless read-only):', err.message);
+    return true;
   }
 }
 

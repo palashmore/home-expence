@@ -5,11 +5,22 @@ const path = require('path');
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const ATTENDANCE_FILE = path.join(DATA_DIR, 'staff_attendance.json');
 
+const TMP_ATTENDANCE = path.join('/tmp', 'staff_attendance.json');
+
 function readAttendance() {
+    try {
+        if (fs.existsSync(TMP_ATTENDANCE)) {
+            const raw = fs.readFileSync(TMP_ATTENDANCE, 'utf8');
+            return JSON.parse(raw);
+        }
+    } catch (err) {}
+
     try {
         if (fs.existsSync(ATTENDANCE_FILE)) {
             const raw = fs.readFileSync(ATTENDANCE_FILE, 'utf8');
-            return JSON.parse(raw);
+            const parsed = JSON.parse(raw);
+            try { fs.writeFileSync(TMP_ATTENDANCE, JSON.stringify(parsed, null, 2), 'utf8'); } catch (e) {}
+            return parsed;
         }
     } catch (err) {
         console.warn('Error reading staff_attendance.json:', err.message);
@@ -22,14 +33,18 @@ function readAttendance() {
 
 function writeAttendance(data) {
     try {
+        fs.writeFileSync(TMP_ATTENDANCE, JSON.stringify(data, null, 2), 'utf8');
+    } catch (e) {}
+
+    try {
         if (!fs.existsSync(DATA_DIR)) {
             fs.mkdirSync(DATA_DIR, { recursive: true });
         }
         fs.writeFileSync(ATTENDANCE_FILE, JSON.stringify(data, null, 2), 'utf8');
         return true;
     } catch (err) {
-        console.warn('Error writing staff_attendance.json:', err.message);
-        return false;
+        console.warn('Warning: Could not write to data/staff_attendance.json (serverless read-only):', err.message);
+        return true;
     }
 }
 

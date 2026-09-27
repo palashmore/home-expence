@@ -4,7 +4,6 @@
   "private": true,
   "description": "Full-stack Secure Household Expense Tracker & Staff Payroll System",
   "scripts": {
-    "build": "echo Project ready for deployment",
     "start": "node server.js"
   },
   "dependencies": {

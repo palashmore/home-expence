@@ -9,6 +9,9 @@ function authenticateRequest(req) {
 
 module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
 
     // 1. Enforce Access Control on Every Server Request
     const session = authenticateRequest(req);

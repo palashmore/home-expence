@@ -1,5 +1,5 @@
 // HomeExpenses Progressive Web App Service Worker
-const CACHE_NAME = 'homeexpenses-v4';
+const CACHE_NAME = 'homeexpenses-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -34,20 +34,25 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // 1. API routes are strictly Network-Only (NEVER served from Service Worker cache)
   if (event.request.url.includes('/api/')) {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    );
-  } else {
-    event.respondWith(
-      caches.match(event.request).then(cached => {
-        return cached || fetch(event.request).then(res => {
-          return caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, res.clone());
-            return res;
-          });
-        });
-      }).catch(() => caches.match('/index.html'))
-    );
+    return event.respondWith(fetch(event.request));
   }
+
+  // 2. Static assets use Network-First to guarantee latest updates across all devices
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request).then(cached => {
+          return cached || (event.request.headers.get('accept')?.includes('text/html') ? caches.match('/index.html') : null);
+        });
+      })
+  );
 });

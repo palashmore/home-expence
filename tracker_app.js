@@ -195,9 +195,14 @@ async function loadData(silent = false) {
     if (!silent) updateSyncBadge("Syncing...", "amber");
 
     try {
-        const res = await fetch("/api/expenses", {
+        const res = await fetch(`/api/expenses?_t=${Date.now()}`, {
             method: "GET",
-            headers: getAuthHeaders()
+            headers: {
+                ...getAuthHeaders(),
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            },
+            cache: 'no-store'
         });
 
         const result = await res.json();

@@ -1,13 +1,21 @@
 // Staff Attendance & Leave API Route (/api/attendance)
 const fs = require('fs');
 const path = require('path');
+const cloudSync = require('./_cloud_sync');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const ATTENDANCE_FILE = path.join(DATA_DIR, 'staff_attendance.json');
 
 const TMP_ATTENDANCE = path.join('/tmp', 'staff_attendance.json');
 
-function readAttendance() {
+async function readAttendance() {
+    try {
+        const cloudData = await cloudSync.readJson('staff_attendance.json');
+        if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
+            return cloudData;
+        }
+    } catch (e) {}
+
     try {
         if (fs.existsSync(TMP_ATTENDANCE)) {
             const raw = fs.readFileSync(TMP_ATTENDANCE, 'utf8');
@@ -31,7 +39,9 @@ function readAttendance() {
     };
 }
 
-function writeAttendance(data) {
+async function writeAttendance(data) {
+    await cloudSync.writeJson('staff_attendance.json', data);
+
     try {
         fs.writeFileSync(TMP_ATTENDANCE, JSON.stringify(data, null, 2), 'utf8');
     } catch (e) {}
@@ -41,19 +51,20 @@ function writeAttendance(data) {
             fs.mkdirSync(DATA_DIR, { recursive: true });
         }
         fs.writeFileSync(ATTENDANCE_FILE, JSON.stringify(data, null, 2), 'utf8');
-        return true;
-    } catch (err) {
-        console.warn('Warning: Could not write to data/staff_attendance.json (serverless read-only):', err.message);
-        return true;
-    }
+    } catch (err) {}
+
+    return true;
 }
 
 module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
 
     try {
         if (req.method === 'GET') {
-            const attendance = readAttendance();
+            const attendance = await readAttendance();
             return res.status(200).json({
                 success: true,
                 data: attendance
@@ -70,7 +81,7 @@ module.exports = async function handler(req, res) {
                 return res.status(400).json({ success: false, error: 'Missing request body' });
             }
 
-            const attendance = readAttendance();
+            const attendance = await readAttendance();
 
             // Bulk or direct dictionary update
             if (body.data || body['Maid - Madhuri'] || body['Chef - Nilima Nikose']) {

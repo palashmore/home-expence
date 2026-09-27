@@ -13,6 +13,7 @@ const receiptsHandler = require('./api/receipts');
 const migrateHandler = require('./api/migrate');
 const attendanceHandler = require('./api/attendance');
 const configHandler = require('./api/config');
+const auditHandler = require('./api/audit');
 
 const mimeTypes = {
     '.html': 'text/html',
@@ -99,6 +100,9 @@ const handler = async (req, res) => {
         }
         if (pathname === '/api/config') {
             return await configHandler(req, res);
+        }
+        if (pathname === '/api/audit') {
+            return await auditHandler(req, res);
         }
 
         // Serve Static Files with Pre-cached In-Memory Fallback

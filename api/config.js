@@ -1,6 +1,7 @@
 // Configuration API Route (/api/config)
 const fs = require('fs');
 const path = require('path');
+const cloudSync = require('./_cloud_sync');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
@@ -63,7 +64,14 @@ const DEFAULT_CONFIG = {
 
 const TMP_CONFIG = path.join('/tmp', 'config.json');
 
-function readConfig() {
+async function readConfig() {
+  try {
+    const cloudCfg = await cloudSync.readJson('config.json');
+    if (cloudCfg && typeof cloudCfg === 'object' && cloudCfg.staff) {
+      return cloudCfg;
+    }
+  } catch (e) {}
+
   try {
     if (fs.existsSync(TMP_CONFIG)) {
       const raw = fs.readFileSync(TMP_CONFIG, 'utf8');
@@ -84,29 +92,35 @@ function readConfig() {
   return DEFAULT_CONFIG;
 }
 
-function writeConfig(data) {
+async function writeConfig(data) {
+  // 1. Write to cloud sync
+  await cloudSync.writeJson('config.json', data);
+
+  // 2. Write to local /tmp
   try {
     fs.writeFileSync(TMP_CONFIG, JSON.stringify(data, null, 2), 'utf8');
   } catch (e) {}
 
+  // 3. Write to local data/ directory
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2), 'utf8');
-    return true;
-  } catch (err) {
-    console.warn('Warning: Could not write to data/config.json (serverless read-only):', err.message);
-    return true;
-  }
+  } catch (err) {}
+
+  return true;
 }
 
 module.exports = async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
 
   try {
     if (req.method === 'GET') {
-      const config = readConfig();
+      const config = await readConfig();
       return res.status(200).json({
         success: true,
         data: config
@@ -123,14 +137,23 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'Empty payload' });
       }
 
-      const current = readConfig();
+      const current = await readConfig();
       // Merge updates
       const updated = {
         ...current,
         ...body
       };
 
-      writeConfig(updated);
+      await writeConfig(updated);
+
+      // Audit Log Configuration Changes
+      const diff = {};
+      for (const key of Object.keys(body)) {
+        diff[key] = { updated: true, summary: Array.isArray(body[key]) ? `${body[key].length} items` : typeof body[key] };
+      }
+      await cloudSync.logAudit('UPDATE_CONFIG', 'masterConfig', diff, {
+        modifiedSections: Object.keys(body)
+      });
 
       return res.status(200).json({
         success: true,

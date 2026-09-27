@@ -714,7 +714,10 @@
 
   async function loadAttendanceFromApi() {
     try {
-      const res = await fetch('/api/attendance');
+      const res = await fetch(`/api/attendance?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       if (res.ok) {
         const json = await res.json();
         const data = json.data || json;
@@ -1121,7 +1124,10 @@ Thank you for your valuable household support! 🙏`;
 
   async function loadMasterConfig() {
     try {
-      const res = await fetch('/api/config');
+      const res = await fetch(`/api/config?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       if (res.ok) {
         const json = await res.json();
         const config = json.data || json;

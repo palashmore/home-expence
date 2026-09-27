@@ -1,0 +1,66 @@
+[
+  {
+    "id": "audit-1790508950694-bdrd",
+    "timestamp": "2026-09-27T11:35:50.694Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "masterConfig",
+    "diff": {
+      "householdCycle": {
+        "updated": true,
+        "summary": "object"
+      }
+    },
+    "metadata": {
+      "modifiedSections": [
+        "householdCycle"
+      ]
+    }
+  },
+  {
+    "id": "audit-1790508946655-gl0g",
+    "timestamp": "2026-09-27T11:35:46.655Z",
+    "action": "UPDATE_EXPENSE",
+    "recordId": "exp-1790486334762-r5h7",
+    "diff": {
+      "amount": {
+        "old": 5000,
+        "new": 4500
+      },
+      "splitBetween": {
+        "old": "Household Expense (Palash Reimburses Pallavi 100%)",
+        "new": "Household Expense (Palash Covers / Reimburses Pallavi 100%)"
+      }
+    },
+    "metadata": {
+      "category": "Chef - Nilima Nikose",
+      "amount": 4500,
+      "paidBy": "Palash",
+      "splitBetween": "Household Expense (Palash Covers / Reimburses Pallavi 100%)",
+      "date": "2026-09-27"
+    }
+  },
+  {
+    "id": "audit-1790508540187-yw2v",
+    "timestamp": "2026-09-27T11:29:00.185Z",
+    "action": "TEST_ACTION",
+    "recordId": "test-001",
+    "diff": {
+      "amount": {
+        "old": 5000,
+        "new": 4500
+      },
+      "splitBetween": {
+        "old": "Household (100%)",
+        "new": "Personal"
+      }
+    },
+    "metadata": {
+      "testedBy": "QA Suite"
+    }
+  },
+  {
+    "timestamp": "2026-09-27T11:27:44.452Z",
+    "action": "INIT_AUDIT_LOG",
+    "details": "Master database audit log initialized"
+  }
+]

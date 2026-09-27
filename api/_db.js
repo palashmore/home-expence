@@ -2,6 +2,7 @@
 // Maintains complete expense records directly in a server JSON file (data/expenses.json)
 const fs = require('fs');
 const path = require('path');
+const cloudSync = require('./_cloud_sync');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const DATA_FILE = path.join(DATA_DIR, 'expenses.json');
@@ -159,17 +160,30 @@ let memoryStore = readExpensesFromFile();
 
 async function getAllExpenses() {
     try {
-        const fileData = readExpensesFromFile();
-        if (fileData && fileData.length > 0) {
-            memoryStore = fileData;
+        const cloudData = await cloudSync.readJson('expenses.json');
+        if (Array.isArray(cloudData) && cloudData.length > 0) {
+            memoryStore = cloudData;
+        } else {
+            const fileData = readExpensesFromFile();
+            if (fileData && fileData.length > 0) {
+                memoryStore = fileData;
+            }
         }
-    } catch (e) {}
+    } catch (e) {
+        try {
+            const fileData = readExpensesFromFile();
+            if (fileData && fileData.length > 0) memoryStore = fileData;
+        } catch (err) {}
+    }
 
     return [...memoryStore].sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
 async function getExpenseById(id) {
-    return memoryStore.find(i => i.id === id) || null;
+    if (!memoryStore || memoryStore.length === 0) {
+        await getAllExpenses();
+    }
+    return memoryStore.find(i => String(i.id).trim() === String(id).trim()) || null;
 }
 
 async function saveExpense(record) {
@@ -180,11 +194,16 @@ async function saveExpense(record) {
         throw new Error('Amount must be a positive number.');
     }
 
-    // Refresh memoryStore from persistent disk file before matching
-    const fileData = readExpensesFromFile();
-    if (fileData && fileData.length > 0) {
-        memoryStore = fileData;
-    }
+    // Always refresh latest authoritative data from Cloud before mutating
+    try {
+        const cloudData = await cloudSync.readJson('expenses.json');
+        if (Array.isArray(cloudData) && cloudData.length > 0) {
+            memoryStore = cloudData;
+        } else {
+            const fileData = readExpensesFromFile();
+            if (fileData && fileData.length > 0) memoryStore = fileData;
+        }
+    } catch (e) {}
 
     const now = new Date().toISOString();
     const cleanId = record.id ? String(record.id).trim() : null;
@@ -236,14 +255,68 @@ async function saveExpense(record) {
         version: (existing?.version || 0) + 1
     };
 
+    // Calculate detailed diff for Audit Logging
+    const diff = {};
+    if (existing) {
+        if (Number(existing.amount) !== Number(formatted.amount)) {
+            diff.amount = { old: Number(existing.amount), new: Number(formatted.amount) };
+        }
+        if (existing.splitBetween !== formatted.splitBetween) {
+            diff.splitBetween = { old: existing.splitBetween, new: formatted.splitBetween };
+        }
+        if (existing.paidBy !== formatted.paidBy) {
+            diff.paidBy = { old: existing.paidBy, new: formatted.paidBy };
+        }
+        if (existing.category !== formatted.category) {
+            diff.category = { old: existing.category, new: formatted.category };
+        }
+        if (existing.date !== formatted.date) {
+            diff.date = { old: existing.date, new: formatted.date };
+        }
+        if ((existing.paidTo || existing.vendor) !== formatted.paidTo) {
+            diff.paidTo = { old: existing.paidTo || existing.vendor, new: formatted.paidTo };
+        }
+        if ((existing.notes || existing.description) !== formatted.notes) {
+            diff.notes = { old: existing.notes || existing.description, new: formatted.notes };
+        }
+        if (existing.paymentMethod !== formatted.paymentMethod) {
+            diff.paymentMethod = { old: existing.paymentMethod, new: formatted.paymentMethod };
+        }
+    } else {
+        diff.created = {
+            amount: formatted.amount,
+            category: formatted.category,
+            paidBy: formatted.paidBy,
+            splitBetween: formatted.splitBetween,
+            date: formatted.date
+        };
+    }
+
     if (existingIdx !== -1) {
         memoryStore[existingIdx] = formatted;
     } else {
         memoryStore.unshift(formatted);
     }
 
-    // Persist immediately to Server JSON file
+    // 1. Persist to Cloud Sync (Gist) for instant cross-device updates
+    await cloudSync.writeJson('expenses.json', memoryStore);
+
+    // 2. Persist to local disk files
     writeExpensesToFile(memoryStore);
+
+    // 3. Log Audit Trail & Stream to Vercel Logs
+    await cloudSync.logAudit(
+        existing ? 'UPDATE_EXPENSE' : 'CREATE_EXPENSE',
+        formatted.id,
+        diff,
+        {
+            category: formatted.category,
+            amount: formatted.amount,
+            paidBy: formatted.paidBy,
+            splitBetween: formatted.splitBetween,
+            date: formatted.date
+        }
+    );
 
     return formatted;
 }
@@ -252,19 +325,31 @@ async function deleteExpense(id) {
     if (!id) return false;
     const cleanId = String(id).trim();
 
-    // Refresh memoryStore from persistent disk file before deleting
-    const fileData = readExpensesFromFile();
-    if (fileData && fileData.length > 0) {
-        memoryStore = fileData;
-    }
+    try {
+        const cloudData = await cloudSync.readJson('expenses.json');
+        if (Array.isArray(cloudData) && cloudData.length > 0) memoryStore = cloudData;
+    } catch (e) {}
 
     const existingIdx = memoryStore.findIndex(i => String(i.id).trim() === cleanId);
     if (existingIdx === -1) return false;
 
+    const deleted = memoryStore[existingIdx];
     memoryStore.splice(existingIdx, 1);
 
-    // Persist immediately to Server JSON file
+    // Persist to Cloud and local disk
+    await cloudSync.writeJson('expenses.json', memoryStore);
     writeExpensesToFile(memoryStore);
+
+    // Log Audit Trail
+    await cloudSync.logAudit('DELETE_EXPENSE', cleanId, {
+        deleted: {
+            id: deleted.id,
+            category: deleted.category,
+            amount: deleted.amount,
+            paidBy: deleted.paidBy,
+            date: deleted.date
+        }
+    });
 
     return true;
 }

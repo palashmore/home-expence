@@ -2,7 +2,7 @@
   {
     "id": "exp-1790486334762-r5h7",
     "date": "2026-09-27",
-    "amount": 5000,
+    "amount": 4500,
     "category": "Chef - Nilima Nikose",
     "paidBy": "Palash",
     "paidTo": "Nilima Nikose Chef",
@@ -13,10 +13,10 @@
     "billingCycle": "2026-09-30",
     "receipt": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
     "receiptStatus": "Yes (Attached)",
-    "updatedAt": "2026-09-27T07:45:30.928Z",
-    "version": 22,
+    "updatedAt": "2026-09-27T11:35:45.215Z",
+    "version": 23,
     "createdAt": "2026-09-27T05:44:46.366Z",
-    "splitBetween": "Household Expense (Palash Reimburses Pallavi 100%)"
+    "splitBetween": "Household Expense (Palash Covers / Reimburses Pallavi 100%)"
   },
   {
     "id": "exp-1790486017968-6p3l",

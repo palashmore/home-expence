@@ -567,7 +567,13 @@ function switchTab(tabId) {
                 adminCard.classList.add("hidden");
             }
         }
-        if (window.renderAdminView) window.renderAdminView();
+        if (window.loadMasterConfig) {
+            window.loadMasterConfig().then(() => {
+                if (window.renderAdminView) window.renderAdminView();
+            });
+        } else if (window.renderAdminView) {
+            window.renderAdminView();
+        }
         if (currentSessionUser && currentSessionUser.role === 'ADMIN' && window.loadAdminConsoleData) {
             window.loadAdminConsoleData();
         }
@@ -593,10 +599,12 @@ function switchTab(tabId) {
     renderAllViews();
 }
 
-function getAuthHeaders() {
+function getAuthHeaders(extra = {}) {
+    const token = authToken || localStorage.getItem("household_auth_token") || "";
     return {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${authToken || ""}`
+        "Authorization": `Bearer ${token}`,
+        ...extra
     };
 }
 window.getAuthHeaders = getAuthHeaders;
@@ -863,6 +871,8 @@ async function signIn(username, password) {
             closeLoginModal();
             updateUserProfileUI();
             await loadData();
+            if (window.loadMasterConfig) await window.loadMasterConfig();
+            if (window.renderAdminView) window.renderAdminView();
             if (window.loadAdminConsoleData) window.loadAdminConsoleData();
             showToast('success', `Signed In as ${result.user.name}`, `Active: ${result.user.householdName}`);
         } else {
@@ -928,6 +938,8 @@ async function initAuthSession() {
                 localStorage.setItem("household_session_user", JSON.stringify(currentSessionUser));
                 updateUserProfileUI();
                 await loadData();
+                if (window.loadMasterConfig) await window.loadMasterConfig();
+                if (window.renderAdminView) window.renderAdminView();
                 if (window.loadAdminConsoleData) window.loadAdminConsoleData();
                 return;
             }
@@ -3793,6 +3805,8 @@ async function switchActiveHousehold(targetHId) {
 
             updateUserProfileUI();
             await loadData();
+            if (window.loadMasterConfig) await window.loadMasterConfig();
+            if (window.renderAdminView) window.renderAdminView();
             await loadAdminConsoleData();
             if (typeof showToast === 'function') {
                 showToast('info', 'Workspace Switched', `Active Household: ${result.user.householdName}`);

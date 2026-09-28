@@ -834,9 +834,10 @@
     } catch (e) {}
 
     try {
+      const headers = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders({ 'Cache-Control': 'no-cache' }) : { 'Cache-Control': 'no-cache' };
       const res = await fetch(`/api/attendance?_t=${Date.now()}`, {
         cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' }
+        headers: headers
       });
       if (res.ok) {
         const json = await res.json();
@@ -861,9 +862,10 @@
     updateAttendanceSyncStatus('saving');
 
     try {
+      const headers = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders() : { 'Content-Type': 'application/json' };
       const res = await fetch('/api/attendance', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({
           staff: staffName,
           month: monthKey,
@@ -1271,11 +1273,31 @@
 
   window.masterConfig = null;
 
+  function getAdvanceAuthHeaders(extra = {}) {
+    const token = (typeof authToken !== 'undefined' && authToken) ||
+                  (typeof window.authToken !== 'undefined' && window.authToken) ||
+                  localStorage.getItem('household_auth_token') ||
+                  '';
+    const headers = {
+      'Content-Type': 'application/json',
+      ...extra
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  }
+  window.getAdvanceAuthHeaders = getAdvanceAuthHeaders;
+
   async function loadMasterConfig() {
     try {
+      const headers = getAdvanceAuthHeaders({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      });
       const res = await fetch(`/api/config?_t=${Date.now()}`, {
         cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' }
+        headers: headers
       });
       if (res.ok) {
         const json = await res.json();
@@ -1290,14 +1312,15 @@
           if (window.renderBillsRadar && (window.currentFilteredExpenses || window.expensesData)) {
             window.renderBillsRadar(window.currentFilteredExpenses || window.expensesData);
           }
-          const adminView = document.getElementById('view-admin');
-          if (adminView && !adminView.classList.contains('hidden')) {
+          if (window.renderAdminView) {
             window.renderAdminView();
           }
           if (window.renderAllViews) {
             window.renderAllViews();
           }
         }
+      } else {
+        console.warn('Could not load master config, HTTP status:', res.status);
       }
     } catch (err) {
       console.warn('Could not load master config from /api/config:', err);
@@ -1307,9 +1330,10 @@
 
   async function saveMasterConfig(partialUpdates) {
     try {
+      const headers = getAdvanceAuthHeaders();
       const res = await fetch('/api/config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify(partialUpdates)
       });
       if (res.ok) {
@@ -1480,7 +1504,12 @@
 
   window.renderAdminView = function () {
     const config = window.masterConfig;
-    if (!config) return;
+    if (!config) {
+      if (typeof window.loadMasterConfig === 'function') {
+        window.loadMasterConfig();
+      }
+      return;
+    }
 
     // 1. Staff Members Table
     const staffTbody = document.getElementById('adminStaffTableBody');
@@ -1780,9 +1809,10 @@
   window.resetAdminConfigToDefaults = async function () {
     if (!confirm('Are you sure you want to reset all master configuration settings to application defaults?')) return;
     try {
+      const headers = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders() : { 'Content-Type': 'application/json' };
       const res = await fetch('/api/config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({
           staff: [
             { id: "staff-1", name: "Chef - Nilima Nikose", shortName: "Nilima", role: "Chef / Cook", baseSalary: 4500, allowedPaidLeaves: 4, billingCycleDay: 30, cycleType: "calendar_month", active: true },
@@ -2038,9 +2068,10 @@
     const listEl = document.getElementById('inAppAuditList');
 
     try {
+      const headers = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders({ 'Cache-Control': 'no-cache' }) : { 'Cache-Control': 'no-cache' };
       const res = await fetch(`/api/audit?format=json&_t=${Date.now()}`, {
         cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' }
+        headers: headers
       });
       if (res.ok) {
         const json = await res.json();
@@ -2807,7 +2838,8 @@
   window.downloadFullBackupJson = async function () {
     try {
       window.showToast && window.showToast('info', 'Exporting Backup', 'Generating comprehensive JSON archive...');
-      const res = await fetch('/api/backup');
+      const headers = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders() : {};
+      const res = await fetch('/api/backup', { headers: headers });
       const data = await res.json();
       if (data.success && data.data) {
         const dateStr = new Date().toISOString().slice(0, 10);
@@ -2833,9 +2865,10 @@
   window.createInstantBackupSnapshot = async function () {
     try {
       window.showToast && window.showToast('info', 'Taking Snapshot', 'Creating point-in-time recovery image...');
+      const headers = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders() : { 'Content-Type': 'application/json' };
       const res = await fetch('/api/backup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({ action: 'create_snapshot' })
       });
       const data = await res.json();
@@ -2857,7 +2890,8 @@
     if (!tbody) return;
 
     try {
-      const res = await fetch('/api/backup?action=list');
+      const headers = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders({ 'Cache-Control': 'no-cache' }) : {};
+      const res = await fetch('/api/backup?action=list', { headers: headers });
       const data = await res.json();
       if (data.success && Array.isArray(data.snapshots)) {
         const list = data.snapshots;
@@ -2919,9 +2953,10 @@
 
     try {
       window.showToast && window.showToast('info', 'Restoring Snapshot', `Applying ${filename}...`);
+      const headers = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders() : { 'Content-Type': 'application/json' };
       const res = await fetch('/api/backup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({ action: 'restore_snapshot', filename })
       });
       const data = await res.json();
@@ -2960,9 +2995,10 @@
       }
 
       window.showToast && window.showToast('info', 'Restoring Backup', 'Validating and restoring records...');
+      const headers = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders() : { 'Content-Type': 'application/json' };
       const res = await fetch('/api/backup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({ action: 'restore', backupData: parsed })
       });
       const data = await res.json();
@@ -3227,9 +3263,10 @@
 
     try {
       window.showToast && window.showToast('info', 'Applying Healing', `Saving ${repairedCount} healed records...`);
+      const headers = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders() : { 'Content-Type': 'application/json' };
       const res = await fetch('/api/backup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({
           action: 'restore',
           backupData: {

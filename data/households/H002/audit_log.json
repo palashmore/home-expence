@@ -1,0 +1,24 @@
+[
+  {
+    "id": "audit-1790620495422-ez0kb",
+    "householdId": "H002",
+    "timestamp": "2026-09-28T18:34:55.422Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1790620495421-qg8h",
+    "actor": "User B",
+    "diff": {
+      "created": {
+        "amount": 250,
+        "category": "Grocery & Vegetables",
+        "paidBy": "Not Specified",
+        "date": "2026-09-28"
+      }
+    },
+    "snapshot": {
+      "category": "Grocery & Vegetables",
+      "amount": 250,
+      "paidBy": "Not Specified",
+      "date": "2026-09-28"
+    }
+  }
+]

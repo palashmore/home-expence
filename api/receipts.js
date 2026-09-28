@@ -1,18 +1,19 @@
 // Receipts API Route (/api/receipts)
-// Handles private persistent receipt storage and secure image streaming
-const { verifySessionToken } = require('./auth');
-const { saveReceiptImage, getReceiptImage } = require('./_db');
-
-function authenticateRequest(req) {
-    return true; // Authentication not required per user configuration
-}
+// Multi-Tenant Household-Scoped Private Receipt Storage
+const { authenticateRequest } = require('./auth');
+const storage = require('./_storage');
 
 module.exports = async function handler(req, res) {
-    // 1. Enforce Authentication Control
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+
+    // 1. Mandatory Identity & Household Resolution
     const session = authenticateRequest(req);
-    if (!session) {
+    if (!session || !session.householdId) {
         return res.status(401).json({ success: false, error: "Unauthorized access to private receipt data." });
     }
+
+    const householdId = session.householdId;
 
     try {
         if (req.method === 'GET') {
@@ -21,13 +22,14 @@ module.exports = async function handler(req, res) {
                 return res.status(400).json({ success: false, error: "Missing receipt ID." });
             }
 
-            const imageData = await getReceiptImage(receiptId);
+            const imageData = await storage.getHouseholdReceipt(householdId, receiptId);
             if (!imageData) {
-                return res.status(404).json({ success: false, error: "Receipt image not found." });
+                return res.status(404).json({ success: false, error: "Receipt image not found in your household." });
             }
 
             return res.status(200).json({
                 success: true,
+                householdId: householdId,
                 receiptId: receiptId,
                 data: imageData
             });
@@ -44,11 +46,12 @@ module.exports = async function handler(req, res) {
             }
 
             const receiptId = body.receiptId || `receipt-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
-            await saveReceiptImage(receiptId, body.receiptData);
+            await storage.saveHouseholdReceipt(householdId, receiptId, body.receiptData);
 
             return res.status(200).json({
                 success: true,
-                message: "Receipt stored in private persistent storage.",
+                message: "Receipt stored in private household storage.",
+                householdId: householdId,
                 receiptId: receiptId,
                 receiptUrl: `/api/receipts?id=${receiptId}`
             });

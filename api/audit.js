@@ -1,5 +1,7 @@
 // Audit Trail API & Interactive UI Route (/api/audit)
 // Provides queryable history and a rich, luxury dashboard for all system edits
+const { authenticateRequest } = require('./auth');
+const storage = require('./_storage');
 const { getAuditLogs } = require('./_cloud_sync');
 
 function escapeHtml(str) {
@@ -431,10 +433,18 @@ module.exports = async function handler(req, res) {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
 
+  const session = authenticateRequest(req);
+  if (!session || !session.householdId) {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(401).json({ success: false, error: 'Unauthorized: Please sign in to view audit records.' });
+  }
+
+  const householdId = session.householdId;
+
   try {
     if (req.method === 'GET') {
       const limit = req.query && req.query.limit ? parseInt(req.query.limit, 10) : 200;
-      const logs = await getAuditLogs(isNaN(limit) ? 200 : limit);
+      const logs = await storage.getHouseholdAuditLogs(householdId, isNaN(limit) ? 200 : limit);
 
       const acceptsHtml = req.headers && req.headers.accept && req.headers.accept.includes('text/html');
       const wantsJson = req.query && req.query.format === 'json';
@@ -456,6 +466,7 @@ module.exports = async function handler(req, res) {
       res.setHeader('Content-Type', 'application/json');
       return res.status(200).json({
         success: true,
+        householdId: householdId,
         count: logs.length,
         data: logs
       });

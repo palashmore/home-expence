@@ -1,80 +1,27 @@
 // Backup & Disaster Recovery Center API Route (/api/backup)
+// Multi-Tenant Household-Scoped Backup & Restoration Engine
 const fs = require('fs');
 const path = require('path');
-const db = require('./_db');
-const cloudSync = require('./_cloud_sync');
+const { authenticateRequest } = require('./auth');
+const storage = require('./_storage');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
-const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
-const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
-const ATTENDANCE_FILE = path.join(DATA_DIR, 'staff_attendance.json');
-const AUDIT_FILE = path.join(DATA_DIR, 'audit_log.json');
 
-// Ensure backups dir exists
-try {
-    if (!fs.existsSync(BACKUPS_DIR)) {
-        fs.mkdirSync(BACKUPS_DIR, { recursive: true });
-    }
-} catch (e) {}
-
-// Helper to read JSON safely
-function readJsonSafe(filepath, fallback = null) {
-    try {
-        if (fs.existsSync(filepath)) {
-            return JSON.parse(fs.readFileSync(filepath, 'utf8'));
-        }
-    } catch (e) {}
-    return fallback;
+function getHouseholdBackupsDir(householdId) {
+    const clean = storage.sanitizeId(householdId);
+    if (!clean) throw new Error('Invalid household ID');
+    const dir = path.join(DATA_DIR, 'households', clean, 'backups');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    return dir;
 }
 
-// Helper to generate full unified backup bundle
-async function generateBackupBundle() {
-    const allExpenses = await db.getAllExpenses(true);
-    let config = null;
+// Create an automated safety snapshot on disk for this household
+function saveHouseholdSafetySnapshot(householdId, bundle, prefix = 'snapshot') {
     try {
-        config = await cloudSync.readJson('config.json');
-    } catch (e) {}
-    if (!config) config = readJsonSafe(CONFIG_FILE, {});
-
-    let attendance = null;
-    try {
-        attendance = await cloudSync.readJson('staff_attendance.json');
-    } catch (e) {}
-    if (!attendance) attendance = readJsonSafe(ATTENDANCE_FILE, {});
-
-    let audit = null;
-    try {
-        audit = await cloudSync.readJson('audit_log.json');
-    } catch (e) {}
-    if (!audit) audit = readJsonSafe(AUDIT_FILE, []);
-
-    const now = new Date().toISOString();
-    return {
-        backupVersion: "5.0",
-        application: "HOMEEXPENSES",
-        createdAt: now,
-        system: {
-            nodeEnv: process.env.NODE_ENV || 'production',
-            isServerless: !!process.env.VERCEL,
-            totalExpenses: allExpenses.length,
-            activeExpenses: allExpenses.filter(e => !e.isDeleted).length,
-            softDeletedExpenses: allExpenses.filter(e => e.isDeleted).length,
-            totalAuditEntries: Array.isArray(audit) ? audit.length : 0
-        },
-        expenses: allExpenses,
-        config: config,
-        attendance: attendance,
-        audit: Array.isArray(audit) ? audit.slice(0, 500) : [] // Keep recent 500 audit entries
-    };
-}
-
-// Create an automated safety snapshot on disk
-function saveSafetySnapshot(bundle, prefix = 'snapshot') {
-    try {
-        if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+        const backupsDir = getHouseholdBackupsDir(householdId);
         const ts = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `${prefix}-${ts}.json`;
-        const filepath = path.join(BACKUPS_DIR, filename);
+        const filepath = path.join(backupsDir, filename);
         fs.writeFileSync(filepath, JSON.stringify(bundle, null, 2), 'utf8');
         return { filename, filepath, createdAt: bundle.createdAt };
     } catch (err) {
@@ -83,15 +30,16 @@ function saveSafetySnapshot(bundle, prefix = 'snapshot') {
     }
 }
 
-// List all existing disk snapshots
-function listSnapshots() {
+// List all existing disk snapshots for this household
+function listHouseholdSnapshots(householdId) {
     try {
-        if (!fs.existsSync(BACKUPS_DIR)) return [];
-        const files = fs.readdirSync(BACKUPS_DIR);
+        const backupsDir = getHouseholdBackupsDir(householdId);
+        if (!fs.existsSync(backupsDir)) return [];
+        const files = fs.readdirSync(backupsDir);
         return files
             .filter(f => f.endsWith('.json'))
             .map(filename => {
-                const filePath = path.join(BACKUPS_DIR, filename);
+                const filePath = path.join(backupsDir, filename);
                 const stats = fs.statSync(filePath);
                 return {
                     filename,
@@ -115,31 +63,44 @@ module.exports = async function handler(req, res) {
         return res.status(200).end();
     }
 
+    // 1. Mandatory Identity & Household Resolution
+    const session = authenticateRequest(req);
+    if (!session || !session.householdId) {
+        return res.status(401).json({
+            success: false,
+            error: "Unauthorized: Please sign in to manage household backups."
+        });
+    }
+
+    const householdId = session.householdId;
+    const actorUser = session.name || session.username || 'Authenticated User';
     const action = req.query?.action || (req.body && req.body.action) || 'export';
 
     try {
         // ---------------- GET ACTIONS ----------------
         if (req.method === 'GET') {
             if (action === 'list') {
-                const snapshots = listSnapshots();
+                const snapshots = listHouseholdSnapshots(householdId);
                 return res.status(200).json({
                     success: true,
+                    householdId: householdId,
                     snapshots: snapshots
                 });
             }
 
-            // Export / Download Backup Bundle
-            const bundle = await generateBackupBundle();
+            // Export / Download Backup Bundle for current household
+            const bundle = await storage.getHouseholdBackupBundle(householdId);
             
             if (req.query?.download === '1') {
                 const nowStr = new Date().toISOString().slice(0, 10);
                 res.setHeader('Content-Type', 'application/json');
-                res.setHeader('Content-Disposition', `attachment; filename="homeexpenses-backup-${nowStr}.json"`);
+                res.setHeader('Content-Disposition', `attachment; filename="${householdId}-backup-${nowStr}.json"`);
                 return res.status(200).end(JSON.stringify(bundle, null, 2));
             }
 
             return res.status(200).json({
                 success: true,
+                householdId: householdId,
                 data: bundle
             });
         }
@@ -157,13 +118,19 @@ module.exports = async function handler(req, res) {
 
             // 1. Manually Create Instant Snapshot
             if (postAction === 'create_snapshot') {
-                const currentBundle = await generateBackupBundle();
-                const snap = saveSafetySnapshot(currentBundle, 'manual-snapshot');
-                await cloudSync.logAudit('CREATE_BACKUP_SNAPSHOT', snap ? snap.filename : 'memory', {
-                    totalExpenses: currentBundle.system.totalExpenses
-                });
+                const currentBundle = await storage.getHouseholdBackupBundle(householdId);
+                const snap = saveHouseholdSafetySnapshot(householdId, currentBundle, 'manual-snapshot');
+                await storage.logHouseholdAudit(
+                    householdId,
+                    'CREATE_BACKUP_SNAPSHOT',
+                    snap ? snap.filename : 'memory',
+                    { totalExpenses: currentBundle.expenses.length },
+                    {},
+                    actorUser
+                );
                 return res.status(200).json({
                     success: true,
+                    householdId: householdId,
                     message: "Backup snapshot created successfully.",
                     snapshot: snap
                 });
@@ -176,6 +143,14 @@ module.exports = async function handler(req, res) {
                     return res.status(400).json({
                         success: false,
                         error: "Invalid backup format. Expected a valid HomeExpenses backup JSON containing expenses."
+                    });
+                }
+
+                // If backup specifies another household, verify user permission
+                if (backupData.householdId && backupData.householdId !== householdId && session.role !== 'OWNER') {
+                    return res.status(403).json({
+                        success: false,
+                        error: "Cross-household restoration denied: Cannot restore another household's data."
                     });
                 }
 
@@ -196,40 +171,42 @@ module.exports = async function handler(req, res) {
                     });
                 }
 
-                // A. Take Automated Pre-Restoration Safety Snapshot First!
-                const preRestoreBundle = await generateBackupBundle();
-                const safetySnap = saveSafetySnapshot(preRestoreBundle, 'safety-pre-restore');
+                // A. Automated Pre-Restoration Safety Snapshot First!
+                const preRestoreBundle = await storage.getHouseholdBackupBundle(householdId);
+                const safetySnap = saveHouseholdSafetySnapshot(householdId, preRestoreBundle, 'safety-pre-restore');
 
-                // B. Write Restored Expenses
-                db.writeExpensesToFile(newExpenses);
-                await cloudSync.writeJson('expenses.json', newExpenses);
+                // B. Write Restored Expenses to current household
+                const hExpensesPath = path.join(DATA_DIR, 'households', householdId, 'expenses.json');
+                fs.writeFileSync(hExpensesPath, JSON.stringify(newExpenses, null, 2), 'utf8');
 
                 // C. Write Config if present
                 if (backupData.config && typeof backupData.config === 'object') {
-                    await cloudSync.writeJson('config.json', backupData.config);
-                    try {
-                        fs.writeFileSync(CONFIG_FILE, JSON.stringify(backupData.config, null, 2), 'utf8');
-                    } catch (e) {}
+                    await storage.saveHouseholdConfig(householdId, backupData.config, actorUser);
                 }
 
                 // D. Write Attendance if present
                 if (backupData.attendance && typeof backupData.attendance === 'object') {
-                    await cloudSync.writeJson('staff_attendance.json', backupData.attendance);
-                    try {
-                        fs.writeFileSync(ATTENDANCE_FILE, JSON.stringify(backupData.attendance, null, 2), 'utf8');
-                    } catch (e) {}
+                    await storage.saveHouseholdAttendance(householdId, backupData.attendance, actorUser);
                 }
 
                 // Log Audit
-                await cloudSync.logAudit('RESTORE_BACKUP', safetySnap ? safetySnap.filename : 'safety-snap', {
-                    restoredCount: newExpenses.length,
-                    hasConfig: !!backupData.config,
-                    hasAttendance: !!backupData.attendance,
-                    safetySnapshot: safetySnap ? safetySnap.filename : null
-                });
+                await storage.logHouseholdAudit(
+                    householdId,
+                    'RESTORE_BACKUP',
+                    safetySnap ? safetySnap.filename : 'safety-snap',
+                    {
+                        restoredCount: newExpenses.length,
+                        hasConfig: !!backupData.config,
+                        hasAttendance: !!backupData.attendance,
+                        safetySnapshot: safetySnap ? safetySnap.filename : null
+                    },
+                    {},
+                    actorUser
+                );
 
                 return res.status(200).json({
                     success: true,
+                    householdId: householdId,
                     message: "Backup successfully restored.",
                     restoredExpensesCount: newExpenses.length,
                     safetySnapshot: safetySnap ? safetySnap.filename : null
@@ -242,36 +219,45 @@ module.exports = async function handler(req, res) {
                 if (!targetFilename || typeof targetFilename !== 'string') {
                     return res.status(400).json({ success: false, error: "Snapshot filename is required." });
                 }
-                const targetPath = path.join(BACKUPS_DIR, path.basename(targetFilename));
+                const backupsDir = getHouseholdBackupsDir(householdId);
+                const targetPath = path.join(backupsDir, path.basename(targetFilename));
                 if (!fs.existsSync(targetPath)) {
-                    return res.status(404).json({ success: false, error: "Snapshot file not found." });
+                    return res.status(404).json({ success: false, error: "Snapshot file not found in your household." });
                 }
 
                 const raw = fs.readFileSync(targetPath, 'utf8');
                 const parsed = JSON.parse(raw);
 
                 // Take safety snapshot of current state
-                const preRestoreBundle = await generateBackupBundle();
-                const safetySnap = saveSafetySnapshot(preRestoreBundle, 'safety-pre-restore');
+                const preRestoreBundle = await storage.getHouseholdBackupBundle(householdId);
+                const safetySnap = saveHouseholdSafetySnapshot(householdId, preRestoreBundle, 'safety-pre-restore');
 
                 if (Array.isArray(parsed.expenses)) {
-                    db.writeExpensesToFile(parsed.expenses);
-                    await cloudSync.writeJson('expenses.json', parsed.expenses);
+                    const hExpensesPath = path.join(DATA_DIR, 'households', householdId, 'expenses.json');
+                    fs.writeFileSync(hExpensesPath, JSON.stringify(parsed.expenses, null, 2), 'utf8');
                 }
                 if (parsed.config) {
-                    await cloudSync.writeJson('config.json', parsed.config);
+                    await storage.saveHouseholdConfig(householdId, parsed.config, actorUser);
                 }
                 if (parsed.attendance) {
-                    await cloudSync.writeJson('staff_attendance.json', parsed.attendance);
+                    await storage.saveHouseholdAttendance(householdId, parsed.attendance, actorUser);
                 }
 
-                await cloudSync.logAudit('RESTORE_SNAPSHOT', targetFilename, {
-                    restoredFrom: targetFilename,
-                    safetySnapshot: safetySnap ? safetySnap.filename : null
-                });
+                await storage.logHouseholdAudit(
+                    householdId,
+                    'RESTORE_SNAPSHOT',
+                    targetFilename,
+                    {
+                        restoredFrom: targetFilename,
+                        safetySnapshot: safetySnap ? safetySnap.filename : null
+                    },
+                    {},
+                    actorUser
+                );
 
                 return res.status(200).json({
                     success: true,
+                    householdId: householdId,
                     message: `Snapshot '${targetFilename}' restored successfully.`,
                     safetySnapshot: safetySnap ? safetySnap.filename : null
                 });

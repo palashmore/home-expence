@@ -1,0 +1,62 @@
+{
+  "staff": [],
+  "categories": [
+    {
+      "name": "Grocery & Vegetables",
+      "icon": "🛒",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Electricity Bill",
+      "icon": "⚡",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Rent / Housing",
+      "icon": "🏠",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Wifi & Internet",
+      "icon": "📶",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Dining & Food",
+      "icon": "🍽️",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Shopping & Miscellaneous",
+      "icon": "🛍️",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Salary / Income",
+      "icon": "💰",
+      "type": "income",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Transfer",
+      "icon": "🤝",
+      "type": "transfer",
+      "defaultPaidTo": ""
+    }
+  ],
+  "recurringBills": [],
+  "familyMembers": [
+    "User B"
+  ],
+  "monthlyBudgetLimit": 30000,
+  "splitRules": [
+    "Personal Expense (User B)",
+    "Household Expense"
+  ]
+}

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" data-theme="indigo">
 <head>
     <meta charset="UTF-8">
@@ -101,8 +101,18 @@
                     </div>
                 </div>
 
+                <!-- Active Household Pill (Desktop & Tablet) -->
+                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
+                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
+                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
+                </div>
+
                 <!-- ================= MOBILE HEADER CONTROLS (< sm) ================= -->
                 <div class="flex sm:hidden items-center space-x-1.5 shrink-0">
+                    <!-- Mobile Account / Household Switcher -->
+                    <button type="button" onclick="openUserProfileModal()" class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-xs border border-indigo-400/40 shadow-sm shrink-0" id="mobileUserBtn" title="Account &amp; Household">
+                        <span id="mobileUserInitial">P</span>
+                    </button>
                     
                     <!-- Mobile Live Theme Selector -->
                     <div class="flex items-center space-x-1 bg-slate-800/90 text-slate-200 border border-slate-700/80 rounded-xl px-2 py-1.5 shadow-sm text-xs font-semibold">
@@ -183,6 +193,15 @@
 
                 <!-- ================= DESKTOP HEADER CONTROLS (>= sm) ================= -->
                 <div class="hidden sm:flex items-center space-x-2.5 shrink-0">
+                    <!-- User Profile & Household Switcher (Desktop) -->
+                    <button type="button" onclick="openUserProfileModal()" id="hdrUserProfileBtn" class="flex items-center gap-2 bg-slate-800/90 hover:bg-slate-700 text-white px-2.5 py-1.5 rounded-xl border border-slate-700 transition shrink-0" title="Account &amp; Household">
+                        <div class="w-7 h-7 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center text-xs font-black shadow-sm" id="hdrUserAvatar">P</div>
+                        <div class="text-left hidden lg:block leading-tight">
+                            <div class="text-xs font-black truncate max-w-[90px]" id="hdrUserName">Palash</div>
+                            <div class="text-[9px] font-extrabold text-indigo-300 uppercase" id="hdrUserRole">Owner</div>
+                        </div>
+                        <i class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
+                    </button>
                     
                     <!-- Live Theme Switcher (Desktop) -->
                     <div class="flex items-center space-x-1.5 bg-slate-800/90 text-slate-200 border border-slate-700/90 rounded-xl px-2.5 py-1.5 shadow-sm text-xs font-semibold">
@@ -317,8 +336,72 @@
         </div>
     </header>
 
-    <!-- Main Command Body -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-5 space-y-4 sm:space-y-5 pb-24 md:pb-6">
+    <!-- Main Command Body Container with Left Sidebar on Desktop -->
+    <div class="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-5 flex gap-5 pb-24 md:pb-6">
+        
+        <!-- ================= DESKTOP LEFT COMMAND SIDEBAR ================= -->
+        <aside id="desktopSidebar" class="hidden xl:flex flex-col w-60 shrink-0 space-y-4 sticky top-20 self-start">
+            <div class="glass-card p-3 rounded-2xl border border-slate-700/80 bg-slate-900/90 shadow-xl space-y-1">
+                <div class="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                    <span>Navigation</span>
+                    <i class="fa-solid fa-compass text-indigo-400"></i>
+                </div>
+                <button type="button" onclick="switchTab('dashboard')" id="sidebar-dashboard" class="sidebar-link active">
+                    <i class="fa-solid fa-chart-pie w-4 text-center"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button type="button" onclick="switchTab('expenses')" id="sidebar-expenses" class="sidebar-link">
+                    <i class="fa-solid fa-list-check w-4 text-center"></i>
+                    <span>Daily Ledger</span>
+                </button>
+                <button type="button" onclick="switchTab('staff')" id="sidebar-staff" class="sidebar-link">
+                    <i class="fa-solid fa-users-gear w-4 text-center"></i>
+                    <span>Staff Payroll</span>
+                </button>
+                <button type="button" onclick="switchTab('matrix')" id="sidebar-matrix" class="sidebar-link">
+                    <i class="fa-solid fa-table-cells w-4 text-center"></i>
+                    <span>Pivot Matrix</span>
+                </button>
+                
+                <div class="pt-2 pb-1 px-3">
+                    <div class="border-t border-slate-800"></div>
+                </div>
+                <div class="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    <span>Household &amp; Personal</span>
+                </div>
+                <button type="button" onclick="switchTab('personal')" id="sidebar-personal" class="sidebar-link">
+                    <i class="fa-solid fa-user-tag w-4 text-center text-purple-400"></i>
+                    <span>Personal Spend</span>
+                </button>
+                <button type="button" onclick="switchTab('admin')" id="sidebar-admin" class="sidebar-link">
+                    <i class="fa-solid fa-sliders w-4 text-center text-indigo-400"></i>
+                    <span>Settings &amp; Family</span>
+                </button>
+                <button type="button" onclick="switchTab('audit')" id="sidebar-audit" class="sidebar-link">
+                    <i class="fa-solid fa-clock-rotate-left w-4 text-center text-amber-400"></i>
+                    <span>Audit Ledger</span>
+                </button>
+                <button type="button" onclick="switchTab('settings')" id="sidebar-settings" class="sidebar-link">
+                    <i class="fa-solid fa-database w-4 text-center text-emerald-400"></i>
+                    <span>Data &amp; Backup</span>
+                </button>
+            </div>
+
+            <!-- Quick Add Shortcut in Sidebar -->
+            <div class="p-3.5 rounded-2xl bg-gradient-to-br from-indigo-950/80 to-slate-900 border border-indigo-500/30 text-white shadow-lg space-y-2">
+                <div class="text-xs font-black flex items-center gap-1.5 text-indigo-300">
+                    <i class="fa-solid fa-bolt text-amber-400"></i> Quick Entry
+                </div>
+                <p class="text-[11px] text-slate-400">Record a new transaction to the active household ledger.</p>
+                <button type="button" onclick="openExpenseModal()" class="w-full py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-plus text-[10px]"></i>
+                    <span>Add Expense</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 min-w-0 space-y-4 sm:space-y-5">
 
         <!-- Navigation Tabs Bar -->
         <div class="glass-card rounded-2xl p-1 sm:p-1.5 border border-slate-200/80 shadow-sm flex items-center justify-between overflow-hidden">
@@ -619,6 +702,12 @@
                             <span id="statCombinedSpentVal" class="font-black text-slate-800">₹0</span>
                         </div>
                     </div>
+                </div>
+
+                <!-- Active Household Pill (Desktop & Tablet) -->
+                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
+                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
+                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
                 </div>
 
                 <!-- KPI 2: Total Income / Received -->
@@ -1015,6 +1104,12 @@
                     </div>
                 </div>
 
+                <!-- Active Household Pill (Desktop & Tablet) -->
+                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
+                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
+                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
+                </div>
+
                 <!-- Monthly Budget & Year-To-Date (YTD) Summary -->
                 <div class="lg:col-span-6 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
                     <div class="flex justify-between items-center">
@@ -1059,6 +1154,12 @@
                             <p id="ytdNetFlow" class="text-base font-black text-indigo-700 mt-0.5">₹0</p>
                         </div>
                     </div>
+                </div>
+
+                <!-- Active Household Pill (Desktop & Tablet) -->
+                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
+                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
+                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
                 </div>
 
             </div>
@@ -1244,6 +1345,12 @@
                     </div>
                 </div>
 
+                <!-- Active Household Pill (Desktop & Tablet) -->
+                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
+                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
+                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
+                </div>
+
                 <!-- Card 2: Pallavi Personal Total -->
                 <div id="cardPersonalPallavi" class="glass-card p-4 sm:p-5 rounded-2xl border border-pink-200/70 shadow-sm bg-gradient-to-br from-pink-50/60 to-white flex flex-col justify-between transition-all duration-300">
                     <div class="flex items-center justify-between mb-2">
@@ -1261,6 +1368,12 @@
                             <span id="statPersonalPallaviAvg" class="text-pink-600 font-bold">Avg: ₹0</span>
                         </div>
                     </div>
+                </div>
+
+                <!-- Active Household Pill (Desktop & Tablet) -->
+                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
+                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
+                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
                 </div>
 
                 <!-- Card 3: Total Combined / Focused Personal Spend -->
@@ -1281,6 +1394,12 @@
                     </div>
                 </div>
 
+                <!-- Active Household Pill (Desktop & Tablet) -->
+                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
+                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
+                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
+                </div>
+
                 <!-- Card 4: Personal vs Household Share -->
                 <div id="cardPersonalRatio" class="glass-card p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm bg-gradient-to-br from-slate-50 to-white flex flex-col justify-between transition-all duration-300">
                     <div class="flex items-center justify-between mb-2">
@@ -1297,6 +1416,12 @@
                             Household: ₹0
                         </div>
                     </div>
+                </div>
+
+                <!-- Active Household Pill (Desktop & Tablet) -->
+                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
+                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
+                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
                 </div>
             </div>
 
@@ -1363,6 +1488,12 @@
                             <input type="text" id="searchPersonalExpenses" oninput="renderPersonalExpensesDashboard()" placeholder="Search note, category..." class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl focus:border-purple-500">
                         </div>
                     </div>
+                </div>
+
+                <!-- Active Household Pill (Desktop & Tablet) -->
+                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
+                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
+                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
                 </div>
 
                 <!-- Table Container -->
@@ -1507,6 +1638,12 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Active Household Pill (Desktop & Tablet) -->
+                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
+                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
+                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
+                </div>
             </div>
 
             <div class="glass-card rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
@@ -1580,6 +1717,12 @@
                     </div>
                 </div>
 
+                <!-- Active Household Pill (Desktop & Tablet) -->
+                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
+                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
+                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
+                </div>
+
                 <!-- Chef: Nilima Nikose -->
                 <div class="glass-card p-6 rounded-2xl border border-slate-200/80 shadow-sm relative border-l-4 border-l-amber-500 hover-lift">
                     <div class="flex justify-between items-start">
@@ -1614,6 +1757,12 @@
                             </p>
                         </div>
                     </div>
+                </div>
+
+                <!-- Active Household Pill (Desktop & Tablet) -->
+                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
+                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
+                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
                 </div>
             </div>
 
@@ -2088,6 +2237,12 @@
                     </div>
                 </div>
 
+                <!-- Active Household Pill (Desktop & Tablet) -->
+                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
+                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
+                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
+                </div>
+
                 <!-- CARD 5: Household Expense Cycle Window Settings -->
                 <div class="glass-card p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
                     <div class="flex items-center space-x-3 border-b border-slate-100 pb-3">
@@ -2165,6 +2320,12 @@
                             </p>
                         </div>
                     </div>
+                </div>
+
+                <!-- Active Household Pill (Desktop & Tablet) -->
+                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
+                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
+                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
                 </div>
 
                 <!-- CARD 7: Split Between & Allocation Rules (Split Dropdown) -->
@@ -2356,6 +2517,7 @@
         </div>
 
     </main>
+    </div>
 
     <!-- ================= MOBILE BOTTOM NAVIGATION BAR v5.0 ================= -->
     <nav id="mobileBottomNav" class="md:hidden fixed bottom-0 left-0 right-0 z-40 glass-nav border-t border-white/5 safe-pb">
@@ -2942,6 +3104,125 @@
                     <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow">Add Category</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: SECURE COMMAND CENTER SIGN-IN ================= -->
+    <div id="loginModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="modal-content glass-card bg-slate-900 text-white rounded-3xl shadow-2xl border border-slate-700/80 max-w-md w-full overflow-hidden transform transition-all">
+            <!-- Modal Header -->
+            <div class="p-6 pb-4 border-b border-slate-800 text-center relative">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-600 to-indigo-700 flex items-center justify-center text-white mx-auto mb-3 shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-vault text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-black tracking-tight text-white">Command Center Sign-In</h3>
+                <p class="text-xs text-slate-400 mt-1">Multi-Tenant Household Financial Isolation</p>
+                <button type="button" onclick="closeLoginModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition p-1.5" title="Close">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Quick Profile Selection Cards -->
+            <div class="p-6 pt-4 space-y-4">
+                <div>
+                    <label class="block text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">1-Click Fast Profile Switch</label>
+                    <div class="grid grid-cols-1 gap-2">
+                        <!-- Palash -->
+                        <button type="button" onclick="selectQuickLogin('palash', 'Palash@123')" class="p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-indigo-500 transition flex items-center justify-between text-left group">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-400/30 flex items-center justify-center font-black text-sm">P</div>
+                                <div>
+                                    <div class="text-xs font-black text-white group-hover:text-indigo-300">Palash (Owner)</div>
+                                    <div class="text-[10px] text-slate-400">Palash &amp; Pallavi Household · H001</div>
+                                </div>
+                            </div>
+                            <span class="text-[10px] font-black px-2 py-1 rounded-lg bg-indigo-500/20 text-indigo-300">Select</span>
+                        </button>
+                        <!-- Pallavi -->
+                        <button type="button" onclick="selectQuickLogin('pallavi', 'Pallavi@123')" class="p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-purple-500 transition flex items-center justify-between text-left group">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-400/30 flex items-center justify-center font-black text-sm">🌸</div>
+                                <div>
+                                    <div class="text-xs font-black text-white group-hover:text-purple-300">Pallavi (Member)</div>
+                                    <div class="text-[10px] text-slate-400">Palash &amp; Pallavi Household · H001</div>
+                                </div>
+                            </div>
+                            <span class="text-[10px] font-black px-2 py-1 rounded-lg bg-purple-500/20 text-purple-300">Select</span>
+                        </button>
+                        <!-- User B -->
+                        <button type="button" onclick="selectQuickLogin('userb', 'UserB@123')" class="p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-emerald-500 transition flex items-center justify-between text-left group">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-400/30 flex items-center justify-center font-black text-sm">B</div>
+                                <div>
+                                    <div class="text-xs font-black text-white group-hover:text-emerald-300">User B (Owner)</div>
+                                    <div class="text-[10px] text-slate-400">User B Household · H002 (Isolated)</div>
+                                </div>
+                            </div>
+                            <span class="text-[10px] font-black px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-300">Select</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="relative flex items-center justify-center">
+                    <div class="border-t border-slate-800 w-full"></div>
+                    <span class="bg-slate-900 px-3 text-[10px] font-black uppercase text-slate-500 shrink-0">or enter credentials</span>
+                </div>
+
+                <!-- Form -->
+                <form id="loginForm" onsubmit="handleLoginFormSubmit(event)" class="space-y-3">
+                    <div id="loginErrorMsg" class="hidden p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold text-center"></div>
+
+                    <div>
+                        <label class="block text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Username / Email</label>
+                        <input type="text" id="loginUsername" required class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-indigo-500 focus:outline-none placeholder-slate-500" placeholder="e.g. palash or userb">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Password</label>
+                        <input type="password" id="loginPassword" required class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-indigo-500 focus:outline-none placeholder-slate-500" placeholder="••••••••">
+                    </div>
+
+                    <button type="submit" id="btnLoginSubmit" class="w-full py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2">
+                        <span>Sign In to Command Center</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: USER & HOUSEHOLD PROFILE SWITCHER ================= -->
+    <div id="userProfileModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md">
+        <div class="modal-content glass-card bg-slate-900 text-white rounded-3xl shadow-2xl border border-slate-700/80 max-w-sm w-full overflow-hidden transform transition-all">
+            <div class="p-5 border-b border-slate-800 flex justify-between items-center">
+                <h3 class="text-sm font-black flex items-center gap-2 text-white">
+                    <i class="fa-solid fa-user-shield text-indigo-400"></i> Account &amp; Household
+                </h3>
+                <button type="button" onclick="closeUserProfileModal()" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/80 text-center">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center text-lg font-black mx-auto mb-2" id="profileModalAvatar">P</div>
+                    <h4 class="text-base font-black text-white" id="profileModalName">Palash</h4>
+                    <span class="inline-block text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 mt-1 uppercase" id="profileModalRole">Owner</span>
+                    <div class="text-xs text-slate-400 mt-2 font-medium flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-house-chimney text-slate-500"></i>
+                        <span id="profileModalHousehold">Palash &amp; Pallavi Household</span>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <button type="button" onclick="openLoginModal(); closeUserProfileModal();" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-users-viewfinder text-indigo-400"></i>
+                        <span>Switch User / Household</span>
+                    </button>
+                    <button type="button" onclick="signOut(); closeUserProfileModal();" class="w-full py-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span>Sign Out</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

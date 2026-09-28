@@ -1,0 +1,25 @@
+[
+  {
+    "householdId": "H001",
+    "householdName": "Palash & Pallavi Household",
+    "status": "active",
+    "ownerUserId": "U001",
+    "memberUserIds": [
+      "U001",
+      "U002"
+    ],
+    "createdAt": "2024-12-17T00:00:00.000Z",
+    "updatedAt": "2026-09-28T18:31:24.246Z"
+  },
+  {
+    "householdId": "H002",
+    "householdName": "User B Household",
+    "status": "active",
+    "ownerUserId": "U003",
+    "memberUserIds": [
+      "U003"
+    ],
+    "createdAt": "2026-09-28T18:31:24.246Z",
+    "updatedAt": "2026-09-28T18:31:24.246Z"
+  }
+]

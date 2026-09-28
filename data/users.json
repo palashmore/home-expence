@@ -1,0 +1,38 @@
+[
+  {
+    "userId": "U001",
+    "username": "palash",
+    "email": "palash@homeexpenses.local",
+    "name": "Palash",
+    "passwordHash": "41d58b8fd2173eb5d899387936a37ed3:d4fe31cb6f29d9db8dc0c73cef09ce4ea56aa9fd037e2e6d66e4600667cef2abf5adb76977a0510e714fe96bbddbc6bd9afeda8f905c8a815700fac271a340b1",
+    "householdId": "H001",
+    "role": "OWNER",
+    "status": "active",
+    "createdAt": "2024-12-17T00:00:00.000Z",
+    "updatedAt": "2026-09-28T18:31:24.193Z"
+  },
+  {
+    "userId": "U002",
+    "username": "pallavi",
+    "email": "pallavi@homeexpenses.local",
+    "name": "Pallavi",
+    "passwordHash": "27b641353a4472b260eb4155a8af4537:af2c2340d8901b2cb2137a4f71904f7290796cf1d37d1aa43f6a0887cd3163659c26fb98c8693d676049be5e38bcf7c9dc654c382dfe82b88a2cee9353b768da",
+    "householdId": "H001",
+    "role": "MEMBER",
+    "status": "active",
+    "createdAt": "2024-12-17T00:00:00.000Z",
+    "updatedAt": "2026-09-28T18:31:24.219Z"
+  },
+  {
+    "userId": "U003",
+    "username": "userb",
+    "email": "userb@homeexpenses.local",
+    "name": "User B",
+    "passwordHash": "29d32c920b6bbec0415481df7c725222:ee2052d9528cde302009ddeceb3a413c66782d02475d14a0143d53110d9d466fe5caea5fd5592d5c2cbc8de5c0240a45f8663da0fe01423f43c6a4129c34afa9",
+    "householdId": "H002",
+    "role": "OWNER",
+    "status": "active",
+    "createdAt": "2026-09-28T18:31:24.246Z",
+    "updatedAt": "2026-09-28T18:31:24.246Z"
+  }
+]

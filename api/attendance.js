@@ -1,73 +1,31 @@
 // Staff Attendance & Leave API Route (/api/attendance)
-const fs = require('fs');
-const path = require('path');
-const cloudSync = require('./_cloud_sync');
-
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const ATTENDANCE_FILE = path.join(DATA_DIR, 'staff_attendance.json');
-
-const TMP_ATTENDANCE = path.join('/tmp', 'staff_attendance.json');
-
-async function readAttendance() {
-    try {
-        const cloudData = await cloudSync.readJson('staff_attendance.json');
-        if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
-            return cloudData;
-        }
-    } catch (e) {}
-
-    try {
-        if (fs.existsSync(TMP_ATTENDANCE)) {
-            const raw = fs.readFileSync(TMP_ATTENDANCE, 'utf8');
-            return JSON.parse(raw);
-        }
-    } catch (err) {}
-
-    try {
-        if (fs.existsSync(ATTENDANCE_FILE)) {
-            const raw = fs.readFileSync(ATTENDANCE_FILE, 'utf8');
-            const parsed = JSON.parse(raw);
-            try { fs.writeFileSync(TMP_ATTENDANCE, JSON.stringify(parsed, null, 2), 'utf8'); } catch (e) {}
-            return parsed;
-        }
-    } catch (err) {
-        console.warn('Error reading staff_attendance.json:', err.message);
-    }
-    return {
-        'Maid - Madhuri': { baseSalary: 800, billingCycleDay: 21, months: {} },
-        'Chef - Nilima Nikose': { baseSalary: 4500, billingCycleDay: 30, months: {} }
-    };
-}
-
-async function writeAttendance(data) {
-    await cloudSync.writeJson('staff_attendance.json', data);
-
-    try {
-        fs.writeFileSync(TMP_ATTENDANCE, JSON.stringify(data, null, 2), 'utf8');
-    } catch (e) {}
-
-    try {
-        if (!fs.existsSync(DATA_DIR)) {
-            fs.mkdirSync(DATA_DIR, { recursive: true });
-        }
-        fs.writeFileSync(ATTENDANCE_FILE, JSON.stringify(data, null, 2), 'utf8');
-    } catch (err) {}
-
-    return true;
-}
+// Multi-Tenant Household-Scoped Domestic Staff Attendance Engine
+const { authenticateRequest } = require('./auth');
+const storage = require('./_storage');
 
 module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+
+    // 1. Mandatory Identity & Household Resolution
+    const session = authenticateRequest(req);
+    if (!session || !session.householdId) {
+        return res.status(401).json({
+            success: false,
+            error: "Unauthorized: Access denied. Please sign in."
+        });
+    }
+
+    const householdId = session.householdId;
+    const actorUser = session.name || session.username || 'Authenticated User';
 
     try {
         if (req.method === 'GET') {
-            const attendance = await readAttendance();
+            const data = await storage.getHouseholdAttendance(householdId);
             return res.status(200).json({
                 success: true,
-                data: attendance
+                householdId: householdId,
+                data: data
             });
         }
 
@@ -78,75 +36,49 @@ module.exports = async function handler(req, res) {
             }
 
             if (!body) {
-                return res.status(400).json({ success: false, error: 'Missing request body' });
+                return res.status(400).json({ success: false, error: 'Missing attendance data' });
             }
 
-            const attendance = await readAttendance();
+            // Action: Toggle single day attendance
+            if (body.action === 'toggleDay') {
+                const { staffName, monthKey, day, status } = body;
+                if (!staffName || !monthKey || !day) {
+                    return res.status(400).json({ success: false, error: 'staffName, monthKey, and day are required' });
+                }
 
-            // Bulk or direct dictionary update
-            if (body.data || body['Maid - Madhuri'] || body['Chef - Nilima Nikose']) {
-                const toSave = body.data || body;
-                await writeAttendance(toSave);
-                return res.status(200).json({
-                    success: true,
-                    message: 'Attendance data updated successfully',
-                    data: toSave
-                });
+                const attendance = await storage.getHouseholdAttendance(householdId);
+                if (!attendance[staffName]) {
+                    attendance[staffName] = { baseSalary: 4500, billingCycleDay: 30, months: {} };
+                }
+                if (!attendance[staffName].months) {
+                    attendance[staffName].months = {};
+                }
+                if (!attendance[staffName].months[monthKey]) {
+                    attendance[staffName].months[monthKey] = { days: {}, notes: '' };
+                }
+                if (!attendance[staffName].months[monthKey].days) {
+                    attendance[staffName].months[monthKey].days = {};
+                }
+
+                attendance[staffName].months[monthKey].days[String(day)] = status;
+                attendance[staffName].months[monthKey].updatedAt = new Date().toISOString();
+
+                await storage.saveHouseholdAttendance(householdId, attendance, actorUser);
+                return res.status(200).json({ success: true, message: 'Attendance day updated', data: attendance });
             }
 
-            if (!body.staff || !body.month) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Missing required fields: staff, month'
-                });
+            // Action: Full state replacement / sync
+            if (body.action === 'syncAll' && body.data) {
+                await storage.saveHouseholdAttendance(householdId, body.data, actorUser);
+                return res.status(200).json({ success: true, message: 'All staff attendance synchronized', data: body.data });
             }
 
-            if (!attendance[body.staff]) {
-                attendance[body.staff] = { baseSalary: body.baseSalary || 1000, billingCycleDay: 30, months: {} };
-            }
-            if (!attendance[body.staff].months) {
-                attendance[body.staff].months = {};
-            }
-
-            const oldRecord = attendance[body.staff].months[body.month];
-
-            attendance[body.staff].months[body.month] = {
-                days: body.days || {},
-                bonus: Number(body.bonus) || 0,
-                notes: body.notes || '',
-                updatedAt: new Date().toISOString()
-            };
-
-            await writeAttendance(attendance);
-
-            try {
-                await cloudSync.logAudit(
-                    'UPDATE_ATTENDANCE',
-                    `${body.staff}:${body.month}`,
-                    {
-                        staff: { old: body.staff, new: body.staff },
-                        month: { old: body.month, new: body.month },
-                        daysRecorded: {
-                            old: oldRecord ? Object.keys(oldRecord.days || {}).length : 0,
-                            new: Object.keys(body.days || {}).length
-                        }
-                    },
-                    { staff: body.staff, month: body.month }
-                );
-            } catch (auditErr) {
-                console.warn('Attendance audit log failed:', auditErr.message);
-            }
-
-            return res.status(200).json({
-                success: true,
-                message: 'Attendance record updated successfully',
-                data: attendance
-            });
+            return res.status(400).json({ success: false, error: 'Unknown action' });
         }
 
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     } catch (err) {
-        console.error('Attendance API error:', err);
-        return res.status(500).json({ success: false, error: err.message || 'Internal error' });
+        console.error('API /api/attendance error:', err);
+        return res.status(500).json({ success: false, error: 'Internal server error' });
     }
 };

@@ -45,7 +45,12 @@ function getCurrentPeriod() {
 
 // Global Application State
 let expenses = [];
-let authToken = localStorage.getItem("household_auth_token") || "direct_access";
+let authToken = localStorage.getItem("household_auth_token") || "";
+let currentSessionUser = null;
+try {
+    const storedUser = localStorage.getItem("household_session_user");
+    if (storedUser) currentSessionUser = JSON.parse(storedUser);
+} catch (e) {}
 let currentSelectedReceiptBase64 = null;
 let trendGranularity = "monthly"; // "monthly" or "quarterly"
 let pendingDeleteExpenseId = null;
@@ -410,9 +415,9 @@ document.addEventListener("DOMContentLoaded", () => {
         updateOfflineQueueBadge();
     });
 
-    // Initial Data Fetch & Offline Queue Check
+    // Initial Data Fetch & Household Auth Verification
     updateOfflineQueueBadge();
-    loadData();
+    initAuthSession();
     if (navigator.onLine) {
         setTimeout(syncOfflineQueue, 1500);
     }
@@ -535,6 +540,15 @@ function switchTab(tabId) {
         activeBnav.classList.add("active");
     }
 
+    // Synchronize Desktop Sidebar links
+    document.querySelectorAll(".sidebar-link").forEach(link => {
+        link.classList.remove("active");
+    });
+    const activeSidebarLink = document.getElementById(`sidebar-${tabId}`);
+    if (activeSidebarLink) {
+        activeSidebarLink.classList.add("active");
+    }
+
     const activeView = document.getElementById(`view-${tabId}`);
     if (activeView) {
         activeView.classList.remove("hidden");
@@ -571,9 +585,10 @@ function switchTab(tabId) {
 function getAuthHeaders() {
     return {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${authToken || "direct_access"}`
+        "Authorization": `Bearer ${authToken || ""}`
     };
 }
+window.getAuthHeaders = getAuthHeaders;
 
 // ================= DATA LOADING & SYNC =================
 async function loadData(silent = false) {
@@ -663,12 +678,27 @@ function updateHeaderStatus() {
     }
 }
 
+function getActiveHouseholdId() {
+    return currentSessionUser?.householdId || 'H001';
+}
+
+function getHouseholdCacheKey() {
+    return `household_expenses_cache_${getActiveHouseholdId()}`;
+}
+
 function saveLocalCacheData() {
-    localStorage.setItem("household_expenses_online_cache", JSON.stringify(expenses));
+    if (!currentSessionUser || !currentSessionUser.householdId) return;
+    const key = getHouseholdCacheKey();
+    localStorage.setItem(key, JSON.stringify(expenses));
+    // Also maintain legacy cache if H001 for backward compatibility
+    if (currentSessionUser.householdId === 'H001') {
+        localStorage.setItem("household_expenses_online_cache", JSON.stringify(expenses));
+    }
 }
 
 function loadLocalFallbackData() {
-    const cached = localStorage.getItem("household_expenses_online_cache") || localStorage.getItem("household_expenses_db");
+    const key = getHouseholdCacheKey();
+    const cached = localStorage.getItem(key) || (getActiveHouseholdId() === 'H001' ? localStorage.getItem("household_expenses_online_cache") : null);
     if (cached) {
         try {
             expenses = JSON.parse(cached).map(item => ({
@@ -678,8 +708,196 @@ function loadLocalFallbackData() {
             populateFilterYearDropdown();
             renderAllViews();
         } catch (e) {}
+    } else {
+        expenses = [];
+        renderAllViews();
     }
 }
+
+// ================= USER & HOUSEHOLD AUTHENTICATION ENGINE =================
+function getActiveUser() {
+    return currentSessionUser;
+}
+window.getActiveUser = getActiveUser;
+
+function updateUserProfileUI() {
+    if (!currentSessionUser) return;
+    const name = currentSessionUser.name || currentSessionUser.username || 'Palash';
+    const role = (currentSessionUser.role || 'OWNER').toUpperCase();
+    const hName = currentSessionUser.householdName || 'Palash & Pallavi Household';
+    const initial = name.charAt(0).toUpperCase();
+
+    const hdrName = document.getElementById("hdrUserName");
+    const hdrRole = document.getElementById("hdrUserRole");
+    const hdrAvatar = document.getElementById("hdrUserAvatar");
+    const hdrHName = document.getElementById("hdrHouseholdName");
+    const mobInitial = document.getElementById("mobileUserInitial");
+
+    if (hdrName) hdrName.textContent = name;
+    if (hdrRole) hdrRole.textContent = role;
+    if (hdrAvatar) hdrAvatar.textContent = initial;
+    if (hdrHName) hdrHName.textContent = hName;
+    if (mobInitial) mobInitial.textContent = initial;
+
+    const pModalName = document.getElementById("profileModalName");
+    const pModalRole = document.getElementById("profileModalRole");
+    const pModalAvatar = document.getElementById("profileModalAvatar");
+    const pModalHName = document.getElementById("profileModalHousehold");
+
+    if (pModalName) pModalName.textContent = name;
+    if (pModalRole) pModalRole.textContent = role;
+    if (pModalAvatar) pModalAvatar.textContent = initial;
+    if (pModalHName) pModalHName.textContent = hName;
+}
+window.updateUserProfileUI = updateUserProfileUI;
+
+function openLoginModal() {
+    if (typeof triggerHaptic === 'function') triggerHaptic('light');
+    const modal = document.getElementById("loginModal");
+    if (modal) modal.classList.remove("hidden");
+}
+window.openLoginModal = openLoginModal;
+
+function closeLoginModal() {
+    const modal = document.getElementById("loginModal");
+    if (modal) modal.classList.add("hidden");
+}
+window.closeLoginModal = closeLoginModal;
+
+function openUserProfileModal() {
+    if (typeof triggerHaptic === 'function') triggerHaptic('light');
+    updateUserProfileUI();
+    const modal = document.getElementById("userProfileModal");
+    if (modal) modal.classList.remove("hidden");
+}
+window.openUserProfileModal = openUserProfileModal;
+
+function closeUserProfileModal() {
+    const modal = document.getElementById("userProfileModal");
+    if (modal) modal.classList.add("hidden");
+}
+window.closeUserProfileModal = closeUserProfileModal;
+
+function selectQuickLogin(username, password) {
+    const userInput = document.getElementById("loginUsername");
+    const passInput = document.getElementById("loginPassword");
+    if (userInput) userInput.value = username;
+    if (passInput) passInput.value = password;
+    signIn(username, password);
+}
+window.selectQuickLogin = selectQuickLogin;
+
+async function handleLoginFormSubmit(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const username = document.getElementById("loginUsername")?.value || "";
+    const password = document.getElementById("loginPassword")?.value || "";
+    await signIn(username, password);
+}
+window.handleLoginFormSubmit = handleLoginFormSubmit;
+
+async function signIn(username, password) {
+    if (typeof triggerHaptic === 'function') triggerHaptic('medium');
+    const submitBtn = document.getElementById("btnLoginSubmit");
+    const errorEl = document.getElementById("loginErrorMsg");
+    if (errorEl) errorEl.classList.add("hidden");
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Signing In...`;
+    }
+
+    try {
+        const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'login', username, password })
+        });
+        const result = await res.json();
+        if (result.success && result.token) {
+            authToken = result.token;
+            currentSessionUser = result.user;
+            localStorage.setItem("household_auth_token", authToken);
+            localStorage.setItem("household_session_user", JSON.stringify(currentSessionUser));
+
+            // Cleanly reset in-memory records to guarantee zero cross-household bleed
+            expenses = [];
+            window.expenses = [];
+            window.expensesData = [];
+
+            closeLoginModal();
+            updateUserProfileUI();
+            await loadData();
+            showToast('success', `Signed In as ${result.user.name}`, `Active: ${result.user.householdName}`);
+        } else {
+            if (errorEl) {
+                errorEl.textContent = result.error || "Sign in failed. Please check credentials.";
+                errorEl.classList.remove("hidden");
+            }
+        }
+    } catch (err) {
+        if (errorEl) {
+            errorEl.textContent = "Network error signing in. Please verify connection.";
+            errorEl.classList.remove("hidden");
+        }
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<span>Sign In to Command Center</span> <i class="fa-solid fa-arrow-right ml-1"></i>`;
+        }
+    }
+}
+window.signIn = signIn;
+
+function signOut() {
+    if (typeof triggerHaptic === 'function') triggerHaptic('medium');
+    authToken = '';
+    currentSessionUser = null;
+    expenses = [];
+    window.expenses = [];
+    window.expensesData = [];
+    localStorage.removeItem("household_auth_token");
+    localStorage.removeItem("household_session_user");
+
+    fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'logout' })
+    }).catch(() => {});
+
+    renderAllViews();
+    openLoginModal();
+}
+window.signOut = signOut;
+
+async function initAuthSession() {
+    const storedToken = localStorage.getItem("household_auth_token");
+    const storedUser = localStorage.getItem("household_session_user");
+
+    if (storedUser) {
+        try { currentSessionUser = JSON.parse(storedUser); } catch (e) {}
+    }
+
+    if (storedToken) {
+        authToken = storedToken;
+        try {
+            const res = await fetch('/api/auth', {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${storedToken}` }
+            });
+            const result = await res.json();
+            if (result.success && result.user) {
+                currentSessionUser = result.user;
+                localStorage.setItem("household_session_user", JSON.stringify(currentSessionUser));
+                updateUserProfileUI();
+                await loadData();
+                return;
+            }
+        } catch (e) {}
+    }
+
+    // Default auto-login as Palash (H001) for instant seamless experience
+    await signIn('palash', 'Palash@123');
+}
+window.initAuthSession = initAuthSession;
 
 // ================= ADVANCED FILTER ENGINE =================
 function populateFilterMonthDropdown() {

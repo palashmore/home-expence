@@ -158,7 +158,7 @@ let memoryStore = readExpensesFromFile();
 
 // ---------------- SERVER-SIDE DATA ACCESS METHODS ----------------
 
-async function getAllExpenses() {
+async function getAllExpenses(includeDeleted = false) {
     try {
         const cloudData = await cloudSync.readJson('expenses.json');
         if (Array.isArray(cloudData) && cloudData.length > 0) {
@@ -176,7 +176,8 @@ async function getAllExpenses() {
         } catch (err) {}
     }
 
-    return [...memoryStore].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const activeList = includeDeleted ? memoryStore : memoryStore.filter(i => !i.isDeleted);
+    return [...activeList].sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
 async function getExpenseById(id) {
@@ -209,6 +210,19 @@ async function saveExpense(record) {
     const cleanId = record.id ? String(record.id).trim() : null;
     const existingIdx = cleanId ? memoryStore.findIndex(i => String(i.id).trim() === cleanId) : -1;
     const existing = existingIdx !== -1 ? memoryStore[existingIdx] : null;
+
+    // Optimistic Concurrency Conflict Detection
+    if (existing && record.version !== undefined && record.version !== null) {
+        const expectedVersion = Number(existing.version || 1);
+        const incomingVersion = Number(record.version);
+        if (incomingVersion < expectedVersion) {
+            const err = new Error("This expense was modified elsewhere. Please reload the latest version before saving.");
+            err.code = 'ERR_CONFLICT';
+            err.status = 409;
+            err.currentRecord = existing;
+            throw err;
+        }
+    }
 
     const category = record.category || (existing ? existing.category : 'Shopping & Miscellaneous');
     const billingCycle = record.billingCycle || calculateStaffBillingCycle(category, record.date);
@@ -250,6 +264,7 @@ async function saveExpense(record) {
         billingCycle: billingCycle,
         receipt: receipt,
         receiptStatus: receiptStatus,
+        isDeleted: false,
         createdAt: existing?.createdAt || existing?.updatedAt || now,
         updatedAt: now,
         version: (existing?.version || 0) + 1
@@ -321,7 +336,7 @@ async function saveExpense(record) {
     return formatted;
 }
 
-async function deleteExpense(id) {
+async function deleteExpense(id, deletedBy = 'User') {
     if (!id) return false;
     const cleanId = String(id).trim();
 
@@ -333,8 +348,20 @@ async function deleteExpense(id) {
     const existingIdx = memoryStore.findIndex(i => String(i.id).trim() === cleanId);
     if (existingIdx === -1) return false;
 
-    const deleted = memoryStore[existingIdx];
-    memoryStore.splice(existingIdx, 1);
+    const existing = memoryStore[existingIdx];
+    const now = new Date().toISOString();
+
+    // Soft delete: flag record so financial history is never accidentally lost
+    const softDeleted = {
+        ...existing,
+        isDeleted: true,
+        deletedAt: now,
+        deletedBy: deletedBy || 'User',
+        updatedAt: now,
+        version: (existing.version || 0) + 1
+    };
+
+    memoryStore[existingIdx] = softDeleted;
 
     // Persist to Cloud and local disk
     await cloudSync.writeJson('expenses.json', memoryStore);
@@ -343,11 +370,13 @@ async function deleteExpense(id) {
     // Log Audit Trail
     await cloudSync.logAudit('DELETE_EXPENSE', cleanId, {
         deleted: {
-            id: deleted.id,
-            category: deleted.category,
-            amount: deleted.amount,
-            paidBy: deleted.paidBy,
-            date: deleted.date
+            id: existing.id,
+            category: existing.category,
+            amount: existing.amount,
+            paidBy: existing.paidBy,
+            date: existing.date,
+            deletedAt: now,
+            deletedBy: deletedBy
         }
     });
 

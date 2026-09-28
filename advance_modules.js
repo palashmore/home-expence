@@ -627,7 +627,28 @@
       description: finalNotes,
       splitBetween: 'Household Expense (Palash Reimburses Pallavi 100%)',
       receipt: null
+    const handleOfflineSettle = () => {
+      payload.id = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+      payload.isOfflineDraft = true;
+      if (Array.isArray(window.expenses)) {
+        window.expenses.unshift(payload);
+        if (typeof window.saveLocalCacheData === 'function') window.saveLocalCacheData();
+        if (typeof window.renderAllViews === 'function') window.renderAllViews();
+      }
+      if (typeof window.enqueueOfflineAction === 'function') {
+        window.enqueueOfflineAction({ action: 'CREATE', payload, id: payload.id });
+      }
+      window.closeSettleUpModal();
+      if (window.triggerHaptic) window.triggerHaptic('success');
+      if (window.showToast) {
+        window.showToast('warning', 'Reimbursement Saved (Offline)', `₹${amount.toLocaleString('en-IN')} recorded locally. Will sync when back online.`);
+      }
     };
+
+    if (!navigator.onLine) {
+      handleOfflineSettle();
+      return;
+    }
 
     try {
       const res = await fetch('/api/expenses', {
@@ -638,6 +659,7 @@
       const data = await res.json();
       if (res.ok && data.success) {
         window.closeSettleUpModal();
+        if (window.triggerHaptic) window.triggerHaptic('success');
         if (window.showToast) {
           window.showToast('success', 'Reimbursement Recorded!', `₹${amount.toLocaleString('en-IN')} returned to ${receiver}.`);
         }
@@ -652,11 +674,12 @@
           renderAllViews();
         }
       } else {
+        if (window.triggerHaptic) window.triggerHaptic('error');
         alert('Failed to record settlement: ' + (data.error || 'Server error'));
       }
     } catch (err) {
-      console.error('Error settling up:', err);
-      alert('Error recording settlement: ' + err.message);
+      console.warn('Network exception while recording settlement, saving to offline queue:', err);
+      handleOfflineSettle();
     }
   };
 
@@ -697,32 +720,30 @@
       : RADAR_BILLS;
 
     activeBills.forEach(bill => {
-      // Find if paid in current month
-      const paidExp = allExpenses.find(e => {
-        if (!e.date) return false;
-        const d = new Date(e.date);
-        const isCurrentMonth = (d.getMonth() + 1) === currentMonth && d.getFullYear() === currentYear;
-        const isMatch = (e.category || '').toLowerCase().includes(bill.category.toLowerCase()) ||
-          (e.paidTo || e.vendor || '').toLowerCase().includes(bill.name.toLowerCase());
-        return isCurrentMonth && isMatch;
-      });
+      const evalRes = window.getRecurringPaymentStatus
+        ? window.getRecurringPaymentStatus(bill, allExpenses, today)
+        : null;
 
       let statusBadge = '';
-      const daysDiff = bill.dueDay - currentDay;
-
-      if (paidExp) {
-        statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">Paid ₹${Number(paidExp.amount).toLocaleString('en-IN')} ✅</span>`;
-      } else if (daysDiff < 0) {
-        statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 animate-pulse">Overdue by ${Math.abs(daysDiff)}d 🚨</span>`;
+      if (evalRes && evalRes.status === 'PAID') {
+        statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">Paid ₹${Math.round(evalRes.totalPaid).toLocaleString('en-IN')} ✅</span>`;
+      } else if (evalRes && evalRes.status === 'PARTIALLY_PAID') {
+        statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-teal-100 text-teal-800 border border-teal-300">Partial ₹${Math.round(evalRes.totalPaid).toLocaleString('en-IN')} 🟡</span>`;
+        runwaySum += evalRes.remaining;
+        runwayItems.push({ name: bill.name, amount: evalRes.remaining, status: 'Partially Paid' });
+      } else if (evalRes && evalRes.status === 'OVERDUE') {
+        statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 animate-pulse">Overdue by ${Math.abs(evalRes.daysDiff)}d 🚨</span>`;
         runwaySum += bill.approxAmount;
         runwayItems.push({ name: bill.name, amount: bill.approxAmount, status: 'Overdue' });
-      } else if (daysDiff <= 5) {
-        statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">Due in ${daysDiff === 0 ? 'Today' : daysDiff + 'd'} ⚠️</span>`;
+      } else if (evalRes && (evalRes.status === 'DUE_TODAY' || (evalRes.daysDiff <= 5 && evalRes.daysDiff >= 0))) {
+        const text = evalRes.daysDiff === 0 ? 'Due Today ⚠️' : `Due in ${evalRes.daysDiff}d ⚠️`;
+        statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">${text}</span>`;
         runwaySum += bill.approxAmount;
-        runwayItems.push({ name: bill.name, amount: bill.approxAmount, status: `Due in ${daysDiff}d` });
+        runwayItems.push({ name: bill.name, amount: bill.approxAmount, status: text });
       } else {
+        const daysDiff = evalRes ? evalRes.daysDiff : (bill.dueDay - currentDay);
         statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-700 border border-slate-300">Due ${bill.dueDay}th ⏱️</span>`;
-        if (daysDiff <= 15) {
+        if (daysDiff <= 15 && daysDiff > 0) {
           runwaySum += bill.approxAmount;
           runwayItems.push({ name: bill.name, amount: bill.approxAmount, status: `Due in ${daysDiff}d` });
         }
@@ -2777,11 +2798,935 @@
     }).join('');
   }
 
+  // ========================================================
+  // 8. BACKUP & DISASTER RECOVERY COMMAND CENTER
+  // ========================================================
+
+  window.downloadFullBackupJson = async function () {
+    try {
+      window.showToast && window.showToast('info', 'Exporting Backup', 'Generating comprehensive JSON archive...');
+      const res = await fetch('/api/backup');
+      const data = await res.json();
+      if (data.success && data.data) {
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `homeexpenses-full-backup-${dateStr}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        window.showToast && window.showToast('success', 'Backup Exported', `Saved ${data.data.expenses?.length || 0} expenses & master configs.`);
+      } else {
+        throw new Error(data.error || 'Failed to download backup.');
+      }
+    } catch (err) {
+      console.error('Backup export error:', err);
+      window.showToast && window.showToast('error', 'Export Failed', err.message || 'Could not export backup JSON.');
+    }
+  };
+
+  window.createInstantBackupSnapshot = async function () {
+    try {
+      window.showToast && window.showToast('info', 'Taking Snapshot', 'Creating point-in-time recovery image...');
+      const res = await fetch('/api/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_snapshot' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.showToast && window.showToast('success', 'Snapshot Captured', `Saved ${data.snapshot?.filename || 'snapshot'}`);
+        window.loadBackupSnapshots();
+        window.updateDataCenterMetrics();
+      } else {
+        throw new Error(data.error || 'Failed to create snapshot.');
+      }
+    } catch (err) {
+      console.error('Snapshot error:', err);
+      window.showToast && window.showToast('error', 'Snapshot Error', err.message || 'Could not save recovery snapshot.');
+    }
+  };
+
+  window.loadBackupSnapshots = async function () {
+    const tbody = document.getElementById('snapshotVaultTableBody');
+    if (!tbody) return;
+
+    try {
+      const res = await fetch('/api/backup?action=list');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.snapshots)) {
+        const list = data.snapshots;
+        const countEl = document.getElementById('dataSnapshotsCountMetric');
+        if (countEl) countEl.textContent = list.length;
+
+        if (list.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="5" class="py-6 text-center text-slate-400">
+                <i class="fa-solid fa-folder-open text-2xl text-slate-300 block mb-1"></i>
+                No snapshots yet. Click "Take Snapshot" to create your first recovery point.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = list.map(s => {
+          const date = new Date(s.createdAt).toLocaleString('en-IN', {
+            day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+          });
+          const isSafety = s.isSafetyBackup || s.filename.startsWith('safety-');
+          const badge = isSafety
+            ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">🛡️ Safety Pre-Restore</span>'
+            : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800 border border-indigo-300">📸 Manual Point</span>';
+          const sizeKb = (s.sizeBytes / 1024).toFixed(1) + ' KB';
+
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-2.5 px-3 font-bold text-slate-900 font-mono text-[11px]">${s.filename}</td>
+              <td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">${date}</td>
+              <td class="py-2.5 px-3 whitespace-nowrap">${badge}</td>
+              <td class="py-2.5 px-3 text-slate-500 font-mono">${sizeKb}</td>
+              <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                <button onclick="restoreSnapshotPrompt('${s.filename}')" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-lg text-[11px] transition shadow-xs inline-flex items-center space-x-1">
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                  <span>Restore</span>
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    } catch (err) {
+      console.error('Failed to load snapshots:', err);
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="py-4 text-center text-rose-500 font-medium">Could not load snapshot vault.</td>
+        </tr>
+      `;
+    }
+  };
+
+  window.restoreSnapshotPrompt = async function (filename) {
+    if (!confirm(`Are you sure you want to rollback to snapshot:\n\n${filename}\n\nNote: A new safety snapshot of current data will automatically be captured before restoring!`)) {
+      return;
+    }
+
+    try {
+      window.showToast && window.showToast('info', 'Restoring Snapshot', `Applying ${filename}...`);
+      const res = await fetch('/api/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restore_snapshot', filename })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.showToast && window.showToast('success', 'Snapshot Restored', data.message);
+        if (window.loadData) window.loadData();
+        window.loadBackupSnapshots();
+        window.updateDataCenterMetrics();
+        if (window.triggerDataHealthScan) window.triggerDataHealthScan();
+      } else {
+        throw new Error(data.error || 'Failed to restore snapshot.');
+      }
+    } catch (err) {
+      console.error('Restore error:', err);
+      window.showToast && window.showToast('error', 'Restore Failed', err.message);
+    }
+  };
+
+  window.restoreBackupFromFile = async function (event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+
+      if (!parsed || (!Array.isArray(parsed.expenses) && !parsed.backupVersion)) {
+        alert('Invalid file format. Please upload a valid HomeExpenses backup JSON file.');
+        return;
+      }
+
+      const count = parsed.expenses ? parsed.expenses.length : 0;
+      if (!confirm(`Restore backup containing ${count} expenses and master configuration?\n\nA safety pre-restore snapshot will be saved automatically.`)) {
+        event.target.value = '';
+        return;
+      }
+
+      window.showToast && window.showToast('info', 'Restoring Backup', 'Validating and restoring records...');
+      const res = await fetch('/api/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restore', backupData: parsed })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.showToast && window.showToast('success', 'Backup Restored', `Successfully loaded ${data.restoredExpensesCount} expenses.`);
+        if (window.loadData) window.loadData();
+        window.loadBackupSnapshots();
+        window.updateDataCenterMetrics();
+        if (window.triggerDataHealthScan) window.triggerDataHealthScan();
+      } else {
+        throw new Error(data.error || 'Restore failed.');
+      }
+    } catch (err) {
+      console.error('Restore from file error:', err);
+      window.showToast && window.showToast('error', 'Restore Error', err.message || 'Could not read or restore JSON file.');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  window.updateDataCenterMetrics = function () {
+    const totalEl = document.getElementById('dataTotalRecordsMetric');
+    if (totalEl) {
+      const list = window.expenses || [];
+      totalEl.textContent = list.length;
+    }
+  };
+
+  // ========================================================
+  // 9. DATA HEALTH & INTEGRITY DIAGNOSTIC SCANNER
+  // ========================================================
+
+  let lastDetectedHealthIssues = [];
+
+  window.triggerDataHealthScan = function () {
+    const list = window.expenses || [];
+    const config = window.masterConfig || {};
+    const knownCategories = Array.isArray(config.categories) ? config.categories.map(c => c.name) : [];
+    const knownPayers = Array.isArray(config.familyMembers) ? config.familyMembers : ['Palash', 'Pallavi'];
+
+    const issues = [];
+    const seenSignatures = new Map();
+
+    list.forEach((item, idx) => {
+      // 1. Invalid or missing ID
+      if (!item.id || String(item.id).trim() === '') {
+        issues.push({
+          severity: 'CRITICAL',
+          type: 'MISSING_ID',
+          index: idx,
+          item: item,
+          repairable: true,
+          message: `Row #${idx + 1} has no unique ID.`
+        });
+      }
+
+      // 2. Negative or invalid amount
+      const amt = Number(item.amount);
+      if (isNaN(amt) || amt <= 0) {
+        issues.push({
+          severity: 'CRITICAL',
+          type: 'INVALID_AMOUNT',
+          index: idx,
+          item: item,
+          repairable: false,
+          message: `Transaction on ${item.date || 'unknown date'} has non-positive amount (${item.amount}).`
+        });
+      }
+
+      // 3. Invalid date
+      if (!item.date || isNaN(new Date(item.date).getTime())) {
+        issues.push({
+          severity: 'CRITICAL',
+          type: 'INVALID_DATE',
+          index: idx,
+          item: item,
+          repairable: true,
+          message: `Invalid date format '${item.date}' on transaction of ₹${item.amount}.`
+        });
+      }
+
+      // 4. Unmapped or blank category
+      if (!item.category || String(item.category).trim() === '') {
+        issues.push({
+          severity: 'WARNING',
+          type: 'BLANK_CATEGORY',
+          index: idx,
+          item: item,
+          repairable: true,
+          message: `Missing category on ₹${item.amount} (${item.date}).`
+        });
+      } else if (knownCategories.length > 0 && !knownCategories.includes(item.category)) {
+        issues.push({
+          severity: 'INFO',
+          type: 'CUSTOM_CATEGORY',
+          index: idx,
+          item: item,
+          repairable: false,
+          message: `Custom category '${item.category}' not in master presets list.`
+        });
+      }
+
+      // 5. Unknown payer
+      if (item.paidBy && !knownPayers.includes(item.paidBy) && item.paidBy !== 'Not Specified') {
+        issues.push({
+          severity: 'INFO',
+          type: 'UNKNOWN_PAYER',
+          index: idx,
+          item: item,
+          repairable: true,
+          message: `Payer '${item.paidBy}' is not configured in Family Members.`
+        });
+      }
+
+      // 6. Duplicate transaction detection
+      const sig = `${item.date}_${item.amount}_${item.category}_${(item.notes || '').trim().toLowerCase()}`;
+      if (seenSignatures.has(sig)) {
+        const firstIdx = seenSignatures.get(sig);
+        issues.push({
+          severity: 'WARNING',
+          type: 'POTENTIAL_DUPLICATE',
+          index: idx,
+          item: item,
+          repairable: false,
+          message: `Possible duplicate with Row #${firstIdx + 1}: ₹${item.amount} (${item.category} on ${item.date}).`
+        });
+      } else {
+        seenSignatures.set(sig, idx);
+      }
+    });
+
+    lastDetectedHealthIssues = issues;
+
+    const totalDeduction = issues.reduce((acc, iss) => {
+      if (iss.severity === 'CRITICAL') return acc + 5;
+      if (iss.severity === 'WARNING') return acc + 2;
+      return acc + 0.5;
+    }, 0);
+
+    const score = Math.max(0, Math.min(100, Math.round(100 - totalDeduction)));
+
+    const scorePill = document.getElementById('dataHealthScorePill');
+    const statusSub = document.getElementById('dataHealthStatusSubtitle');
+    const repairBtn = document.getElementById('btnRepairDataHealth');
+    const resultsContainer = document.getElementById('dataHealthResultsContainer');
+
+    if (scorePill) scorePill.textContent = `${score}%`;
+    if (statusSub) {
+      if (score === 100) {
+        statusSub.textContent = 'All Systems Operational · 0 Anomalies';
+        statusSub.className = 'text-[11px] text-emerald-600 font-bold mt-0.5';
+      } else if (score >= 85) {
+        statusSub.textContent = `${issues.length} Minor Anomalies Detected`;
+        statusSub.className = 'text-[11px] text-amber-600 font-bold mt-0.5';
+      } else {
+        statusSub.textContent = `${issues.length} Critical Issues Detected`;
+        statusSub.className = 'text-[11px] text-rose-600 font-bold mt-0.5';
+      }
+    }
+
+    const hasRepairable = issues.some(i => i.repairable);
+    if (repairBtn) {
+      if (hasRepairable) {
+        repairBtn.classList.remove('hidden');
+      } else {
+        repairBtn.classList.add('hidden');
+      }
+    }
+
+    if (resultsContainer) {
+      if (issues.length === 0) {
+        resultsContainer.innerHTML = `
+          <div class="flex items-center space-x-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800">
+            <div class="w-8 h-8 rounded-lg bg-emerald-200 text-emerald-700 flex items-center justify-center font-black">
+              <i class="fa-solid fa-check"></i>
+            </div>
+            <div>
+              <h4 class="font-black text-xs">Perfect Health Score (100%)</h4>
+              <p class="text-[11px] text-emerald-700">All ${list.length} expense records have valid IDs, positive amounts, valid dates, and mapped categories.</p>
+            </div>
+          </div>
+        `;
+      } else {
+        resultsContainer.innerHTML = `
+          <div class="space-y-2">
+            <div class="flex justify-between items-center font-bold text-slate-700">
+              <span>Diagnostic Audit (${issues.length} Findings):</span>
+              <span class="text-[11px] text-slate-500">${hasRepairable ? 'Auto-repairable issues found' : 'Manual inspection required'}</span>
+            </div>
+            <div class="max-h-64 overflow-y-auto space-y-1.5 pr-1">
+              ${issues.map(iss => {
+                let badgeClass = 'bg-rose-100 text-rose-800 border-rose-200';
+                if (iss.severity === 'WARNING') badgeClass = 'bg-amber-100 text-amber-800 border-amber-200';
+                if (iss.severity === 'INFO') badgeClass = 'bg-blue-100 text-blue-800 border-blue-200';
+
+                return `
+                  <div class="p-2.5 bg-white border border-slate-200 rounded-xl flex items-start justify-between gap-2 shadow-xs">
+                    <div class="flex items-start space-x-2">
+                      <span class="px-2 py-0.5 text-[10px] font-black rounded-md border ${badgeClass} uppercase shrink-0 mt-0.5">
+                        ${iss.severity}
+                      </span>
+                      <span class="text-slate-800 font-medium">${iss.message}</span>
+                    </div>
+                    ${iss.repairable ? '<span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">Auto-Healable</span>' : ''}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+    }
+  };
+
+  window.repairDataHealthIssues = async function () {
+    if (!lastDetectedHealthIssues.length) {
+      window.showToast && window.showToast('info', 'No Issues', 'No repairable health issues currently detected.');
+      return;
+    }
+
+    if (!confirm('Run Automated Safe Healing on repairable issues?\n\n- Generates missing IDs\n- Formats amounts to clean decimals\n- Normalizes dates\n- Replaces blank categories with "Shopping & Miscellaneous"\n- Takes automated safety backup before applying.')) {
+      return;
+    }
+
+    const currentExpenses = [...(window.expenses || [])];
+    let repairedCount = 0;
+
+    currentExpenses.forEach((item, idx) => {
+      let changed = false;
+      if (!item.id || String(item.id).trim() === '') {
+        item.id = `exp-heal-${Date.now()}-${idx}`;
+        changed = true;
+      }
+      const amt = Number(item.amount);
+      if (!isNaN(amt) && amt > 0) {
+        const cleanAmt = Number(amt.toFixed(2));
+        if (cleanAmt !== item.amount) {
+          item.amount = cleanAmt;
+          changed = true;
+        }
+      }
+      if (!item.category || String(item.category).trim() === '') {
+        item.category = 'Shopping & Miscellaneous';
+        changed = true;
+      }
+      if (item.paidBy && item.paidBy !== item.paidBy.trim()) {
+        item.paidBy = item.paidBy.trim();
+        changed = true;
+      }
+      if (item.notes && item.notes !== item.notes.trim()) {
+        item.notes = item.notes.trim();
+        changed = true;
+      }
+
+      if (changed) repairedCount++;
+    });
+
+    if (repairedCount === 0) {
+      window.showToast && window.showToast('info', 'All Clean', 'No auto-repairable items needed modification.');
+      return;
+    }
+
+    try {
+      window.showToast && window.showToast('info', 'Applying Healing', `Saving ${repairedCount} healed records...`);
+      const res = await fetch('/api/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'restore',
+          backupData: {
+            expenses: currentExpenses
+          }
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.showToast && window.showToast('success', 'Health Repaired', `Safely healed ${repairedCount} records.`);
+        if (window.loadData) window.loadData();
+        window.triggerDataHealthScan();
+      } else {
+        throw new Error(data.error || 'Failed to save repaired records.');
+      }
+    } catch (err) {
+      console.error('Repair error:', err);
+      window.showToast && window.showToast('error', 'Repair Failed', err.message);
+    }
+  };
+
+  // ========================================================
+  // 10. CANONICAL RECURRING PAYMENT ENGINE & NOTIFICATION CENTER
+  // ========================================================
+
+  /**
+   * Evaluates the payment status of a recurring bill against recorded expenses for the period.
+   * Canonical statuses: DISABLED, SKIPPED, PAID, PARTIALLY_PAID, DUE_TODAY, OVERDUE, UPCOMING
+   */
+  window.getRecurringPaymentStatus = function (bill, periodExpenses, refDate = new Date()) {
+    if (bill.active === false) {
+      return { status: 'DISABLED', totalPaid: 0, targetAmount: bill.approxAmount, remaining: 0, daysDiff: 0, matchingExpenses: [] };
+    }
+
+    const currentDay = refDate.getDate();
+    const dueDay = Number(bill.dueDay) || 1;
+    const daysDiff = dueDay - currentDay;
+    const targetAmount = Number(bill.approxAmount) || 0;
+
+    // Match expenses
+    const billCatLower = (bill.category || '').toLowerCase().trim();
+    const billNameLower = (bill.name || '').toLowerCase().trim();
+
+    const matching = (periodExpenses || []).filter(e => {
+      const cat = (e.category || '').toLowerCase().trim();
+      const paidTo = (e.paidTo || e.vendor || '').toLowerCase().trim();
+      const desc = (e.description || e.notes || '').toLowerCase().trim();
+
+      const catMatches = cat === billCatLower || (billCatLower && cat.includes(billCatLower));
+      const nameMatches = (billNameLower && paidTo.includes(billNameLower)) || (billNameLower && desc.includes(billNameLower));
+
+      return catMatches || nameMatches;
+    });
+
+    const totalPaid = matching.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+    let status = 'UPCOMING';
+    // Paid threshold: >= target, or at least 80% if target is an approximation
+    if (totalPaid >= targetAmount || (targetAmount > 0 && totalPaid >= targetAmount * 0.8)) {
+      status = 'PAID';
+    } else if (totalPaid > 0) {
+      status = 'PARTIALLY_PAID';
+    } else if (daysDiff < 0) {
+      status = 'OVERDUE';
+    } else if (daysDiff === 0) {
+      status = 'DUE_TODAY';
+    } else {
+      status = 'UPCOMING';
+    }
+
+    return {
+      status,
+      totalPaid,
+      targetAmount,
+      remaining: Math.max(0, targetAmount - totalPaid),
+      daysDiff,
+      matchingExpenses: matching
+    };
+  };
+
+  let currentNotificationFilter = 'action';
+  let activeNotificationsList = [];
+
+  function getDismissedNotificationIds() {
+    try {
+      const raw = localStorage.getItem('homeexpenses-dismissed-notifications');
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveDismissedNotificationId(id) {
+    const list = getDismissedNotificationIds();
+    if (!list.includes(id)) {
+      list.push(id);
+      try { localStorage.setItem('homeexpenses-dismissed-notifications', JSON.stringify(list)); } catch (e) {}
+    }
+  }
+
+  window.toggleNotificationCenter = function () {
+    const dropdown = document.getElementById('notificationCenterDropdown');
+    if (!dropdown) return;
+    const isHidden = dropdown.classList.contains('hidden');
+    if (isHidden) {
+      window.updateNotificationCenter();
+      dropdown.classList.remove('hidden');
+    } else {
+      dropdown.classList.add('hidden');
+    }
+  };
+
+  window.switchNotificationFilter = function (filter) {
+    currentNotificationFilter = filter;
+    ['action', 'upcoming', 'all'].forEach(f => {
+      const btn = document.getElementById(`notifTab-${f}`);
+      if (btn) {
+        if (f === filter) {
+          btn.className = 'flex-1 py-2 text-center border-b-2 border-indigo-600 text-indigo-900 bg-white font-black';
+        } else {
+          btn.className = 'flex-1 py-2 text-center border-b-2 border-transparent hover:text-slate-900';
+        }
+      }
+    });
+    renderNotificationItemsList();
+  };
+
+  window.updateNotificationCenter = function () {
+    const expenses = window.expenses || [];
+    const config = window.masterConfig || {};
+    const bills = config.recurringBills || RADAR_BILLS;
+    const dismissed = getDismissedNotificationIds();
+
+    const today = new Date();
+    const curMonth = today.getMonth() + 1;
+    const curYear = today.getFullYear();
+
+    const curMonthExpenses = expenses.filter(e => {
+      if (!e.date) return false;
+      const d = new Date(e.date);
+      return (d.getMonth() + 1) === curMonth && d.getFullYear() === curYear;
+    });
+
+    const notifs = [];
+
+    // 1. Evaluate Recurring Bills
+    bills.forEach(bill => {
+      if (bill.active === false) return;
+      const evalRes = window.getRecurringPaymentStatus(bill, curMonthExpenses, today);
+      const billKey = `bill-${bill.id || bill.name}-${curYear}-${curMonth}`;
+
+      if (dismissed.includes(billKey)) return;
+
+      if (evalRes.status === 'OVERDUE') {
+        notifs.push({
+          id: billKey,
+          type: 'action',
+          severity: 'critical',
+          title: `${bill.name} Overdue`,
+          description: `Payment of approx ₹${evalRes.targetAmount.toLocaleString('en-IN')} was due on ${bill.dueDay}th.`,
+          icon: bill.icon || '⚡',
+          actionLabel: 'Pay Now',
+          bill: bill,
+          onAction: () => {
+            window.openExpenseModal && window.openExpenseModal(null, {
+              category: bill.category,
+              amount: evalRes.remaining || evalRes.targetAmount,
+              paidTo: bill.name,
+              notes: `Monthly recurring payment for ${bill.name}`
+            });
+            window.toggleNotificationCenter();
+          }
+        });
+      } else if (evalRes.status === 'DUE_TODAY') {
+        notifs.push({
+          id: billKey,
+          type: 'action',
+          severity: 'high',
+          title: `${bill.name} Due Today!`,
+          description: `Due today (${bill.dueDay}th). Expected: ₹${evalRes.targetAmount.toLocaleString('en-IN')}.`,
+          icon: bill.icon || '⏰',
+          actionLabel: 'Pay Today',
+          bill: bill,
+          onAction: () => {
+            window.openExpenseModal && window.openExpenseModal(null, {
+              category: bill.category,
+              amount: evalRes.targetAmount,
+              paidTo: bill.name,
+              notes: `Monthly bill payment for ${bill.name}`
+            });
+            window.toggleNotificationCenter();
+          }
+        });
+      } else if (evalRes.status === 'UPCOMING' && evalRes.daysDiff <= 5 && evalRes.daysDiff > 0) {
+        notifs.push({
+          id: billKey,
+          type: 'upcoming',
+          severity: 'info',
+          title: `${bill.name} Due in ${evalRes.daysDiff} days`,
+          description: `Due on ${bill.dueDay}th of this month (~₹${evalRes.targetAmount.toLocaleString('en-IN')}).`,
+          icon: bill.icon || '📅',
+          actionLabel: 'Pre-Pay',
+          bill: bill,
+          onAction: () => {
+            window.openExpenseModal && window.openExpenseModal(null, {
+              category: bill.category,
+              amount: evalRes.targetAmount,
+              paidTo: bill.name,
+              notes: `Pre-payment for ${bill.name}`
+            });
+            window.toggleNotificationCenter();
+          }
+        });
+      }
+    });
+
+    // 2. Evaluate Staff Attendance / Leave & Salary Cutoffs
+    const day = today.getDate();
+    const madhuriKey = `staff-madhuri-${curYear}-${curMonth}`;
+    if (!dismissed.includes(madhuriKey) && day >= 19 && day <= 24) {
+      const madhuriExp = curMonthExpenses.find(e => (e.category || '').includes('Madhuri'));
+      if (!madhuriExp) {
+        notifs.push({
+          id: madhuriKey,
+          type: day > 21 ? 'action' : 'upcoming',
+          severity: day > 21 ? 'critical' : 'high',
+          title: day > 21 ? 'Madhuri Salary Overdue' : 'Madhuri Salary Cutoff Approaching',
+          description: 'Billing cycle closes on 21st Date (Base: ₹800). Verify attendance and process payment.',
+          icon: '🧹',
+          actionLabel: 'Check Staff',
+          onAction: () => {
+            window.switchTab && window.switchTab('staff');
+            window.toggleNotificationCenter();
+          }
+        });
+      }
+    }
+
+    // 3. High Value Unsettled Reimbursements
+    if (window.currentNetSettleAmount && window.currentNetSettleAmount > 5000) {
+      const settleKey = `settle-${curYear}-${curMonth}-${Math.floor(window.currentNetSettleAmount / 1000)}`;
+      if (!dismissed.includes(settleKey)) {
+        notifs.push({
+          id: settleKey,
+          type: 'action',
+          severity: 'medium',
+          title: `Pending Settle-Up (₹${Math.round(window.currentNetSettleAmount).toLocaleString('en-IN')})`,
+          description: 'Palash reimburses Pallavi for household expenses. 1-Click reconciliation available.',
+          icon: '🤝',
+          actionLabel: 'Settle Up',
+          onAction: () => {
+            window.openSettleUpModal && window.openSettleUpModal();
+            window.toggleNotificationCenter();
+          }
+        });
+      }
+    }
+
+    activeNotificationsList = notifs;
+
+    const actionCount = notifs.filter(n => n.type === 'action').length;
+    const upcomingCount = notifs.filter(n => n.type === 'upcoming').length;
+
+    const countActionEl = document.getElementById('notifCountAction');
+    const countUpcomingEl = document.getElementById('notifCountUpcoming');
+    const badgeEl = document.getElementById('notificationBadgeCount');
+    const mobileBadgeEl = document.getElementById('mobileNotificationBadgeCount');
+
+    if (countActionEl) countActionEl.textContent = actionCount;
+    if (countUpcomingEl) countUpcomingEl.textContent = upcomingCount;
+
+    const totalAlerts = actionCount + upcomingCount;
+    const text = totalAlerts > 9 ? '9+' : String(totalAlerts);
+    [badgeEl, mobileBadgeEl].forEach(el => {
+      if (!el) return;
+      if (totalAlerts > 0) {
+        el.textContent = text;
+        el.classList.remove('hidden');
+      } else {
+        el.classList.add('hidden');
+      }
+    });
+
+    renderNotificationItemsList();
+  };
+
+  function renderNotificationItemsList() {
+    const container = document.getElementById('notificationItemsList');
+    if (!container) return;
+
+    let filtered = activeNotificationsList;
+    if (currentNotificationFilter === 'action') {
+      filtered = activeNotificationsList.filter(n => n.type === 'action');
+    } else if (currentNotificationFilter === 'upcoming') {
+      filtered = activeNotificationsList.filter(n => n.type === 'upcoming');
+    }
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div class="p-8 text-center text-slate-400 text-xs">
+          <i class="fa-solid fa-bell-slash text-2xl text-slate-300 block mb-2"></i>
+          No notifications in this filter.
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = filtered.map(item => {
+      let borderClass = 'border-amber-200 bg-amber-50/40';
+      if (item.severity === 'critical') borderClass = 'border-rose-200 bg-rose-50/40';
+      if (item.severity === 'info') borderClass = 'border-slate-200 bg-slate-50/50';
+
+      return `
+        <div class="p-3 rounded-2xl border ${borderClass} space-y-2 text-xs">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-start space-x-2.5">
+              <span class="text-lg shrink-0">${item.icon}</span>
+              <div>
+                <div class="font-black text-slate-900 leading-tight">${item.title}</div>
+                <div class="text-[11px] text-slate-600 font-medium mt-0.5">${item.description}</div>
+              </div>
+            </div>
+            <button onclick="dismissNotificationItem('${item.id}')" class="text-slate-400 hover:text-slate-600 p-1 text-xs" title="Dismiss">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div class="flex justify-end space-x-2 pt-1">
+            <button onclick="triggerNotificationAction('${item.id}')" class="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-[11px] shadow-xs transition">
+              ${item.actionLabel}
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  window.triggerNotificationAction = function (id) {
+    const item = activeNotificationsList.find(n => n.id === id);
+    if (item && item.onAction) {
+      item.onAction();
+    }
+  };
+
+  window.dismissNotificationItem = function (id) {
+    saveDismissedNotificationId(id);
+    window.updateNotificationCenter();
+  };
+
+  window.dismissAllNotifications = function () {
+    activeNotificationsList.forEach(item => {
+      saveDismissedNotificationId(item.id);
+    });
+    window.updateNotificationCenter();
+    window.showToast && window.showToast('info', 'Alerts Dismissed', 'All current notifications marked as read.');
+  };
+
+  window.clearAllDismissedNotifications = function () {
+    try {
+      localStorage.removeItem('homeexpenses-dismissed-notifications');
+    } catch (e) {}
+    window.updateNotificationCenter();
+    window.showToast && window.showToast('success', 'Reset Completed', 'Notification history restored.');
+  };
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding)
+      .replace(/\-/g, '+')
+      .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  window.checkPushSubscriptionStatus = async function () {
+    const btn = document.getElementById('btnPushPermission');
+    if (!btn) return;
+
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      btn.textContent = 'Push Unsupported';
+      btn.disabled = true;
+      return;
+    }
+
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub && Notification.permission === 'granted') {
+        btn.textContent = 'Mobile Push Active ✓';
+        btn.className = 'text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/30 text-emerald-300 border border-emerald-400/30';
+      } else {
+        btn.textContent = 'Enable Push (Closed-App)';
+      }
+    } catch (e) {}
+  };
+
+  window.requestPushNotificationPermission = async function () {
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert('Background Web Push notifications are not supported in this browser.\n\nTip: On Android, use Chrome or install the PWA for background closed-app alerts.');
+      return;
+    }
+
+    const btn = document.getElementById('btnPushPermission');
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        if (btn) btn.textContent = 'Push Blocked';
+        alert('Notification permission was denied. Please allow notifications in your mobile browser or Android App site settings.');
+        return;
+      }
+
+      if (btn) {
+        btn.textContent = 'Connecting Push...';
+      }
+
+      // 1. Fetch Server VAPID Public Key
+      const keyRes = await fetch('/api/notifications?action=vapid_key');
+      const keyData = await keyRes.json();
+      if (!keyData.success || !keyData.publicKey) {
+        throw new Error('Could not retrieve VAPID key from server.');
+      }
+
+      // 2. Wait for Service Worker and Subscribe
+      const reg = await navigator.serviceWorker.ready;
+      let subscription = await reg.pushManager.getSubscription();
+
+      if (!subscription) {
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
+        });
+      }
+
+      // 3. Register Subscription with Backend
+      const subRes = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'subscribe',
+          subscription: subscription.toJSON()
+        })
+      });
+
+      const subResult = await subRes.json();
+      if (subResult.success) {
+        if (btn) {
+          btn.textContent = 'Mobile Push Active ✓';
+          btn.className = 'text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/30 text-emerald-300 border border-emerald-400/30';
+        }
+        window.showToast && window.showToast('success', 'Mobile Push Enabled', 'You will receive reminders even when this app is closed!');
+      } else {
+        throw new Error(subResult.error || 'Failed to register subscription.');
+      }
+    } catch (err) {
+      console.error('Push registration error:', err);
+      if (btn) btn.textContent = 'Enable Push';
+      window.showToast && window.showToast('error', 'Push Setup Error', err.message || 'Could not enable background push.');
+    }
+  };
+
+  window.sendTestClosedAppPush = async function () {
+    try {
+      window.showToast && window.showToast('info', 'Sending Test Alert', 'Close this app or lock your phone now! A push alert will arrive in 4 seconds...');
+      setTimeout(async () => {
+        const res = await fetch('/api/notifications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'test_push',
+            title: '⚡ HomeExpenses: Test Alert (Closed-App)',
+            body: 'It works! You received this notification even with the app closed or phone locked.',
+            url: '/'
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          console.log('Test push dispatched:', data.message);
+        }
+      }, 4000);
+    } catch (e) {
+      console.warn('Test push trigger error:', e);
+    }
+  };
+
   window.initAdvanceModules = function () {
     initPWA();
     loadMasterConfig();
     loadAttendanceFromApi();
     renderAuditView();
+    window.loadBackupSnapshots && window.loadBackupSnapshots();
+    window.updateDataCenterMetrics && window.updateDataCenterMetrics();
+    window.updateNotificationCenter && window.updateNotificationCenter();
+    window.checkPushSubscriptionStatus && window.checkPushSubscriptionStatus();
 
     // Attach real-time input watchers to expense modal inputs
     ['inputAmount', 'inputPaidTo', 'inputCategory', 'inputDate'].forEach(id => {

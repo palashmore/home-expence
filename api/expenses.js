@@ -83,6 +83,12 @@ module.exports = async function handler(req, res) {
         return res.status(405).json({ success: false, error: "Method not allowed." });
     } catch (err) {
         console.error("API /api/expenses error:", err);
-        return res.status(500).json({ success: false, error: err.message || "Internal server error." });
+        const statusCode = err.status || (err.code === 'ERR_CONFLICT' ? 409 : 500);
+        return res.status(statusCode).json({
+            success: false,
+            conflict: err.code === 'ERR_CONFLICT',
+            error: err.message || "Internal server error.",
+            current: err.currentRecord || null
+        });
     }
 };

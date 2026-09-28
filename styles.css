@@ -394,20 +394,27 @@ html, body {
     display: none;
 }
 
-/* Native Mobile Bottom Navigation */
+/* Native Mobile Bottom Navigation & Touch Target Hardening */
+button, select, input, .tab-btn, .bnav-btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
 .bnav-btn {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    min-height: 48px;
     padding: 6px 2px;
     font-size: 10px;
     line-height: 1.1;
     font-weight: 700;
     color: #94a3b8;
-    transition: color 0.15s ease, transform 0.15s ease;
+    transition: color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
     user-select: none;
     background: transparent;
     border: none;
@@ -415,6 +422,10 @@ html, body {
 }
 .bnav-btn:hover {
     color: #e2e8f0;
+}
+.bnav-btn:active {
+    transform: scale(0.92);
+    opacity: 0.85;
 }
 .bnav-btn.active {
     color: #818cf8 !important;

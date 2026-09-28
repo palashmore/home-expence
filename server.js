@@ -14,6 +14,8 @@ const migrateHandler = require('./api/migrate');
 const attendanceHandler = require('./api/attendance');
 const configHandler = require('./api/config');
 const auditHandler = require('./api/audit');
+const backupHandler = require('./api/backup');
+const notificationsHandler = require('./api/notifications');
 
 const mimeTypes = {
     '.html': 'text/html',
@@ -104,11 +106,33 @@ const handler = async (req, res) => {
         if (pathname === '/api/audit') {
             return await auditHandler(req, res);
         }
+        if (pathname === '/api/backup') {
+            return await backupHandler(req, res);
+        }
+        if (pathname === '/api/notifications') {
+            return await notificationsHandler(req, res);
+        }
 
-        // Serve Static Files with Pre-cached In-Memory Fallback
+        // Serve Static Files: Prioritize fresh disk read, fallback to staticCache
         const cleanPath = pathname === '/' ? 'index.html' : pathname.replace(/^\//, '');
+        const baseDir = fs.existsSync(path.join(process.cwd(), 'index.html')) ? process.cwd() : __dirname;
+        const filePath = path.join(baseDir, cleanPath);
+        const ext = path.extname(cleanPath).toLowerCase();
+
+        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            try {
+                const liveContent = fs.readFileSync(filePath);
+                res.writeHead(200, {
+                    'Content-Type': mimeTypes[ext] || 'application/octet-stream',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                });
+                return res.end(liveContent);
+            } catch (e) {}
+        }
+
         if (staticCache[cleanPath]) {
-            const ext = path.extname(cleanPath).toLowerCase();
             res.writeHead(200, {
                 'Content-Type': mimeTypes[ext] || 'application/octet-stream',
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -117,10 +141,6 @@ const handler = async (req, res) => {
             });
             return res.end(staticCache[cleanPath]);
         }
-
-        const baseDir = fs.existsSync(path.join(process.cwd(), 'index.html')) ? process.cwd() : __dirname;
-        let filePath = path.join(baseDir, pathname === '/' ? 'index.html' : pathname);
-        const ext = path.extname(filePath).toLowerCase();
 
         fs.readFile(filePath, (err, content) => {
             if (err) {
@@ -178,7 +198,19 @@ if (require.main === module) {
         console.log(` 🚀 Full-Stack Household Expense Server Running Live!`);
         console.log(` 🌐 Server URL: http://localhost:${PORT}`);
         console.log(` 🔒 Security: Server-Side Auth & Validation Enabled`);
+        console.log(` 📲 Closed-App Mobile Push Notifications: Enabled`);
         console.log(`=======================================================`);
+
+        // Closed-App Scheduled Push Reminders Background Worker (Runs every 4 hours)
+        setInterval(async () => {
+            try {
+                if (notificationsHandler.checkAndSendScheduledReminders) {
+                    await notificationsHandler.checkAndSendScheduledReminders();
+                }
+            } catch (e) {
+                console.warn('Scheduled push reminders background error:', e.message);
+            }
+        }, 4 * 60 * 60 * 1000);
     });
 }
 

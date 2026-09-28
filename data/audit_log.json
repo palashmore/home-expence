@@ -1,5 +1,15 @@
 [
   {
+    "id": "audit-1790614305919-qkpo",
+    "timestamp": "2026-09-28T16:51:45.919Z",
+    "action": "CREATE_BACKUP_SNAPSHOT",
+    "recordId": "manual-snapshot-2026-09-28T16-51-45-918Z.json",
+    "diff": {
+      "totalExpenses": 122
+    },
+    "metadata": {}
+  },
+  {
     "id": "audit-1790532300884-x4b9",
     "timestamp": "2026-09-27T18:05:00.884Z",
     "action": "UPDATE_EXPENSE",

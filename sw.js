@@ -56,3 +56,53 @@ self.addEventListener('fetch', event => {
       })
   );
 });
+
+// 3. Push and System Notification Handling (Closed-App Mobile Alerts)
+self.addEventListener('push', event => {
+  let data = {
+    title: 'HomeExpenses Reminder',
+    body: 'You have a pending household reminder.',
+    url: '/',
+    tag: 'homeexpenses-alert'
+  };
+  try {
+    if (event.data) {
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+    }
+  } catch (e) {
+    if (event.data) data.body = event.data.text();
+  }
+
+  const options = {
+    body: data.body,
+    icon: '/icon-192.png',
+    badge: '/icon.svg',
+    tag: data.tag || 'homeexpenses-alert',
+    renotify: true,
+    requireInteraction: true,
+    vibrate: [200, 100, 200, 100, 200],
+    data: { url: data.url || '/' }
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title, options));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+      for (let client of windowClients) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+

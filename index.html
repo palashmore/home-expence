@@ -113,6 +113,18 @@
                         </select>
                     </div>
 
+                    <!-- Mobile Notification Bell Trigger -->
+                    <button onclick="toggleNotificationCenter()" class="relative w-8 h-8 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 shadow-sm transition flex items-center justify-center shrink-0" title="Alerts & Due Reminders">
+                        <i class="fa-solid fa-bell text-amber-400 text-xs"></i>
+                        <span id="mobileNotificationBadgeCount" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center animate-bounce">0</span>
+                    </button>
+
+                    <!-- Mobile Offline Sync Trigger Badge -->
+                    <button id="mobileOfflineQueueBadge" onclick="syncOfflineQueue()" class="hidden items-center space-x-1 px-2 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/40 text-[10px] font-black animate-pulse" title="Click to sync offline changes">
+                        <i class="fa-solid fa-cloud-arrow-up text-[10px]"></i>
+                        <span id="mobileOfflineQueueCount">0</span>
+                    </button>
+
                     <!-- Mobile Add Expense Button -->
                     <button id="btnMobileQuickAdd" onclick="openExpenseModal()" class="bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white font-extrabold text-xs px-2.5 py-1.5 rounded-xl shadow-md active:scale-95 transition-all flex items-center space-x-1">
                         <i class="fa-solid fa-plus text-xs"></i>
@@ -186,6 +198,70 @@
                         <i class="fa-solid fa-mobile-screen-button text-xs sm:text-sm"></i>
                         <span>Install App</span>
                     </button>
+
+                    <!-- Notification Center Bell Trigger -->
+                    <div class="relative inline-block text-left">
+                        <button id="btnNotificationBell" onclick="toggleNotificationCenter()" class="relative bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-2 rounded-xl border border-slate-700 shadow-sm transition flex items-center space-x-1.5" title="Notifications & Bill Reminders">
+                            <i class="fa-solid fa-bell text-amber-400 text-xs sm:text-sm"></i>
+                            <span id="notificationBadgeCount" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white font-black text-[10px] w-4 h-4 rounded-full flex items-center justify-center animate-bounce">0</span>
+                            <span class="hidden xl:inline text-xs font-bold text-slate-200">Alerts</span>
+                        </button>
+                        
+                        <!-- Notification Center Dropdown Flyout -->
+                        <div id="notificationCenterDropdown" class="hidden absolute right-0 mt-2 w-80 sm:w-96 rounded-3xl shadow-2xl bg-white border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100">
+                            <div class="p-4 bg-slate-900 text-white flex justify-between items-center">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fa-solid fa-bell text-amber-400 text-sm"></i>
+                                    <h4 class="text-xs font-black uppercase tracking-wider">Household Alerts &amp; Due Bills</h4>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <button onclick="requestPushNotificationPermission()" id="btnPushPermission" class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-500/30 text-indigo-300 hover:text-white border border-indigo-400/30 transition">
+                                        Enable Push
+                                    </button>
+                                    <button onclick="toggleNotificationCenter()" class="text-slate-400 hover:text-white text-xs">
+                                        <i class="fa-solid fa-xmark text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Filter Tabs -->
+                            <div class="flex border-b border-slate-100 bg-slate-50 text-[11px] font-bold text-slate-600">
+                                <button onclick="switchNotificationFilter('action')" id="notifTab-action" class="flex-1 py-2 text-center border-b-2 border-indigo-600 text-indigo-900 bg-white font-black">
+                                    Action (<span id="notifCountAction">0</span>)
+                                </button>
+                                <button onclick="switchNotificationFilter('upcoming')" id="notifTab-upcoming" class="flex-1 py-2 text-center border-b-2 border-transparent hover:text-slate-900">
+                                    Upcoming (<span id="notifCountUpcoming">0</span>)
+                                </button>
+                                <button onclick="switchNotificationFilter('all')" id="notifTab-all" class="flex-1 py-2 text-center border-b-2 border-transparent hover:text-slate-900">
+                                    All
+                                </button>
+                            </div>
+
+                            <!-- Notification Items List Container -->
+                            <div id="notificationItemsList" class="max-h-80 overflow-y-auto divide-y divide-slate-100 p-2 space-y-1">
+                                <div class="p-6 text-center text-slate-400 text-xs">
+                                    <i class="fa-solid fa-bell-slash text-2xl text-slate-300 block mb-1"></i>
+                                    No pending alerts or overdue bills.
+                                </div>
+                            </div>
+
+                            <!-- Footer -->
+                            <div class="p-2.5 bg-slate-50 text-center flex flex-wrap justify-between items-center px-4 gap-2">
+                                <div class="flex items-center space-x-2">
+                                    <button onclick="clearAllDismissedNotifications()" class="text-[11px] font-bold text-slate-500 hover:text-slate-800 transition">
+                                        Reset
+                                    </button>
+                                    <span class="text-slate-300">·</span>
+                                    <button onclick="sendTestClosedAppPush()" class="text-[11px] font-bold text-amber-600 hover:text-amber-800 transition flex items-center gap-1" title="Test receiving an alert with app closed">
+                                        <i class="fa-solid fa-paper-plane text-[10px]"></i> Test Push (Closed App)
+                                    </button>
+                                </div>
+                                <button onclick="dismissAllNotifications()" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 transition">
+                                    Mark All Read
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Reset to Current Month Shortcut -->
                     <button onclick="resetToCurrentMonth()" title="Reset to Current Month & Year" class="bg-slate-800/90 hover:bg-slate-700 text-indigo-300 font-bold text-xs px-3 py-2 rounded-xl border border-indigo-500/30 shadow-sm transition flex items-center space-x-1.5">
@@ -291,6 +367,10 @@
                 <i class="fa-solid fa-circle-check text-emerald-500"></i>
                 <span id="recordCountBadge">Status: Online</span>
             </div>
+            <button id="offlineQueueBadge" onclick="syncOfflineQueue()" class="hidden items-center space-x-1.5 text-xs font-black px-2.5 py-1.5 rounded-xl bg-amber-100 text-amber-900 border border-amber-300 shadow-sm animate-pulse cursor-pointer hover:bg-amber-200 transition shrink-0 ml-2" title="Click to manually synchronize offline changes">
+                <i class="fa-solid fa-cloud-arrow-up text-amber-600"></i>
+                <span id="offlineQueueCount">0 Pending</span>
+            </button>
         </div>
 
         <!-- ================= ADVANCED MULTI-DIMENSIONAL FILTER TOOLBAR ================= -->
@@ -1594,13 +1674,171 @@
             </div>
         </div>
 
-        <!-- ================= TAB 5: EXCEL & DATA MANAGEMENT ================= -->
+        <!-- ================= TAB 5: DATA MANAGEMENT, BACKUP & HEALTH CENTER ================= -->
         <div id="view-settings" class="tab-view hidden space-y-6">
+            <!-- Command Center Header Banner -->
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white p-6 rounded-3xl shadow-xl border border-slate-700/60">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[11px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/20 px-2.5 py-0.5 rounded-full border border-indigo-400/30">
+                            💾 Data Safety &amp; Resilience
+                        </span>
+                        <span class="text-[11px] font-bold text-emerald-400 bg-emerald-500/20 px-2.5 py-0.5 rounded-full border border-emerald-400/30">
+                            🛡️ Multi-Tier Redundancy Active
+                        </span>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-white mt-1.5">
+                        Data Management &amp; Disaster Recovery
+                    </h2>
+                    <p class="text-xs text-slate-300 font-medium mt-1 max-w-2xl">
+                        Point-in-time snapshot vault, full JSON backups with automatic pre-restore safety shields, deep diagnostic health scanner, and Excel export/import.
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="triggerDataHealthScan()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-lg shadow-emerald-600/30 transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-stethoscope"></i>
+                        <span>Scan Data Health</span>
+                    </button>
+                    <button onclick="createInstantBackupSnapshot()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-camera"></i>
+                        <span>Take Snapshot</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Health & Redundancy Metric Cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="glass-card p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-extrabold text-slate-500 uppercase">Health Score</span>
+                        <i class="fa-solid fa-heart-pulse text-emerald-500 text-sm"></i>
+                    </div>
+                    <div id="dataHealthScorePill" class="text-2xl font-black text-slate-900 mt-1">100%</div>
+                    <div id="dataHealthStatusSubtitle" class="text-[11px] text-emerald-600 font-bold mt-0.5">All Systems Operational</div>
+                </div>
+                <div class="glass-card p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-extrabold text-slate-500 uppercase">Active Records</span>
+                        <i class="fa-solid fa-database text-indigo-500 text-sm"></i>
+                    </div>
+                    <div id="dataTotalRecordsMetric" class="text-2xl font-black text-slate-900 mt-1">--</div>
+                    <div id="dataActiveExpensesSubtitle" class="text-[11px] text-slate-500 font-semibold mt-0.5">Canonical JSON Store</div>
+                </div>
+                <div class="glass-card p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-extrabold text-slate-500 uppercase">Disaster Snapshots</span>
+                        <i class="fa-solid fa-shield-halved text-amber-500 text-sm"></i>
+                    </div>
+                    <div id="dataSnapshotsCountMetric" class="text-2xl font-black text-slate-900 mt-1">--</div>
+                    <div class="text-[11px] text-amber-600 font-bold mt-0.5">Pre-Restore Shield Active</div>
+                </div>
+                <div class="glass-card p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-extrabold text-slate-500 uppercase">Storage Mode</span>
+                        <i class="fa-solid fa-cloud text-sky-500 text-sm"></i>
+                    </div>
+                    <div class="text-2xl font-black text-slate-900 mt-1">Hybrid</div>
+                    <div class="text-[11px] text-sky-600 font-bold mt-0.5">Memory + Disk + Gist</div>
+                </div>
+            </div>
+
+            <!-- SECTION 1: BACKUP & DISASTER RECOVERY CENTER -->
+            <div class="glass-card p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-11 h-11 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xl shadow-sm">
+                            <i class="fa-solid fa-box-archive"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-black text-slate-900">1. Disaster Recovery &amp; Automated Snapshot Vault</h3>
+                            <p class="text-xs text-slate-500 font-medium">Export all system entities (expenses, configs, staff attendance, audit trails) and restore with zero data loss.</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="downloadFullBackupJson()" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-file-arrow-down text-indigo-400"></i>
+                            <span>Export Full JSON Archive</span>
+                        </button>
+                        <label class="cursor-pointer px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-sm transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <span>Restore from Backup File</span>
+                            <input type="file" accept=".json" class="hidden" onchange="restoreBackupFromFile(event)">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Snapshot Vault Table -->
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center">
+                            <i class="fa-solid fa-clock-rotate-left mr-1.5 text-indigo-500"></i> Available Recovery Snapshots
+                        </h4>
+                        <button onclick="loadBackupSnapshots()" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center space-x-1">
+                            <i class="fa-solid fa-rotate-right"></i>
+                            <span>Refresh Vault</span>
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-900 text-slate-200 uppercase font-black tracking-wider">
+                                    <th class="py-2.5 px-3">Snapshot Name</th>
+                                    <th class="py-2.5 px-3">Created At</th>
+                                    <th class="py-2.5 px-3">Type</th>
+                                    <th class="py-2.5 px-3">File Size</th>
+                                    <th class="py-2.5 px-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="snapshotVaultTableBody" class="divide-y divide-slate-100 font-medium text-slate-700">
+                                <tr>
+                                    <td colspan="5" class="py-6 text-center text-slate-400">Loading snapshot vault...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 2: DATA HEALTH & DIAGNOSTIC SCANNER -->
+            <div class="glass-card p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-5">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-11 h-11 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-xl shadow-sm">
+                            <i class="fa-solid fa-stethoscope"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-black text-slate-900">2. Data Health &amp; Integrity Diagnostics</h3>
+                            <p class="text-xs text-slate-500 font-medium">Deep-scan for missing IDs, negative amounts, unmapped categories, or corrupted entries with 1-Click safe healing.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="btnRepairDataHealth" onclick="repairDataHealthIssues()" class="hidden px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-xl shadow-sm transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>Repair Safe Issues</span>
+                        </button>
+                        <button onclick="triggerDataHealthScan()" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-rotate-right"></i>
+                            <span>Re-Scan Now</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Diagnostics Results Container -->
+                <div id="dataHealthResultsContainer" class="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-3">
+                    <div class="flex items-center space-x-2 text-slate-600 font-semibold">
+                        <i class="fa-solid fa-circle-info text-indigo-500"></i>
+                        <span>Click "Scan Data Health" above to perform a comprehensive integrity audit across all records.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 3: MICROSOFT EXCEL SPREADSHEET LEDGER -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Export Card -->
-                <div class="glass-card p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                <div class="glass-card p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
                     <div class="flex items-center space-x-3">
-                        <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-bold">
+                        <div class="w-11 h-11 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-bold">
                             <i class="fa-solid fa-file-excel"></i>
                         </div>
                         <div>
@@ -1624,9 +1862,9 @@
                 </div>
 
                 <!-- Import Card -->
-                <div class="glass-card p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                <div class="glass-card p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
                     <div class="flex items-center space-x-3">
-                        <div class="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl font-bold">
+                        <div class="w-11 h-11 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl font-bold">
                             <i class="fa-solid fa-cloud-arrow-up"></i>
                         </div>
                         <div>
@@ -2359,6 +2597,43 @@
             <div class="flex justify-center space-x-2 pt-2">
                 <button onclick="closeDeleteConfirmModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition">Cancel</button>
                 <button id="btnConfirmDeleteAction" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-md transition">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 3B: CONCURRENCY CONFLICT RESOLUTION ================= -->
+    <div id="conflictModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+        <div class="modal-content glass-card bg-white rounded-3xl shadow-2xl border border-amber-300 max-w-lg w-full p-6 space-y-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-xl font-black shrink-0">
+                    <i class="fa-solid fa-code-compare"></i>
+                </div>
+                <div>
+                    <h4 class="text-base font-black text-slate-900">Record Conflict Detected</h4>
+                    <p class="text-xs text-slate-500 font-medium">This expense was updated elsewhere while you were editing it.</p>
+                </div>
+            </div>
+
+            <div class="bg-amber-50/70 border border-amber-200 rounded-2xl p-3 text-xs text-amber-900 leading-relaxed font-medium">
+                To prevent accidental data loss, compare the server's version against your draft:
+            </div>
+
+            <div id="conflictDiffContainer" class="max-h-60 overflow-y-auto rounded-xl border border-slate-200 text-xs">
+                <!-- Populated dynamically with field diff -->
+            </div>
+
+            <div class="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+                <button onclick="resolveConflictKeepServer()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center justify-center space-x-1.5">
+                    <i class="fa-solid fa-cloud-arrow-down text-indigo-500"></i>
+                    <span>Load Server Version</span>
+                </button>
+                <button onclick="resolveConflictOverwrite()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-xl shadow-md transition flex items-center justify-center space-x-1.5">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    <span>Overwrite Server Record</span>
+                </button>
+                <button onclick="closeConflictModal()" class="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-500 text-xs font-bold rounded-xl border border-slate-200 transition">
+                    Keep Editing Draft
+                </button>
             </div>
         </div>
     </div>

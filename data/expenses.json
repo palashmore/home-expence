@@ -1,7 +1,64 @@
 [
   {
-    "id": "exp-1790486334762-r5h7",
+    "id": "exp-1790529345118-i75v",
     "date": "2026-09-27",
+    "amount": 480,
+    "category": "Food Delivery",
+    "paidBy": "Palash",
+    "splitBetween": "Personal Expense (Palash)",
+    "paidTo": "Zomato",
+    "vendor": "Zomato",
+    "paymentMethod": "UPI / GPay / PhonePe",
+    "notes": "KFC",
+    "description": "KFC",
+    "billingCycle": "Standard",
+    "receipt": null,
+    "receiptStatus": "No Receipt",
+    "createdAt": "2026-09-27T17:15:45.118Z",
+    "updatedAt": "2026-09-27T17:15:45.118Z",
+    "version": 1
+  },
+  {
+    "id": "exp-1790529124842-73vt",
+    "date": "2026-09-27",
+    "amount": 212,
+    "category": "Food Delivery",
+    "paidBy": "Pallavi",
+    "splitBetween": "Personal Expense (Pallavi - Not Reimbursed)",
+    "paidTo": "Zomato",
+    "vendor": "Zomato",
+    "paymentMethod": "UPI / GPay / PhonePe",
+    "notes": "Food delivery",
+    "description": "Food delivery",
+    "billingCycle": "Standard",
+    "receipt": null,
+    "receiptStatus": "No Receipt",
+    "createdAt": "2026-09-27T17:12:04.842Z",
+    "updatedAt": "2026-09-27T17:15:07.081Z",
+    "version": 2
+  },
+  {
+    "id": "exp-1790513087979-ltn6",
+    "date": "2026-09-27",
+    "amount": 638,
+    "category": "Accepted Payments (Income)",
+    "paidBy": "Palash",
+    "splitBetween": "Household Expense (Palash Reimburses Pallavi 100%)",
+    "paidTo": "Pallavi",
+    "vendor": "Pallavi",
+    "paymentMethod": "UPI / GPay / PhonePe",
+    "notes": "Last month's transaction reimbursed",
+    "description": "Last month's transaction reimbursed",
+    "billingCycle": "Standard",
+    "receipt": null,
+    "receiptStatus": "No Receipt",
+    "createdAt": "2026-09-27T12:44:47.979Z",
+    "updatedAt": "2026-09-27T12:44:47.979Z",
+    "version": 1
+  },
+  {
+    "id": "exp-1790486334762-r5h7",
+    "date": "2026-09-05",
     "amount": 4500,
     "category": "Chef - Nilima Nikose",
     "paidBy": "Palash",
@@ -11,12 +68,12 @@
     "notes": "September salary adjusted with bonus",
     "description": "September salary adjusted with bonus",
     "billingCycle": "2026-09-30",
-    "receipt": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+    "receipt": null,
     "receiptStatus": "Yes (Attached)",
-    "updatedAt": "2026-09-27T11:35:45.215Z",
-    "version": 23,
+    "updatedAt": "2026-09-27T13:56:56.782Z",
+    "version": 25,
     "createdAt": "2026-09-27T05:44:46.366Z",
-    "splitBetween": "Household Expense (Palash Covers / Reimburses Pallavi 100%)"
+    "splitBetween": "Household Expense (Palash Reimburses Pallavi 100%)"
   },
   {
     "id": "exp-1790486017968-6p3l",
@@ -85,9 +142,11 @@
     "billingCycle": "Standard",
     "receipt": null,
     "receiptStatus": "Yes (Attached)",
-    "updatedAt": "2026-09-27T04:58:58.634Z",
-    "version": 1,
-    "paidBy": "Palash"
+    "updatedAt": "2026-09-27T11:59:08.653Z",
+    "version": 3,
+    "paidBy": "Palash",
+    "splitBetween": "Household Expense (Palash Reimburses Pallavi 100%)",
+    "createdAt": "2026-09-27T04:58:58.634Z"
   },
   {
     "id": "exp-002",
@@ -136,9 +195,11 @@
     "billingCycle": "Standard",
     "receipt": null,
     "receiptStatus": "No Receipt",
-    "updatedAt": "2026-09-27T04:58:58.634Z",
-    "version": 1,
-    "paidBy": "Pallavi"
+    "updatedAt": "2026-09-27T11:54:24.719Z",
+    "version": 2,
+    "paidBy": "Pallavi",
+    "splitBetween": "Personal Expense (Pallavi - Not Reimbursed)",
+    "createdAt": "2026-09-27T04:58:58.634Z"
   },
   {
     "id": "exp-005",
@@ -187,10 +248,11 @@
     "billingCycle": "Standard",
     "receipt": null,
     "receiptStatus": "No Receipt",
-    "updatedAt": "2026-09-27T06:00:03.873Z",
-    "version": 2,
+    "updatedAt": "2026-09-27T11:54:13.352Z",
+    "version": 3,
     "paidBy": "Pallavi",
-    "createdAt": "2026-09-27T04:58:58.634Z"
+    "createdAt": "2026-09-27T04:58:58.634Z",
+    "splitBetween": "Personal Expense (Pallavi - Not Reimbursed)"
   },
   {
     "id": "exp-008",
@@ -222,10 +284,11 @@
     "billingCycle": "Standard",
     "receipt": null,
     "receiptStatus": "Yes (Attached)",
-    "updatedAt": "2026-09-27T05:59:09.235Z",
-    "version": 2,
+    "updatedAt": "2026-09-27T18:04:59.831Z",
+    "version": 3,
     "paidBy": "Palash",
-    "createdAt": "2026-09-27T04:58:58.634Z"
+    "createdAt": "2026-09-27T04:58:58.634Z",
+    "splitBetween": "Household Expense (Palash Reimburses Pallavi 100%)"
   },
   {
     "id": "exp-011",

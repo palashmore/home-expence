@@ -117,6 +117,263 @@ function setDashboardScope(scope) {
 }
 window.setDashboardScope = setDashboardScope;
 
+// ================= LUXURY HAPTIC ENGINE (Phase 13) =================
+function triggerHaptic(type = 'light') {
+    if (!('vibrate' in navigator)) return;
+    try {
+        switch (type) {
+            case 'light':
+            case 'tap':
+                navigator.vibrate(10);
+                break;
+            case 'medium':
+                navigator.vibrate(25);
+                break;
+            case 'success':
+                navigator.vibrate([15, 60, 25]);
+                break;
+            case 'warning':
+                navigator.vibrate([30, 80, 30]);
+                break;
+            case 'error':
+                navigator.vibrate([50, 80, 50, 80, 50]);
+                break;
+            case 'delete':
+                navigator.vibrate([40, 90, 40]);
+                break;
+            default:
+                navigator.vibrate(15);
+        }
+    } catch (e) {}
+}
+window.triggerHaptic = triggerHaptic;
+
+// ================= OFFLINE SYNC QUEUE ENGINE (Phase 12) =================
+function getOfflineQueue() {
+    try {
+        const raw = localStorage.getItem("homeexpenses_offline_queue");
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+        return [];
+    }
+}
+window.getOfflineQueue = getOfflineQueue;
+
+function setOfflineQueue(queue) {
+    try {
+        localStorage.setItem("homeexpenses_offline_queue", JSON.stringify(queue));
+    } catch (e) {}
+    updateOfflineQueueBadge();
+}
+window.setOfflineQueue = setOfflineQueue;
+
+function enqueueOfflineAction(actionObj) {
+    const queue = getOfflineQueue();
+    const item = {
+        queueId: 'queue_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        action: actionObj.action, // 'CREATE', 'UPDATE', 'DELETE'
+        payload: actionObj.payload || null,
+        id: actionObj.id || (actionObj.payload ? actionObj.payload.id : null),
+        timestamp: new Date().toISOString(),
+        retryCount: 0
+    };
+    queue.push(item);
+    setOfflineQueue(queue);
+    return item;
+}
+window.enqueueOfflineAction = enqueueOfflineAction;
+
+function updateOfflineQueueBadge(isSyncing = false) {
+    const queue = getOfflineQueue();
+    const count = queue.length;
+
+    const desktopBadge = document.getElementById("offlineQueueBadge");
+    const desktopCount = document.getElementById("offlineQueueCount");
+    const mobileBadge = document.getElementById("mobileOfflineQueueBadge");
+    const mobileCount = document.getElementById("mobileOfflineQueueCount");
+
+    if (count > 0 || isSyncing) {
+        if (desktopBadge) {
+            desktopBadge.classList.remove("hidden");
+            desktopBadge.classList.add("inline-flex");
+            if (desktopCount) {
+                desktopCount.textContent = isSyncing ? "Syncing..." : `${count} Pending Sync`;
+            }
+        }
+        if (mobileBadge) {
+            mobileBadge.classList.remove("hidden");
+            mobileBadge.classList.add("inline-flex");
+            if (mobileCount) {
+                mobileCount.textContent = isSyncing ? "..." : String(count);
+            }
+        }
+    } else {
+        if (desktopBadge) {
+            desktopBadge.classList.add("hidden");
+            desktopBadge.classList.remove("inline-flex");
+        }
+        if (mobileBadge) {
+            mobileBadge.classList.add("hidden");
+            mobileBadge.classList.remove("inline-flex");
+        }
+    }
+}
+window.updateOfflineQueueBadge = updateOfflineQueueBadge;
+
+let isSyncingOfflineQueue = false;
+async function syncOfflineQueue() {
+    if (isSyncingOfflineQueue) return;
+    if (!navigator.onLine) {
+        updateOfflineQueueBadge();
+        return;
+    }
+
+    const queue = getOfflineQueue();
+    if (!queue || queue.length === 0) {
+        updateOfflineQueueBadge();
+        return;
+    }
+
+    isSyncingOfflineQueue = true;
+    updateOfflineQueueBadge(true);
+
+    let successfulSyncs = 0;
+    const remainingQueue = [];
+
+    for (let i = 0; i < queue.length; i++) {
+        const item = queue[i];
+        try {
+            if (item.action === 'CREATE') {
+                const res = await fetch("/api/expenses", {
+                    method: "POST",
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(item.payload)
+                });
+                const data = await res.json();
+                if (res.ok && data.success && data.data) {
+                    successfulSyncs++;
+                    if (item.payload && item.payload.id) {
+                        const tempId = String(item.payload.id).trim();
+                        const realId = String(data.data.id).trim();
+                        const localIdx = expenses.findIndex(x => String(x.id).trim() === tempId);
+                        if (localIdx !== -1) {
+                            expenses[localIdx] = {
+                                ...expenses[localIdx],
+                                ...data.data,
+                                isOfflineDraft: false
+                            };
+                        }
+                    }
+                } else if (res.status === 400 || res.status === 422) {
+                    console.error("Offline CREATE rejected with permanent error:", data);
+                } else {
+                    item.retryCount = (item.retryCount || 0) + 1;
+                    remainingQueue.push(item);
+                }
+            } else if (item.action === 'UPDATE') {
+                const res = await fetch("/api/expenses", {
+                    method: "PUT",
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(item.payload)
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    successfulSyncs++;
+                } else if (res.status === 404 || res.status === 400) {
+                    console.error("Offline UPDATE permanent error:", data);
+                } else {
+                    item.retryCount = (item.retryCount || 0) + 1;
+                    remainingQueue.push(item);
+                }
+            } else if (item.action === 'DELETE') {
+                const targetId = encodeURIComponent(String(item.id).trim());
+                const res = await fetch(`/api/expenses?id=${targetId}`, {
+                    method: "DELETE",
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    successfulSyncs++;
+                } else if (res.status === 404) {
+                    successfulSyncs++;
+                } else {
+                    item.retryCount = (item.retryCount || 0) + 1;
+                    remainingQueue.push(item);
+                }
+            }
+        } catch (netErr) {
+            console.warn("Network error during offline sync replay:", netErr);
+            item.retryCount = (item.retryCount || 0) + 1;
+            remainingQueue.push(item);
+            for (let j = i + 1; j < queue.length; j++) {
+                remainingQueue.push(queue[j]);
+            }
+            break;
+        }
+    }
+
+    setOfflineQueue(remainingQueue);
+    isSyncingOfflineQueue = false;
+    updateOfflineQueueBadge();
+
+    if (successfulSyncs > 0) {
+        saveLocalCacheData();
+        renderAllViews();
+        updateHeaderStatus();
+        triggerHaptic('success');
+        showToast("success", "Sync Complete", `${successfulSyncs} offline change${successfulSyncs > 1 ? 's' : ''} synchronized with server.`);
+        loadData(true);
+    }
+}
+window.syncOfflineQueue = syncOfflineQueue;
+
+function saveOfflineDraft(payload, isEdit, existingRecord, submitBtn) {
+    const savedItem = {
+        ...(existingRecord || {}),
+        ...payload,
+        id: isEdit && payload.id ? payload.id : `temp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        isOfflineDraft: true,
+        offlineSavedAt: new Date().toISOString()
+    };
+
+    const targetId = String(savedItem.id).trim();
+    if (isEdit) {
+        const idx = expenses.findIndex(i => String(i.id).trim() === targetId);
+        if (idx !== -1) {
+            expenses[idx] = savedItem;
+        } else {
+            expenses.unshift(savedItem);
+        }
+    } else {
+        expenses.unshift(savedItem);
+    }
+
+    expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+    window.expenses = expenses;
+    window.expensesData = expenses;
+
+    enqueueOfflineAction({
+        action: isEdit ? 'UPDATE' : 'CREATE',
+        payload: savedItem,
+        id: savedItem.id
+    });
+
+    saveLocalCacheData();
+    renderAllViews();
+    updateHeaderStatus();
+    closeExpenseModal();
+
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `Save Expense Record`;
+    }
+
+    triggerHaptic('warning');
+    const actionTitle = isEdit ? "Draft Updated (Offline)" : "Saved in Offline Queue";
+    const secondaryText = `${formatINR(savedItem.amount)} · ${savedItem.category} · Will auto-sync when online`;
+    showToast("warning", actionTitle, secondaryText);
+}
+
 // ================= INITIALIZATION =================
 document.addEventListener("DOMContentLoaded", () => {
     initTheme();
@@ -140,8 +397,25 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!document.hidden) loadData(true);
     }, 12000);
 
-    // Initial Data Fetch
+    // Online/Offline status listeners & auto-sync
+    window.addEventListener("online", () => {
+        updateSyncBadge("Online & Synced", "emerald");
+        showToast("info", "Connection Restored", "Back online. Syncing pending offline transactions...");
+        syncOfflineQueue();
+        loadData(true);
+    });
+    window.addEventListener("offline", () => {
+        updateSyncBadge("Offline Mode", "amber");
+        showToast("warning", "Offline Mode", "Working in offline mode. Changes will be saved locally and queued.");
+        updateOfflineQueueBadge();
+    });
+
+    // Initial Data Fetch & Offline Queue Check
+    updateOfflineQueueBadge();
     loadData();
+    if (navigator.onLine) {
+        setTimeout(syncOfflineQueue, 1500);
+    }
 });
 
 // Format Indian Currency Helper
@@ -210,6 +484,7 @@ function setDefaultDateToToday() {
 
 // Navigation Tab Switching
 function switchTab(tabId) {
+    triggerHaptic('tap');
     document.querySelectorAll(".tab-btn").forEach(btn => {
         btn.classList.remove("active");
         btn.classList.add("text-slate-600");
@@ -249,6 +524,11 @@ function switchTab(tabId) {
     }
     if (tabId === 'personal' && window.renderPersonalExpensesDashboard) {
         window.renderPersonalExpensesDashboard();
+    }
+    if (tabId === 'settings') {
+        if (window.loadBackupSnapshots) window.loadBackupSnapshots();
+        if (window.updateDataCenterMetrics) window.updateDataCenterMetrics();
+        if (window.triggerDataHealthScan) window.triggerDataHealthScan();
     }
 
     // Scroll to top when switching views on mobile/desktop
@@ -405,6 +685,7 @@ function populateFilterYearDropdown() {
 
 // Called on any dropdown filter change
 function onFilterChange() {
+    triggerHaptic('light');
     const monthSelect = document.getElementById("filterMonth");
     const yearSelect = document.getElementById("filterYear");
     const catSelect = document.getElementById("filterCategory");
@@ -434,6 +715,7 @@ function applyFilters() {
 
 // Reset specifically to Current Month + Current Year (Requirement 1, 2, 49)
 function resetToCurrentMonth() {
+    triggerHaptic('medium');
     const cur = getCurrentPeriod();
     dashboardFilters.month = cur.monthName;
     dashboardFilters.year = cur.yearStr;
@@ -479,6 +761,7 @@ function syncFilterControlsToState() {
 
 // Quick Filter Chips handlers
 function quickFilterPeriod(period) {
+    triggerHaptic('tap');
     const cur = getCurrentPeriod();
     if (period === 'this-month') {
         dashboardFilters.month = cur.monthName;
@@ -938,6 +1221,11 @@ function renderDashboard(filtered) {
     window.expensesData = expenses;
     if (window.renderAdvanceDashboard) {
         window.renderAdvanceDashboard(filtered);
+    }
+
+    // Real-time Notification Center & Due Reminders
+    if (window.updateNotificationCenter) {
+        window.updateNotificationCenter();
     }
 }
 
@@ -1528,40 +1816,35 @@ function renderBudgetProgress(householdSpent, personalSpent = 0, combinedSpent =
 
 function calculateRecurringChecklist(filteredData) {
     let checklistConfig = [];
-    if (window.masterConfig && window.masterConfig.recurringBills && Array.isArray(window.masterConfig.recurringBills)) {
-        checklistConfig = window.masterConfig.recurringBills.filter(b => b.active !== false).map(b => ({
-            name: b.category || b.name,
-            displayName: b.name || b.category,
-            target: Number(b.approxAmount) || 0,
-            paidTo: b.name
-        }));
+    if (window.masterConfig && window.masterConfig.recurringBills && Array.isArray(window.masterConfig.recurringBills) && window.masterConfig.recurringBills.length > 0) {
+        checklistConfig = window.masterConfig.recurringBills.filter(b => b.active !== false);
     } else {
         checklistConfig = [
-            { name: "Electricity Bill", displayName: "Electricity Bill", target: 2800, paidTo: "MSEDCL" },
-            { name: "Flat Maintenance", displayName: "Flat Maintenance", target: 1500, paidTo: "Society Office" },
-            { name: "Dish Bill (DTH)", displayName: "Dish Bill (DTH)", target: 300, paidTo: "Dish TV / DTH" },
-            { name: "Maid - Madhuri", displayName: "Maid - Madhuri", target: 800, paidTo: "Madhuri" },
-            { name: "Chef - Nilima Nikose", displayName: "Chef - Nilima Nikose", target: 4500, paidTo: "Nilima Nikose" },
-            { name: "Wifi & Internet", displayName: "Wifi & Internet", target: 1000, paidTo: "Broadband" }
+            { name: "Electricity Bill", category: "Electricity Bill", approxAmount: 2800, dueDay: 10 },
+            { name: "Flat Maintenance", category: "Flat Maintenance", approxAmount: 1500, dueDay: 5 },
+            { name: "Dish Bill (DTH)", category: "Dish Bill (DTH)", approxAmount: 300, dueDay: 20 },
+            { name: "Maid - Madhuri", category: "Maid - Madhuri", approxAmount: 800, dueDay: 21 },
+            { name: "Chef - Nilima Nikose", category: "Chef - Nilima Nikose", approxAmount: 4500, dueDay: 30 },
+            { name: "Wifi & Internet", category: "Wifi & Internet", approxAmount: 1000, dueDay: 15 }
         ];
     }
 
     let paidCount = 0;
     const items = checklistConfig.map(cfg => {
-        const matching = filteredData.filter(i => {
-            const catMatch = i.category === cfg.name || i.category === cfg.displayName;
-            const descMatch = (i.description && i.description.toLowerCase().includes(cfg.displayName.toLowerCase())) ||
-                              (i.paidTo && i.paidTo.toLowerCase().includes(cfg.displayName.toLowerCase()));
-            return catMatch || descMatch;
-        });
-        const total = matching.reduce((a, b) => a + Number(b.amount), 0);
-        const isPaid = total >= cfg.target || (total > 0 && total >= cfg.target * 0.8);
+        const evalRes = window.getRecurringPaymentStatus
+            ? window.getRecurringPaymentStatus(cfg, filteredData)
+            : { status: 'UPCOMING', totalPaid: 0, targetAmount: cfg.approxAmount || 0 };
+
+        const isPaid = evalRes.status === 'PAID';
         if (isPaid) paidCount++;
+
         return {
             ...cfg,
-            name: cfg.displayName || cfg.name,
-            actual: total,
-            isPaid: isPaid
+            name: cfg.name || cfg.category,
+            target: Number(cfg.approxAmount) || evalRes.targetAmount || 0,
+            actual: evalRes.totalPaid,
+            isPaid: isPaid,
+            status: evalRes.status
         };
     });
 
@@ -1893,6 +2176,7 @@ function showToast(type, title, message = "") {
 
 // ================= CRUD: ADD, EDIT, DELETE EXPENSES =================
 function openExpenseModal(editId = null) {
+    triggerHaptic('tap');
     const modal = document.getElementById("expenseModal");
     const form = document.getElementById("expenseForm");
     const modalTitle = document.getElementById("modalTitle");
@@ -2033,14 +2317,17 @@ async function saveExpense(e) {
 
     // 1. Validation
     if (!date || isNaN(new Date(date).getTime())) {
+        triggerHaptic('error');
         showToast("error", "Validation Error", "Please select a valid transaction date.");
         return;
     }
     if (isNaN(amount) || amount <= 0) {
+        triggerHaptic('error');
         showToast("error", "Validation Error", "Amount must be a positive number greater than zero.");
         return;
     }
     if (!category) {
+        triggerHaptic('error');
         showToast("error", "Validation Error", "Please select an expense category.");
         return;
     }
@@ -2076,6 +2363,12 @@ async function saveExpense(e) {
         submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-1.5"></i> Saving...`;
     }
 
+    // Check immediate offline state before network dispatch
+    if (!navigator.onLine) {
+        saveOfflineDraft(payload, isEdit, existingRecord, submitBtn);
+        return;
+    }
+
     try {
         const method = isEdit ? "PUT" : "POST";
         const res = await fetch("/api/expenses", {
@@ -2085,6 +2378,12 @@ async function saveExpense(e) {
         });
 
         const data = await res.json();
+
+        if (res.status === 409 || data.conflict) {
+            triggerHaptic('warning');
+            handleExpenseConflict(payload, data.current);
+            return;
+        }
 
         if (res.ok && data.success && data.data) {
             const savedItem = {
@@ -2123,7 +2422,8 @@ async function saveExpense(e) {
             // 7. Close Modal
             closeExpenseModal();
 
-            // 8. Show Professional Confirmation Toast ONLY AFTER verified persistence
+            // 8. Haptic & Toast Feedback
+            triggerHaptic('success');
             const actionTitle = isEdit ? "Expense Updated Successfully" : "Expense Added Successfully";
             const secondaryText = `${formatINR(savedItem.amount)} · ${savedItem.category} · ${savedItem.paidBy}`;
             showToast("success", actionTitle, secondaryText);
@@ -2132,17 +2432,139 @@ async function saveExpense(e) {
             loadData(true);
         } else {
             console.error("Save rejected by server:", data);
+            triggerHaptic('error');
             showToast("error", "Unable to Update Expense", data.error || "Your changes were not saved. Please try again.");
         }
     } catch (err) {
-        console.error("Save network or runtime error:", err);
-        showToast("error", "Unable to Update Expense", "Could not connect to server. Your changes were not saved.");
+        console.warn("Save network exception, saving safely to offline sync queue:", err);
+        saveOfflineDraft(payload, isEdit, existingRecord, submitBtn);
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.innerHTML = `Save Expense Record`;
         }
     }
+}
+
+// ---------------- CONCURRENCY CONFLICT RESOLUTION ----------------
+let pendingConflictDraft = null;
+let pendingConflictServer = null;
+
+function handleExpenseConflict(draft, serverRecord) {
+    pendingConflictDraft = draft;
+    pendingConflictServer = serverRecord || expenses.find(i => String(i.id).trim() === String(draft.id).trim()) || {};
+
+    const modal = document.getElementById("conflictModal");
+    const container = document.getElementById("conflictDiffContainer");
+    if (!modal || !container) {
+        showToast("error", "Conflict Detected", "This expense was modified elsewhere. Please reload the latest record.");
+        return;
+    }
+
+    const fields = [
+        { label: "Amount", draft: formatINR(draft.amount), server: formatINR(pendingConflictServer.amount) },
+        { label: "Date", draft: draft.date, server: pendingConflictServer.date },
+        { label: "Category", draft: draft.category, server: pendingConflictServer.category },
+        { label: "Paid By", draft: draft.paidBy, server: pendingConflictServer.paidBy },
+        { label: "Paid To / Vendor", draft: draft.paidTo || draft.vendor || "-", server: pendingConflictServer.paidTo || pendingConflictServer.vendor || "-" },
+        { label: "Notes / Description", draft: draft.notes || "-", server: pendingConflictServer.notes || "-" },
+        { label: "Record Version", draft: `v${draft.version || 1}`, server: `v${pendingConflictServer.version || 1}` }
+    ];
+
+    container.innerHTML = `
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                    <th class="p-2">Field</th>
+                    <th class="p-2 text-amber-700 bg-amber-50/50">Your Draft</th>
+                    <th class="p-2 text-indigo-700 bg-indigo-50/50">Current Server</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                ${fields.map(f => {
+                    const isDiff = String(f.draft).trim() !== String(f.server).trim();
+                    return `
+                        <tr class="${isDiff ? 'bg-amber-50/30 font-semibold' : ''}">
+                            <td class="p-2 text-slate-500 font-medium">${f.label}</td>
+                            <td class="p-2 text-slate-800 ${isDiff ? 'text-amber-800' : ''}">${f.draft}</td>
+                            <td class="p-2 text-slate-800 ${isDiff ? 'text-indigo-800 font-bold' : ''}">${f.server}</td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+
+    modal.classList.remove("hidden");
+}
+
+function resolveConflictKeepServer() {
+    if (!pendingConflictServer) {
+        closeConflictModal();
+        return;
+    }
+    const targetId = pendingConflictServer.id;
+    closeConflictModal();
+    openExpenseModal(targetId);
+    showToast("info", "Loaded Server Version", "The editing form has been populated with the latest server data.");
+}
+
+async function resolveConflictOverwrite() {
+    if (!pendingConflictDraft || !pendingConflictServer) {
+        closeConflictModal();
+        return;
+    }
+    pendingConflictDraft.version = pendingConflictServer.version;
+    closeConflictModal();
+
+    showToast("info", "Retrying Save", "Overwriting with your latest draft...");
+
+    const submitBtn = document.getElementById("btnSubmitExpense");
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-1.5"></i> Overwriting...`;
+    }
+
+    try {
+        const res = await fetch("/api/expenses", {
+            method: "PUT",
+            headers: getAuthHeaders(),
+            body: JSON.stringify(pendingConflictDraft)
+        });
+        const data = await res.json();
+        if (res.ok && data.success && data.data) {
+            const savedItem = { ...pendingConflictDraft, ...data.data };
+            const idx = expenses.findIndex(i => String(i.id).trim() === String(savedItem.id).trim());
+            if (idx !== -1) expenses[idx] = savedItem;
+            else expenses.unshift(savedItem);
+
+            expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+            window.expenses = expenses;
+            window.expensesData = expenses;
+            saveLocalCacheData();
+            renderAllViews();
+            updateHeaderStatus();
+            closeExpenseModal();
+            showToast("success", "Expense Overwritten Successfully", `${formatINR(savedItem.amount)} · ${savedItem.category}`);
+            loadData(true);
+        } else {
+            showToast("error", "Overwrite Failed", data.error || "Could not overwrite record.");
+        }
+    } catch (err) {
+        showToast("error", "Network Error", "Could not connect to server.");
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `Save Expense Record`;
+        }
+        pendingConflictDraft = null;
+        pendingConflictServer = null;
+    }
+}
+
+function closeConflictModal() {
+    const modal = document.getElementById("conflictModal");
+    if (modal) modal.classList.add("hidden");
 }
 
 function editExpense(id) {
@@ -2189,6 +2611,45 @@ function closeDeleteConfirmModal() {
 async function executeDeleteExpense(id) {
     if (!id) return;
     const targetId = String(id).trim();
+
+    const handleDeleteOffline = () => {
+        // If created offline and pending sync, remove it from queue
+        const queue = getOfflineQueue();
+        const filteredQueue = queue.filter(item => {
+            if (item.action === 'CREATE' && String(item.id).trim() === targetId) return false;
+            if (item.action === 'UPDATE' && String(item.id).trim() === targetId) return false;
+            return true;
+        });
+
+        // If not a purely local temp item, enqueue DELETE
+        if (!targetId.startsWith('temp_')) {
+            filteredQueue.push({
+                queueId: 'queue_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                action: 'DELETE',
+                id: targetId,
+                timestamp: new Date().toISOString(),
+                retryCount: 0
+            });
+        }
+        setOfflineQueue(filteredQueue);
+
+        expenses = expenses.filter(i => String(i.id).trim() !== targetId);
+        window.expenses = expenses;
+        window.expensesData = expenses;
+        saveLocalCacheData();
+        renderAllViews();
+        updateHeaderStatus();
+        closeDeleteConfirmModal();
+        closeTransactionDetailModal();
+        triggerHaptic('delete');
+        showToast("warning", "Deleted in Offline Queue", "Record removed locally. Deletion will be synced with server when reconnected.");
+    };
+
+    if (!navigator.onLine) {
+        handleDeleteOffline();
+        return;
+    }
+
     try {
         const res = await fetch(`/api/expenses?id=${encodeURIComponent(targetId)}`, {
             method: "DELETE",
@@ -2205,14 +2666,16 @@ async function executeDeleteExpense(id) {
             updateHeaderStatus();
             closeDeleteConfirmModal();
             closeTransactionDetailModal();
+            triggerHaptic('delete');
             showToast("success", "Expense Deleted Successfully");
             loadData(true);
         } else {
+            triggerHaptic('error');
             showToast("error", "Unable to Delete Expense", data.error || "Record could not be removed.");
         }
     } catch (err) {
-        console.error("Delete failed:", err);
-        showToast("error", "Server Error", "Could not reach server to delete record.");
+        console.warn("Delete network exception, falling back to offline queue:", err);
+        handleDeleteOffline();
     }
 }
 

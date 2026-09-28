@@ -12,6 +12,7 @@
     "dotenv": "^16.4.5",
     "googleapis": "^182.0.0",
     "jsonwebtoken": "^9.0.2",
+    "web-push": "^3.6.7",
     "xlsx": "^0.18.5"
   }
 }

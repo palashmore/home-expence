@@ -6,12 +6,7 @@ const path = require('path');
 const GIST_ID = process.env.GIST_ID || 'e42cd546045cc0773af7798b25ed4065';
 
 function getAuthToken() {
-  if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
-  if (process.env.GIST_TOKEN) return process.env.GIST_TOKEN;
-  const a = 'gho_';
-  const b = 'Xo1HKMRa80W8Svs';
-  const c = 'ZUVCV9E5hksCAEM3Fu8Yp';
-  return a + b + c;
+  return process.env.GITHUB_TOKEN || process.env.GIST_TOKEN || null;
 }
 
 const DATA_DIR = path.join(__dirname, '..', 'data');

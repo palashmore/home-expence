@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" data-theme="indigo">
 <head>
     <meta charset="UTF-8">
@@ -71,46 +71,48 @@
 
     <!-- ===== TOP COMMAND NAVIGATION BAR v5.0 ===== -->
     <header class="glass-nav sticky top-0 z-40 shadow-2xl">
-        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-14 sm:h-16 items-center gap-2">
+        <div class="max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-14 sm:h-16 items-center gap-3">
                 
-                <!-- Logo & Brand Header -->
-                <!-- Logo & Brand -->
-                <div class="flex items-center gap-2.5 shrink min-w-0">
-                    <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-600 to-indigo-800 flex items-center justify-center text-white shadow-lg shadow-indigo-600/40 shrink-0 border border-indigo-400/20">
+                <!-- Zone 1: Logo, Brand & Active Household (Left) -->
+                <div class="flex items-center gap-2.5 sm:gap-3 shrink min-w-0">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-600 to-indigo-800 flex items-center justify-center text-white shadow-lg shadow-indigo-600/40 shrink-0 border border-indigo-400/20">
                         <i class="fa-solid fa-vault text-sm sm:text-base"></i>
                     </div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-2">
-                            <h1 class="text-base sm:text-lg font-black text-white tracking-tight truncate leading-tight">HomeExpenses</h1>
-                            <span id="hdrPeriodBadge" class="hidden sm:inline-flex text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-indigo-500/25 text-indigo-200 border border-indigo-400/30 items-center gap-1 whitespace-nowrap">
-                                <i class="fa-solid fa-calendar-days text-[8px]"></i>
-                                <span>Current Month</span>
-                            </span>
+                            <span class="text-base sm:text-lg font-black text-white tracking-tight truncate leading-tight">HomeExpenses</span>
+                            <!-- Active Household Pill (Desktop & Tablet) -->
+                            <div id="hdrHouseholdBadge" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800/90 border border-indigo-500/30 text-[11px] font-bold text-indigo-200 shrink-0" title="Current Active Household">
+                                <i class="fa-solid fa-house-chimney text-[10px] text-indigo-400 shrink-0"></i>
+                                <span id="hdrHouseholdName" class="truncate max-w-[130px] md:max-w-[180px] lg:max-w-[220px]">Palash &amp; Pallavi Household</span>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-2 text-[10px] sm:text-[11px] text-slate-400 font-medium mt-0.5">
+                        <div class="flex items-center gap-2 text-[10px] text-slate-400 font-medium mt-0.5">
                             <span class="inline-flex items-center gap-1 text-emerald-400 font-bold">
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                                 <span id="hdrStatusText">Live</span>
                             </span>
-                            <span class="hidden sm:inline text-slate-600">·</span>
-                            <span id="hdrTxCount" class="hidden sm:inline">0 Transactions</span>
-                            <span class="hidden sm:inline text-slate-600">·</span>
-                            <span id="hdrLastUpdated" class="hidden sm:inline">Just now</span>
+                            <span class="text-slate-600">·</span>
+                            <span id="hdrTxCount">0 Transactions</span>
+                            <span class="hidden md:inline text-slate-600">·</span>
+                            <span id="hdrLastUpdated" class="hidden md:inline">Just now</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Active Household Pill (Desktop & Tablet) -->
-                <div id="hdrHouseholdBadge" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 truncate max-w-[220px]" title="Current Active Household">
-                    <i class="fa-solid fa-house-chimney text-indigo-400 shrink-0"></i>
-                    <span id="hdrHouseholdName" class="truncate">Palash &amp; Pallavi Household</span>
+                <!-- Zone 2: Accounting Period Badge (Center, Desktop) -->
+                <div class="hidden lg:flex items-center justify-center shrink-0">
+                    <div id="hdrPeriodBadge" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-slate-800/80 border border-slate-700/80 text-xs font-bold text-slate-200 shadow-inner">
+                        <i class="fa-solid fa-calendar-days text-indigo-400 text-xs"></i>
+                        <span id="hdrPeriodText">Current Month</span>
+                    </div>
                 </div>
 
-                <!-- ================= MOBILE HEADER CONTROLS (< sm) ================= -->
+                <!-- Zone 3: Mobile Controls (< sm) -->
                 <div class="flex sm:hidden items-center space-x-1.5 shrink-0">
-                    <!-- Mobile Account / Household Switcher -->
-                    <button type="button" onclick="openUserProfileModal()" class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-xs border border-indigo-400/40 shadow-sm shrink-0" id="mobileUserBtn" title="Account &amp; Household">
+                    <!-- Mobile Account / Household Profile -->
+                    <button type="button" onclick="openUserProfileModal()" class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-xs border border-indigo-400/40 shadow-sm shrink-0" id="mobileUserBtn" title="Account Profile">
                         <span id="mobileUserInitial">P</span>
                     </button>
                     
@@ -188,44 +190,15 @@
                             </div>
                         </div>
                     </div>
-
                 </div>
 
-                <!-- ================= DESKTOP HEADER CONTROLS (>= sm) ================= -->
-                <div class="hidden sm:flex items-center space-x-2.5 shrink-0">
-                    <!-- User Profile & Household Switcher (Desktop) -->
-                    <button type="button" onclick="openUserProfileModal()" id="hdrUserProfileBtn" class="flex items-center gap-2 bg-slate-800/90 hover:bg-slate-700 text-white px-2.5 py-1.5 rounded-xl border border-slate-700 transition shrink-0" title="Account &amp; Household">
-                        <div class="w-7 h-7 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center text-xs font-black shadow-sm" id="hdrUserAvatar">P</div>
-                        <div class="text-left hidden lg:block leading-tight">
-                            <div class="text-xs font-black truncate max-w-[90px]" id="hdrUserName">Palash</div>
-                            <div class="text-[9px] font-extrabold text-indigo-300 uppercase" id="hdrUserRole">Owner</div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
-                    </button>
-                    
-                    <!-- Live Theme Switcher (Desktop) -->
-                    <div class="flex items-center space-x-1.5 bg-slate-800/90 text-slate-200 border border-slate-700/90 rounded-xl px-2.5 py-1.5 shadow-sm text-xs font-semibold">
-                        <i class="fa-solid fa-palette text-amber-400"></i>
-                        <select id="themeSelector" onchange="changeTheme(this.value)" class="bg-transparent text-slate-200 text-xs font-bold focus:outline-none cursor-pointer border-none p-0">
-                            <option value="indigo" class="bg-slate-900 text-white">✨ Luxe Indigo</option>
-                            <option value="dark" class="bg-slate-900 text-white">🌙 Midnight Dark</option>
-                            <option value="emerald" class="bg-slate-900 text-white">🌿 Emerald Mint</option>
-                            <option value="rose" class="bg-slate-900 text-white">🌅 Sunset Rose</option>
-                        </select>
-                    </div>
-
-                    <!-- PWA Install App Action -->
-                    <button id="btnInstallPwa" onclick="installPwaApp()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs px-3 py-2 rounded-xl shadow-md transition flex items-center space-x-1.5" title="Install or Download App to Mobile">
-                        <i class="fa-solid fa-mobile-screen-button text-xs sm:text-sm"></i>
-                        <span>Install App</span>
-                    </button>
-
+                <!-- Zone 4: Desktop Header Controls (>= sm) -->
+                <div class="hidden sm:flex items-center space-x-2 shrink-0">
                     <!-- Notification Center Bell Trigger -->
                     <div class="relative inline-block text-left">
-                        <button id="btnNotificationBell" onclick="toggleNotificationCenter()" class="relative bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-2 rounded-xl border border-slate-700 shadow-sm transition flex items-center space-x-1.5" title="Notifications & Bill Reminders">
-                            <i class="fa-solid fa-bell text-amber-400 text-xs sm:text-sm"></i>
+                        <button id="btnNotificationBell" onclick="toggleNotificationCenter()" class="relative w-9 h-9 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 shadow-sm transition flex items-center justify-center" title="Notifications & Bill Reminders">
+                            <i class="fa-solid fa-bell text-amber-400 text-sm"></i>
                             <span id="notificationBadgeCount" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white font-black text-[10px] w-4 h-4 rounded-full flex items-center justify-center animate-bounce">0</span>
-                            <span class="hidden xl:inline text-xs font-bold text-slate-200">Alerts</span>
                         </button>
                         
                         <!-- Notification Center Dropdown Flyout -->
@@ -284,53 +257,70 @@
                         </div>
                     </div>
 
-                    <!-- Reset to Current Month Shortcut -->
-                    <button onclick="resetToCurrentMonth()" title="Reset to Current Month & Year" class="bg-slate-800/90 hover:bg-slate-700 text-indigo-300 font-bold text-xs px-3 py-2 rounded-xl border border-indigo-500/30 shadow-sm transition flex items-center space-x-1.5">
-                        <i class="fa-solid fa-calendar-day text-indigo-400"></i>
-                        <span class="hidden md:inline">Current Month</span>
-                    </button>
+                    <!-- Live Theme Switcher (Desktop) -->
+                    <div class="flex items-center space-x-1.5 bg-slate-800/90 text-slate-200 border border-slate-700/90 rounded-xl px-2.5 py-1.5 shadow-sm text-xs font-semibold">
+                        <i class="fa-solid fa-palette text-amber-400 text-xs"></i>
+                        <select id="themeSelector" onchange="changeTheme(this.value)" class="bg-transparent text-slate-200 text-xs font-bold focus:outline-none cursor-pointer border-none p-0">
+                            <option value="indigo" class="bg-slate-900 text-white">✨ Luxe Indigo</option>
+                            <option value="dark" class="bg-slate-900 text-white">🌙 Midnight Dark</option>
+                            <option value="emerald" class="bg-slate-900 text-white">🌿 Emerald Mint</option>
+                            <option value="rose" class="bg-slate-900 text-white">🌅 Sunset Rose</option>
+                        </select>
+                    </div>
 
-                    <!-- Add Expense Primary Action -->
-                    <button id="btnQuickAdd" onclick="openExpenseModal()" class="bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white font-extrabold text-sm px-4 py-2 rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/40 active:scale-95 transition-all flex items-center space-x-2">
-                        <i class="fa-solid fa-plus text-xs"></i>
-                        <span>Add Expense</span>
-                    </button>
-                    
-                    <!-- Export Options Menu -->
+                    <!-- Export & Reports Menu -->
                     <div class="relative inline-block text-left">
-                        <button onclick="toggleExportMenu()" class="bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm px-3.5 py-2 rounded-xl border border-slate-700 shadow-sm transition flex items-center space-x-1.5">
-                            <i class="fa-solid fa-file-excel text-emerald-400"></i>
-                            <span>Export & Reports</span>
-                            <i class="fa-solid fa-chevron-down text-[10px] ml-1 text-slate-400"></i>
+                        <button onclick="toggleExportMenu()" class="bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-xs px-3 py-2 rounded-xl border border-slate-700 shadow-sm transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-file-excel text-emerald-400 text-xs"></i>
+                            <span>Reports &amp; Tools</span>
+                            <i class="fa-solid fa-chevron-down text-[9px] ml-0.5 text-slate-400"></i>
                         </button>
                         <div id="exportDropdownMenu" class="hidden absolute right-0 mt-2 w-64 rounded-2xl shadow-2xl bg-white border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100">
                             <div class="py-1">
-                                <button onclick="installPwaApp(); toggleExportMenu();" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-emerald-50 hover:text-emerald-700 flex items-center justify-between">
-                                    <span class="flex items-center gap-2"><i class="fa-solid fa-mobile-screen text-emerald-600"></i> Download / Install App</span>
-                                    <span class="text-[10px] bg-emerald-100 text-emerald-800 font-black px-1.5 py-0.5 rounded">iOS / Android</span>
-                                </button>
-                                <button onclick="generateExecutiveReport(); toggleExportMenu();" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-between">
-                                    <span class="flex items-center gap-2"><i class="fa-solid fa-file-pdf text-rose-500"></i> Executive PDF Report</span>
-                                    <span class="text-[10px] bg-rose-100 text-rose-800 font-black px-1.5 py-0.5 rounded">Print / PDF</span>
-                                </button>
                                 <button onclick="exportToExcel('filtered'); toggleExportMenu();" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-between">
                                     <span class="flex items-center gap-2"><i class="fa-solid fa-file-excel text-emerald-600"></i> Export Filtered Excel</span>
-                                    <span class="text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded">Active</span>
+                                    <span class="text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-black">Active</span>
                                 </button>
                                 <button onclick="exportToExcel('all'); toggleExportMenu();" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-between">
                                     <span class="flex items-center gap-2"><i class="fa-solid fa-file-lines text-slate-500"></i> Export Complete History</span>
-                                    <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">All-Time</span>
+                                    <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-black">All-Time</span>
+                                </button>
+                                <button onclick="generateExecutiveReport(); toggleExportMenu();" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-between">
+                                    <span class="flex items-center gap-2"><i class="fa-solid fa-file-pdf text-rose-500"></i> Executive PDF Report</span>
+                                    <span class="text-[10px] bg-rose-100 text-rose-800 font-black px-1.5 py-0.5 rounded">PDF</span>
+                                </button>
+                                <label class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-between cursor-pointer">
+                                    <span class="flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-indigo-500"></i> Import Excel Data</span>
+                                    <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-black">Upload</span>
+                                    <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden" onchange="importFromExcel(event); toggleExportMenu();">
+                                </label>
+                                <button onclick="installPwaApp(); toggleExportMenu();" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-emerald-50 hover:text-emerald-700 flex items-center justify-between">
+                                    <span class="flex items-center gap-2"><i class="fa-solid fa-mobile-screen text-emerald-600"></i> Install / Download App</span>
+                                    <span class="text-[10px] bg-emerald-100 text-emerald-800 font-black px-1.5 py-0.5 rounded">PWA</span>
+                                </button>
+                                <button onclick="resetToCurrentMonth(); toggleExportMenu();" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-between">
+                                    <span class="flex items-center gap-2"><i class="fa-solid fa-calendar-day text-indigo-500"></i> Reset to Current Month</span>
+                                    <span class="text-[10px] bg-indigo-100 text-indigo-800 font-black px-1.5 py-0.5 rounded">Today</span>
                                 </button>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Import Excel Action -->
-                    <label class="cursor-pointer bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-semibold text-sm px-3.5 py-2 rounded-xl border border-slate-700 transition flex items-center space-x-1.5">
-                        <i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i>
-                        <span>Import</span>
-                        <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden" onchange="importFromExcel(event)">
-                    </label>
+
+                    <!-- Add Expense Primary Action -->
+                    <button id="btnQuickAdd" onclick="openExpenseModal()" class="bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white font-extrabold text-xs sm:text-sm px-3.5 py-2 rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/40 active:scale-95 transition-all flex items-center space-x-1.5">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        <span>Add Expense</span>
+                    </button>
+
+                    <!-- User Profile & Household Switcher (Desktop) -->
+                    <button type="button" onclick="openUserProfileModal()" id="hdrUserProfileBtn" class="flex items-center gap-2 bg-slate-800/90 hover:bg-slate-700 text-white px-2.5 py-1.5 rounded-xl border border-slate-700 transition shrink-0" title="Account &amp; Household">
+                        <div class="w-7 h-7 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center text-xs font-black shadow-sm" id="hdrUserAvatar">P</div>
+                        <div class="text-left hidden lg:block leading-tight">
+                            <div class="text-xs font-black truncate max-w-[80px]" id="hdrUserName">Palash</div>
+                            <div class="text-[9px] font-extrabold text-indigo-300 uppercase" id="hdrUserRole">Owner</div>
+                        </div>
+                        <i class="fa-solid fa-chevron-down text-[8px] text-slate-400"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -403,8 +393,8 @@
         <!-- Main Content Area -->
         <main class="flex-1 min-w-0 space-y-4 sm:space-y-5">
 
-        <!-- Navigation Tabs Bar -->
-        <div class="glass-card rounded-2xl p-1 sm:p-1.5 border border-slate-200/80 shadow-sm flex items-center justify-between overflow-hidden">
+        <!-- Navigation Tabs Bar (Visible on Tablet/Mobile where sidebar is hidden) -->
+        <div class="glass-card rounded-2xl p-1 sm:p-1.5 border border-slate-200/80 shadow-sm flex items-center justify-between overflow-hidden xl:hidden">
             <div class="nav-tabs-scroll flex items-center gap-1 sm:gap-1.5 w-full md:w-auto py-0.5 px-0.5">
                 <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition flex items-center space-x-1.5 whitespace-nowrap">
                     <i class="fa-solid fa-chart-pie"></i>
@@ -3108,10 +3098,10 @@
     </div>
 
     <!-- ================= MODAL: SECURE COMMAND CENTER SIGN-IN ================= -->
-    <div id="loginModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md">
+    <div id="loginModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md">
         <div class="modal-content glass-card bg-slate-900 text-white rounded-3xl shadow-2xl border border-slate-700/80 max-w-md w-full overflow-hidden transform transition-all">
             <!-- Modal Header -->
-            <div class="p-6 pb-4 border-b border-slate-800 text-center relative">
+            <div class="p-6 pb-5 border-b border-slate-800 text-center relative">
                 <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-600 to-indigo-700 flex items-center justify-center text-white mx-auto mb-3 shadow-lg shadow-indigo-500/30">
                     <i class="fa-solid fa-vault text-2xl"></i>
                 </div>
@@ -3122,80 +3112,54 @@
                 </button>
             </div>
 
-            <!-- Quick Profile Selection Cards -->
-            <div class="p-6 pt-4 space-y-4">
-                <div>
-                    <label class="block text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">1-Click Fast Profile Switch</label>
-                    <div class="grid grid-cols-1 gap-2">
-                        <!-- Palash -->
-                        <button type="button" onclick="selectQuickLogin('palash', 'Palash@123')" class="p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-indigo-500 transition flex items-center justify-between text-left group">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-400/30 flex items-center justify-center font-black text-sm">P</div>
-                                <div>
-                                    <div class="text-xs font-black text-white group-hover:text-indigo-300">Palash (Owner)</div>
-                                    <div class="text-[10px] text-slate-400">Palash &amp; Pallavi Household · H001</div>
-                                </div>
-                            </div>
-                            <span class="text-[10px] font-black px-2 py-1 rounded-lg bg-indigo-500/20 text-indigo-300">Select</span>
-                        </button>
-                        <!-- Pallavi -->
-                        <button type="button" onclick="selectQuickLogin('pallavi', 'Pallavi@123')" class="p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-purple-500 transition flex items-center justify-between text-left group">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-400/30 flex items-center justify-center font-black text-sm">🌸</div>
-                                <div>
-                                    <div class="text-xs font-black text-white group-hover:text-purple-300">Pallavi (Member)</div>
-                                    <div class="text-[10px] text-slate-400">Palash &amp; Pallavi Household · H001</div>
-                                </div>
-                            </div>
-                            <span class="text-[10px] font-black px-2 py-1 rounded-lg bg-purple-500/20 text-purple-300">Select</span>
-                        </button>
-                        <!-- User B -->
-                        <button type="button" onclick="selectQuickLogin('userb', 'UserB@123')" class="p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-emerald-500 transition flex items-center justify-between text-left group">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-400/30 flex items-center justify-center font-black text-sm">B</div>
-                                <div>
-                                    <div class="text-xs font-black text-white group-hover:text-emerald-300">User B (Owner)</div>
-                                    <div class="text-[10px] text-slate-400">User B Household · H002 (Isolated)</div>
-                                </div>
-                            </div>
-                            <span class="text-[10px] font-black px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-300">Select</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="relative flex items-center justify-center">
-                    <div class="border-t border-slate-800 w-full"></div>
-                    <span class="bg-slate-900 px-3 text-[10px] font-black uppercase text-slate-500 shrink-0">or enter credentials</span>
-                </div>
-
-                <!-- Form -->
-                <form id="loginForm" onsubmit="handleLoginFormSubmit(event)" class="space-y-3">
-                    <div id="loginErrorMsg" class="hidden p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold text-center"></div>
+            <!-- Credentials Form -->
+            <div class="p-6 space-y-4">
+                <form id="loginForm" onsubmit="handleLoginFormSubmit(event)" class="space-y-4">
+                    <div id="loginErrorMsg" class="hidden p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold text-center"></div>
 
                     <div>
-                        <label class="block text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Username / Email</label>
-                        <input type="text" id="loginUsername" required class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-indigo-500 focus:outline-none placeholder-slate-500" placeholder="e.g. palash or userb">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Password</label>
-                        <input type="password" id="loginPassword" required class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-indigo-500 focus:outline-none placeholder-slate-500" placeholder="••••••••">
+                        <label class="block text-[11px] font-extrabold uppercase tracking-wider text-slate-300 mb-1.5">Username or Email</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+                                <i class="fa-solid fa-user text-xs"></i>
+                            </span>
+                            <input type="text" id="loginUsername" required autocomplete="username" class="w-full pl-10 pr-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs sm:text-sm font-semibold text-white focus:border-indigo-500 focus:outline-none placeholder-slate-500 transition" placeholder="Enter your username">
+                        </div>
                     </div>
 
-                    <button type="submit" id="btnLoginSubmit" class="w-full py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2">
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[11px] font-extrabold uppercase tracking-wider text-slate-300">Password</label>
+                            <button type="button" onclick="togglePasswordVisibility('loginPassword', this)" class="text-[11px] font-bold text-indigo-400 hover:text-indigo-300">Show</button>
+                        </div>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+                                <i class="fa-solid fa-lock text-xs"></i>
+                            </span>
+                            <input type="password" id="loginPassword" required autocomplete="current-password" class="w-full pl-10 pr-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs sm:text-sm font-semibold text-white focus:border-indigo-500 focus:outline-none placeholder-slate-500 transition" placeholder="••••••••">
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btnLoginSubmit" class="w-full py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black text-xs sm:text-sm rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2">
                         <span>Sign In to Command Center</span>
                         <i class="fa-solid fa-arrow-right"></i>
                     </button>
                 </form>
+
+                <div class="pt-3 border-t border-slate-800 flex items-center justify-center gap-2 text-[11px] text-slate-400">
+                    <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+                    <span>Household-Isolated &middot; Server-Side Scrypt Verification</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- ================= MODAL: USER & HOUSEHOLD PROFILE SWITCHER ================= -->
-    <div id="userProfileModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md">
+    <!-- ================= MODAL: USER & HOUSEHOLD ACCOUNT PROFILE ================= -->
+    <div id="userProfileModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md">
         <div class="modal-content glass-card bg-slate-900 text-white rounded-3xl shadow-2xl border border-slate-700/80 max-w-sm w-full overflow-hidden transform transition-all">
             <div class="p-5 border-b border-slate-800 flex justify-between items-center">
                 <h3 class="text-sm font-black flex items-center gap-2 text-white">
-                    <i class="fa-solid fa-user-shield text-indigo-400"></i> Account &amp; Household
+                    <i class="fa-solid fa-user-shield text-indigo-400"></i> Account &amp; Household Profile
                 </h3>
                 <button type="button" onclick="closeUserProfileModal()" class="text-slate-400 hover:text-white p-1">
                     <i class="fa-solid fa-xmark"></i>
@@ -3203,20 +3167,30 @@
             </div>
             <div class="p-5 space-y-4">
                 <div class="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/80 text-center">
-                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center text-lg font-black mx-auto mb-2" id="profileModalAvatar">P</div>
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-600 to-indigo-700 text-white flex items-center justify-center text-xl font-black mx-auto mb-2 shadow-md shadow-indigo-500/20" id="profileModalAvatar">P</div>
                     <h4 class="text-base font-black text-white" id="profileModalName">Palash</h4>
-                    <span class="inline-block text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 mt-1 uppercase" id="profileModalRole">Owner</span>
-                    <div class="text-xs text-slate-400 mt-2 font-medium flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-house-chimney text-slate-500"></i>
+                    <div class="flex items-center justify-center gap-1.5 mt-1">
+                        <span class="inline-block text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 uppercase" id="profileModalRole">Owner</span>
+                        <span class="inline-block text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 uppercase">Active</span>
+                    </div>
+                    <div class="text-xs text-slate-300 mt-3 font-semibold flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-house-chimney text-indigo-400"></i>
                         <span id="profileModalHousehold">Palash &amp; Pallavi Household</span>
                     </div>
                 </div>
 
-                <div class="space-y-2">
-                    <button type="button" onclick="openLoginModal(); closeUserProfileModal();" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-users-viewfinder text-indigo-400"></i>
-                        <span>Switch User / Household</span>
-                    </button>
+                <div class="p-3 rounded-xl bg-slate-800/50 border border-slate-800 text-[11px] text-slate-400 space-y-1.5">
+                    <div class="flex justify-between items-center">
+                        <span>Security Level:</span>
+                        <span class="font-bold text-slate-200">Household Isolated</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span>Session Valid:</span>
+                        <span class="font-bold text-emerald-400">30-Day Encrypted</span>
+                    </div>
+                </div>
+
+                <div class="space-y-2 pt-1">
                     <button type="button" onclick="signOut(); closeUserProfileModal();" class="w-full py-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2">
                         <i class="fa-solid fa-right-from-bracket"></i>
                         <span>Sign Out</span>

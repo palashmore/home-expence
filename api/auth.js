@@ -125,19 +125,25 @@ module.exports = async function handler(req, res) {
         if (req.method === 'GET') {
             const queryAction = req.query ? req.query.action : null;
 
-            // List available demo users (public profile only, NO passwords)
+            // List available household users (requires active authenticated session, isolated to current household)
             if (queryAction === 'users') {
-                const users = storage.getAllUsers().map(u => {
-                    const h = storage.getHouseholdById(u.householdId);
-                    return {
-                        userId: u.userId,
-                        username: u.username,
-                        name: u.name,
-                        householdId: u.householdId,
-                        householdName: h ? h.householdName : u.householdId,
-                        role: u.role
-                    };
-                });
+                const session = authenticateRequest(req);
+                if (!session) {
+                    return res.status(401).json({ success: false, error: "Authentication required to view household members." });
+                }
+                const users = storage.getAllUsers()
+                    .filter(u => u.householdId === session.householdId)
+                    .map(u => {
+                        const h = storage.getHouseholdById(u.householdId);
+                        return {
+                            userId: u.userId,
+                            username: u.username,
+                            name: u.name,
+                            householdId: u.householdId,
+                            householdName: h ? h.householdName : u.householdId,
+                            role: u.role
+                        };
+                    });
                 return res.status(200).json({ success: true, users: users });
             }
 
@@ -180,13 +186,13 @@ module.exports = async function handler(req, res) {
                 const username = String(body.username || '').trim().toLowerCase();
                 const password = String(body.password || '').trim();
 
-                if (!username) {
-                    return res.status(400).json({ success: false, error: "Username or email is required." });
+                if (!username || !password) {
+                    return res.status(400).json({ success: false, error: "Username and password are required." });
                 }
 
                 const user = storage.getUserByUsernameOrEmail(username);
                 if (!user || user.status !== 'active') {
-                    return res.status(401).json({ success: false, error: "Invalid credentials. User not found." });
+                    return res.status(401).json({ success: false, error: "Invalid username or password." });
                 }
 
                 // Verify Password (supports default demo passwords or user configured password)
@@ -196,7 +202,7 @@ module.exports = async function handler(req, res) {
                     (user.userId === 'U003' && password === 'UserB@123');
 
                 if (!isValidPassword) {
-                    return res.status(401).json({ success: false, error: "Invalid credentials. Password incorrect." });
+                    return res.status(401).json({ success: false, error: "Invalid username or password." });
                 }
 
                 const household = storage.getHouseholdById(user.householdId);

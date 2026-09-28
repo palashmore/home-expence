@@ -627,6 +627,8 @@
       description: finalNotes,
       splitBetween: 'Household Expense (Palash Reimburses Pallavi 100%)',
       receipt: null
+    };
+
     const handleOfflineSettle = () => {
       payload.id = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
       payload.isOfflineDraft = true;

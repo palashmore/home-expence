@@ -667,14 +667,17 @@ function updateHeaderStatus() {
     if (statusEl) {
         statusEl.textContent = navigator.onLine ? 'Live' : 'Offline';
     }
-    // Update header period badge
+    // Update header period badge safely
+    const periodText = document.getElementById("hdrPeriodText");
     const periodBadge = document.getElementById("hdrPeriodBadge");
-    if (periodBadge) {
+    if (periodText || periodBadge) {
         const p = getCurrentPeriod();
-        const monthShort = p.monthName.substring(0, 3);
-        const yearShort = String(p.year).substring(2);
-        const periodSpan = periodBadge.querySelector('span');
-        if (periodSpan) periodSpan.textContent = `${monthShort} '${yearShort}`;
+        if (periodText) {
+            periodText.textContent = `${p.monthName} ${p.year}`;
+        } else if (periodBadge) {
+            const periodSpan = periodBadge.querySelector('span');
+            if (periodSpan) periodSpan.textContent = `${p.monthName.substring(0, 3)} '${String(p.year).substring(2)}`;
+        }
     }
 }
 
@@ -721,10 +724,9 @@ function getActiveUser() {
 window.getActiveUser = getActiveUser;
 
 function updateUserProfileUI() {
-    if (!currentSessionUser) return;
-    const name = currentSessionUser.name || currentSessionUser.username || 'Palash';
-    const role = (currentSessionUser.role || 'OWNER').toUpperCase();
-    const hName = currentSessionUser.householdName || 'Palash & Pallavi Household';
+    const name = currentSessionUser?.name || currentSessionUser?.username || 'Guest';
+    const role = (currentSessionUser?.role || 'GUEST').toUpperCase();
+    const hName = currentSessionUser?.householdName || 'Sign In Required';
     const initial = name.charAt(0).toUpperCase();
 
     const hdrName = document.getElementById("hdrUserName");
@@ -754,11 +756,21 @@ window.updateUserProfileUI = updateUserProfileUI;
 function openLoginModal() {
     if (typeof triggerHaptic === 'function') triggerHaptic('light');
     const modal = document.getElementById("loginModal");
-    if (modal) modal.classList.remove("hidden");
+    if (modal) {
+        modal.classList.remove("hidden");
+        const userInput = document.getElementById("loginUsername");
+        if (userInput) setTimeout(() => userInput.focus(), 100);
+    }
 }
 window.openLoginModal = openLoginModal;
 
 function closeLoginModal() {
+    if (!authToken || !currentSessionUser) {
+        if (typeof showToast === 'function') {
+            showToast('warning', 'Authentication Required', 'Please sign in to access your household command center.');
+        }
+        return;
+    }
     const modal = document.getElementById("loginModal");
     if (modal) modal.classList.add("hidden");
 }
@@ -778,14 +790,18 @@ function closeUserProfileModal() {
 }
 window.closeUserProfileModal = closeUserProfileModal;
 
-function selectQuickLogin(username, password) {
-    const userInput = document.getElementById("loginUsername");
-    const passInput = document.getElementById("loginPassword");
-    if (userInput) userInput.value = username;
-    if (passInput) passInput.value = password;
-    signIn(username, password);
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    if (input.type === 'password') {
+        input.type = 'text';
+        if (btn) btn.textContent = 'Hide';
+    } else {
+        input.type = 'password';
+        if (btn) btn.textContent = 'Show';
+    }
 }
-window.selectQuickLogin = selectQuickLogin;
+window.togglePasswordVisibility = togglePasswordVisibility;
 
 async function handleLoginFormSubmit(e) {
     if (e && e.preventDefault) e.preventDefault();
@@ -829,7 +845,7 @@ async function signIn(username, password) {
             showToast('success', `Signed In as ${result.user.name}`, `Active: ${result.user.householdName}`);
         } else {
             if (errorEl) {
-                errorEl.textContent = result.error || "Sign in failed. Please check credentials.";
+                errorEl.textContent = result.error || "Invalid username or password. Please verify credentials.";
                 errorEl.classList.remove("hidden");
             }
         }
@@ -863,6 +879,7 @@ function signOut() {
         body: JSON.stringify({ action: 'logout' })
     }).catch(() => {});
 
+    updateUserProfileUI();
     renderAllViews();
     openLoginModal();
 }
@@ -894,8 +911,12 @@ async function initAuthSession() {
         } catch (e) {}
     }
 
-    // Default auto-login as Palash (H001) for instant seamless experience
-    await signIn('palash', 'Palash@123');
+    // Default seamless login as Palash (H001) if no active session or freshly launched
+    try {
+        await signIn('palash', 'Palash@123');
+    } catch (e) {
+        openLoginModal();
+    }
 }
 window.initAuthSession = initAuthSession;
 
@@ -1277,9 +1298,15 @@ function renderDashboard(filtered) {
     const titleEl = document.getElementById("dashboardPeriodTitle");
     if (titleEl) titleEl.innerHTML = periodTitleStr;
 
+    const periodVal = dashboardFilters.month === "all" ? "All Time" : `${dashboardFilters.month} ${dashboardFilters.year}`;
+    const hdrText = document.getElementById("hdrPeriodText");
     const hdrBadge = document.getElementById("hdrPeriodBadge");
-    if (hdrBadge) {
-        hdrBadge.textContent = dashboardFilters.month === "all" ? "All Time" : `${dashboardFilters.month} ${dashboardFilters.year}`;
+    if (hdrText) {
+        hdrText.textContent = periodVal;
+    } else if (hdrBadge) {
+        const span = hdrBadge.querySelector('span');
+        if (span) span.textContent = periodVal;
+        else hdrBadge.textContent = periodVal;
     }
 
     // 2. Derive Financial Metrics strictly from filtered dataset

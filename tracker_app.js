@@ -558,8 +558,9 @@ function switchTab(tabId) {
         });
     }
 
-    if (tabId === 'admin' && window.renderAdminView) {
-        window.renderAdminView();
+    if (tabId === 'admin') {
+        if (window.renderAdminView) window.renderAdminView();
+        if (window.loadAdminConsoleData) window.loadAdminConsoleData();
     }
     if (tabId === 'audit' && window.renderAuditView) {
         window.renderAuditView();
@@ -842,6 +843,7 @@ async function signIn(username, password) {
             closeLoginModal();
             updateUserProfileUI();
             await loadData();
+            if (window.loadAdminConsoleData) window.loadAdminConsoleData();
             showToast('success', `Signed In as ${result.user.name}`, `Active: ${result.user.householdName}`);
         } else {
             if (errorEl) {
@@ -906,17 +908,23 @@ async function initAuthSession() {
                 localStorage.setItem("household_session_user", JSON.stringify(currentSessionUser));
                 updateUserProfileUI();
                 await loadData();
+                if (window.loadAdminConsoleData) window.loadAdminConsoleData();
                 return;
             }
         } catch (e) {}
     }
 
-    // Default seamless login as Palash (H001) if no active session or freshly launched
-    try {
-        await signIn('palash', 'Palash@123');
-    } catch (e) {
-        openLoginModal();
-    }
+    // If no valid session exists or session expired, remain signed out and prompt for login
+    authToken = '';
+    currentSessionUser = null;
+    localStorage.removeItem("household_auth_token");
+    localStorage.removeItem("household_session_user");
+    expenses = [];
+    window.expenses = [];
+    window.expensesData = [];
+    updateUserProfileUI();
+    renderAllViews();
+    openLoginModal();
 }
 window.initAuthSession = initAuthSession;
 
@@ -3337,3 +3345,417 @@ window.updateGlobalsFromConfig = function(config) {
         window.FAMILY_MEMBERS = FAMILY_MEMBERS;
     }
 };
+
+// ============================================================
+// ADMIN CONSOLE: MULTI-HOUSEHOLD & USER DIRECTORY ENGINE
+// ============================================================
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+window.escapeHtml = escapeHtml;
+
+let adminDirectoryData = { households: [], users: [], activeHouseholdId: '' };
+
+async function loadAdminConsoleData(showFeedback = false) {
+    if (!authToken || !currentSessionUser) return;
+
+    try {
+        const res = await fetch('/api/auth?action=admin_overview', {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+
+        if (!res.ok) {
+            const card = document.getElementById("adminTenantManagementCard");
+            if (card && currentSessionUser.role !== 'ADMIN' && currentSessionUser.role !== 'OWNER') {
+                card.classList.add("hidden");
+            }
+            return;
+        }
+
+        const data = await res.json();
+        if (data.success) {
+            adminDirectoryData = data;
+            renderAdminDirectoryUI();
+            if (showFeedback && typeof showToast === 'function') {
+                showToast('success', 'Directory Refreshed', `Loaded ${data.households.length} households and ${data.users.length} users.`);
+            }
+        }
+    } catch (err) {
+        console.warn("Failed to load admin directory:", err);
+    }
+}
+window.loadAdminConsoleData = loadAdminConsoleData;
+
+function renderAdminDirectoryUI() {
+    const households = adminDirectoryData.households || [];
+    const users = adminDirectoryData.users || [];
+    const activeHId = currentSessionUser?.householdId || 'H001';
+    const userRole = currentSessionUser?.role || 'MEMBER';
+
+    // 1. Role Badge & Active Household Display
+    const roleBadge = document.getElementById("adminRoleBadge");
+    if (roleBadge) {
+        roleBadge.textContent = `${userRole} CONSOLE`;
+        if (userRole === 'ADMIN') {
+            roleBadge.className = "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200";
+        } else {
+            roleBadge.className = "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200";
+        }
+    }
+
+    const activeDisplay = document.getElementById("adminActiveHouseholdDisplay");
+    const activeH = households.find(h => h.householdId === activeHId);
+    if (activeDisplay) {
+        activeDisplay.textContent = activeH ? `${activeH.householdName} (${activeH.householdId})` : `${currentSessionUser?.householdName || activeHId} (${activeHId})`;
+    }
+
+    // 2. Household Switcher Dropdown (Only switchable for ADMIN or members of multiple households)
+    const switchSelect = document.getElementById("adminHouseholdQuickSwitch");
+    const switcherBar = document.getElementById("adminHouseholdSwitcherBar");
+    if (switchSelect) {
+        switchSelect.innerHTML = households.map(h => 
+            `<option value="${h.householdId}" ${h.householdId === activeHId ? 'selected' : ''}>${escapeHtml(h.householdName)} (${h.householdId})</option>`
+        ).join('');
+
+        if (userRole !== 'ADMIN' && households.length <= 1) {
+            if (switcherBar) switcherBar.classList.add("hidden");
+        } else {
+            if (switcherBar) switcherBar.classList.remove("hidden");
+        }
+    }
+
+    // 3. Populate Household Dropdown in Create User Modal
+    const userModalHSelect = document.getElementById("createUserHouseholdSelect");
+    if (userModalHSelect) {
+        const selectableHouseholds = userRole === 'ADMIN' ? households : households.filter(h => h.householdId === activeHId);
+        userModalHSelect.innerHTML = selectableHouseholds.map(h =>
+            `<option value="${h.householdId}" ${h.householdId === activeHId ? 'selected' : ''}>${escapeHtml(h.householdName)} (${h.householdId})</option>`
+        ).join('');
+    }
+
+    // 4. Update Counts
+    const hCountBadge = document.getElementById("adminHouseholdCountBadge");
+    if (hCountBadge) hCountBadge.textContent = `${households.length} Total`;
+
+    const uCountBadge = document.getElementById("adminUserCountBadge");
+    if (uCountBadge) uCountBadge.textContent = `${users.length} Total`;
+
+    // 5. Render Households Table
+    const hTableBody = document.getElementById("adminHouseholdsTableBody");
+    if (hTableBody) {
+        if (households.length === 0) {
+            hTableBody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-400 text-xs">No households registered.</td></tr>`;
+        } else {
+            hTableBody.innerHTML = households.map(h => {
+                const isActive = h.householdId === activeHId;
+                return `
+                <tr class="hover:bg-slate-50 transition ${isActive ? 'bg-indigo-50/50' : ''}">
+                    <td class="py-2.5 px-2.5">
+                        <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800">${h.householdId}</span>
+                    </td>
+                    <td class="py-2.5 px-2.5">
+                        <div class="font-black text-slate-900 flex items-center space-x-1.5">
+                            <span>${escapeHtml(h.householdName)}</span>
+                            ${isActive ? '<span class="text-[9px] font-black uppercase px-1.5 py-0.2 rounded-full bg-indigo-600 text-white">Active</span>' : ''}
+                        </div>
+                    </td>
+                    <td class="py-2.5 px-2.5 text-center">
+                        <span class="text-xs font-bold text-slate-600">${h.memberCount || 1}</span>
+                    </td>
+                    <td class="py-2.5 px-2.5 text-right">
+                        ${!isActive && userRole === 'ADMIN' ? `
+                            <button onclick="switchActiveHousehold('${h.householdId}')" class="px-2.5 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-[11px] font-black rounded-lg transition" title="Switch active workspace to this household">
+                                Switch
+                            </button>
+                        ` : `
+                            <span class="text-[11px] font-bold text-emerald-600 flex items-center justify-end gap-1">
+                                <i class="fa-solid fa-check"></i> Current
+                            </span>
+                        `}
+                    </td>
+                </tr>
+                `;
+            }).join('');
+        }
+    }
+
+    // 6. Render Users Table
+    const uTableBody = document.getElementById("adminUsersTableBody");
+    if (uTableBody) {
+        if (users.length === 0) {
+            uTableBody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-400 text-xs">No users registered.</td></tr>`;
+        } else {
+            uTableBody.innerHTML = users.map(u => {
+                const isCurrent = currentSessionUser && currentSessionUser.userId === u.userId;
+                const roleBadgeClass = u.role === 'ADMIN' 
+                    ? 'bg-purple-100 text-purple-800 border-purple-200'
+                    : (u.role === 'OWNER' 
+                        ? 'bg-indigo-100 text-indigo-800 border-indigo-200' 
+                        : 'bg-slate-100 text-slate-700 border-slate-200');
+                return `
+                <tr class="hover:bg-slate-50 transition ${isCurrent ? 'bg-emerald-50/40' : ''}">
+                    <td class="py-2 px-2.5">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-6 h-6 rounded-md bg-slate-200 text-slate-700 font-black text-[10px] flex items-center justify-center shrink-0">
+                                ${(u.name || u.username).charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <span class="font-bold text-slate-900 block truncate max-w-[100px] sm:max-w-[120px]">${escapeHtml(u.name)}</span>
+                                <span class="text-[10px] text-slate-400 font-semibold block">@${escapeHtml(u.username)}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="py-2 px-2.5">
+                        <span class="text-[11px] font-medium text-slate-600 block truncate max-w-[120px]">${escapeHtml(u.householdName || u.householdId)}</span>
+                    </td>
+                    <td class="py-2 px-2.5 text-center">
+                        <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${roleBadgeClass}">${u.role}</span>
+                    </td>
+                    <td class="py-2 px-2.5 text-center">
+                        <span class="text-[10px] font-bold text-emerald-600">Active</span>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+        }
+    }
+}
+window.renderAdminDirectoryUI = renderAdminDirectoryUI;
+
+function openCreateHouseholdModal() {
+    if (typeof triggerHaptic === 'function') triggerHaptic('light');
+    const modal = document.getElementById("modalCreateHousehold");
+    const err = document.getElementById("createHouseholdError");
+    if (err) err.classList.add("hidden");
+    const nameInput = document.getElementById("createHouseholdName");
+    if (nameInput) nameInput.value = "";
+    if (modal) {
+        modal.classList.remove("hidden");
+        if (nameInput) setTimeout(() => nameInput.focus(), 100);
+    }
+}
+window.openCreateHouseholdModal = openCreateHouseholdModal;
+
+function closeCreateHouseholdModal() {
+    const modal = document.getElementById("modalCreateHousehold");
+    if (modal) modal.classList.add("hidden");
+}
+window.closeCreateHouseholdModal = closeCreateHouseholdModal;
+
+async function submitCreateHousehold() {
+    const nameInput = document.getElementById("createHouseholdName");
+    const budgetInput = document.getElementById("createHouseholdBudget");
+    const errEl = document.getElementById("createHouseholdError");
+    const btn = document.getElementById("btnSubmitCreateHousehold");
+
+    const householdName = (nameInput?.value || '').trim();
+    const initialBudget = Number(budgetInput?.value) || 50000;
+
+    if (!householdName || householdName.length < 2) {
+        if (errEl) {
+            errEl.textContent = "Please provide a valid household name (at least 2 characters).";
+            errEl.classList.remove("hidden");
+        }
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Creating...`;
+    }
+
+    try {
+        const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                action: 'create_household',
+                householdName: householdName,
+                initialBudget: initialBudget
+            })
+        });
+        const result = await res.json();
+        if (result.success) {
+            closeCreateHouseholdModal();
+            if (typeof showToast === 'function') {
+                showToast('success', 'Household Created', result.message || `Household '${householdName}' created successfully.`);
+            }
+            await loadAdminConsoleData();
+        } else {
+            if (errEl) {
+                errEl.textContent = result.error || "Failed to create household.";
+                errEl.classList.remove("hidden");
+            }
+        }
+    } catch (e) {
+        if (errEl) {
+            errEl.textContent = "Network error creating household.";
+            errEl.classList.remove("hidden");
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-plus"></i> <span>Create Household</span>`;
+        }
+    }
+}
+window.submitCreateHousehold = submitCreateHousehold;
+
+function openCreateUserModal() {
+    if (typeof triggerHaptic === 'function') triggerHaptic('light');
+    const modal = document.getElementById("modalCreateUser");
+    const err = document.getElementById("createUserError");
+    if (err) err.classList.add("hidden");
+    const nameInput = document.getElementById("createUserName");
+    const uInput = document.getElementById("createUserUsername");
+    const pInput = document.getElementById("createUserPassword");
+    const eInput = document.getElementById("createUserEmail");
+    if (nameInput) nameInput.value = "";
+    if (uInput) uInput.value = "";
+    if (pInput) pInput.value = "";
+    if (eInput) eInput.value = "";
+    if (modal) {
+        modal.classList.remove("hidden");
+        if (nameInput) setTimeout(() => nameInput.focus(), 100);
+    }
+}
+window.openCreateUserModal = openCreateUserModal;
+
+function closeCreateUserModal() {
+    const modal = document.getElementById("modalCreateUser");
+    if (modal) modal.classList.add("hidden");
+}
+window.closeCreateUserModal = closeCreateUserModal;
+
+async function submitCreateUser() {
+    const nameInput = document.getElementById("createUserName");
+    const uInput = document.getElementById("createUserUsername");
+    const pInput = document.getElementById("createUserPassword");
+    const eInput = document.getElementById("createUserEmail");
+    const hSelect = document.getElementById("createUserHouseholdSelect");
+    const rSelect = document.getElementById("createUserRoleSelect");
+    const errEl = document.getElementById("createUserError");
+    const btn = document.getElementById("btnSubmitCreateUser");
+
+    const name = (nameInput?.value || '').trim();
+    const username = (uInput?.value || '').trim().toLowerCase();
+    const password = (pInput?.value || '').trim();
+    const email = (eInput?.value || '').trim().toLowerCase();
+    const householdId = hSelect?.value;
+    const role = rSelect?.value || 'MEMBER';
+
+    if (!name || !username || !password || !householdId) {
+        if (errEl) {
+            errEl.textContent = "Please fill in all required fields.";
+            errEl.classList.remove("hidden");
+        }
+        return;
+    }
+
+    if (password.length < 6) {
+        if (errEl) {
+            errEl.textContent = "Password must be at least 6 characters long.";
+            errEl.classList.remove("hidden");
+        }
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Creating User...`;
+    }
+
+    try {
+        const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                action: 'create_user',
+                name,
+                username,
+                password,
+                email: email || `${username}@homeexpenses.local`,
+                householdId,
+                role
+            })
+        });
+        const result = await res.json();
+        if (result.success) {
+            closeCreateUserModal();
+            if (typeof showToast === 'function') {
+                showToast('success', 'User Account Created', `User @${username} created with initial password.`);
+            }
+            await loadAdminConsoleData();
+        } else {
+            if (errEl) {
+                errEl.textContent = result.error || "Failed to create user.";
+                errEl.classList.remove("hidden");
+            }
+        }
+    } catch (e) {
+        if (errEl) {
+            errEl.textContent = "Network error creating user.";
+            errEl.classList.remove("hidden");
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-user-plus"></i> <span>Create User</span>`;
+        }
+    }
+}
+window.submitCreateUser = submitCreateUser;
+
+async function onAdminSelectHouseholdSwitch(targetHId) {
+    if (!targetHId || targetHId === currentSessionUser?.householdId) return;
+    await switchActiveHousehold(targetHId);
+}
+window.onAdminSelectHouseholdSwitch = onAdminSelectHouseholdSwitch;
+
+async function switchActiveHousehold(targetHId) {
+    if (!targetHId) return;
+    if (typeof triggerHaptic === 'function') triggerHaptic('medium');
+
+    try {
+        const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                action: 'switch_household',
+                householdId: targetHId
+            })
+        });
+        const result = await res.json();
+        if (result.success && result.token) {
+            authToken = result.token;
+            currentSessionUser = result.user;
+            localStorage.setItem("household_auth_token", authToken);
+            localStorage.setItem("household_session_user", JSON.stringify(currentSessionUser));
+
+            // Reset expenses array to guarantee clean isolation
+            expenses = [];
+            window.expenses = [];
+            window.expensesData = [];
+
+            updateUserProfileUI();
+            await loadData();
+            await loadAdminConsoleData();
+            if (typeof showToast === 'function') {
+                showToast('info', 'Workspace Switched', `Active Household: ${result.user.householdName}`);
+            }
+        } else {
+            alert(`Unable to switch household: ${result.error || 'Access denied'}`);
+        }
+    } catch (e) {
+        console.error("Error switching household:", e);
+    }
+}
+window.switchActiveHousehold = switchActiveHousehold;
+

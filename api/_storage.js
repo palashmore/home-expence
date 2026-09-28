@@ -106,6 +106,171 @@ function getHouseholdById(householdId) {
     return households.find(h => h.householdId === clean) || null;
 }
 
+function createHousehold(data, actor = 'System') {
+    if (!data || !data.householdName) {
+        throw new Error('Household name is required.');
+    }
+    const households = getAllHouseholds();
+    
+    // Find next Hxxx ID
+    let maxId = 0;
+    households.forEach(h => {
+        const m = h.householdId.match(/^H(\d+)$/i);
+        if (m) {
+            const num = parseInt(m[1], 10);
+            if (num > maxId) maxId = num;
+        }
+    });
+    const nextId = 'H' + String(maxId + 1).padStart(3, '0');
+    
+    const newHousehold = {
+        householdId: nextId,
+        householdName: String(data.householdName).trim(),
+        status: 'active',
+        ownerUserId: data.ownerUserId || null,
+        memberUserIds: data.ownerUserId ? [data.ownerUserId] : [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+    
+    households.push(newHousehold);
+    writeJsonFile(HOUSEHOLDS_FILE, households);
+    
+    // Initialize household directory structure
+    const dir = getHouseholdDir(nextId);
+    writeJsonFile(path.join(dir, 'expenses.json'), []);
+    
+    const initialConfig = {
+        monthlyBudgetLimit: Number(data.initialBudget) || 50000,
+        cycleType: data.cycleType || "calendar",
+        cycleStartDay: Number(data.cycleStartDay) || 1,
+        cycleEndDay: Number(data.cycleEndDay) || 31,
+        familyMembers: data.ownerName ? [data.ownerName] : ["Family Member"],
+        paymentModes: ["UPI", "Credit Card", "Debit Card", "Net Banking", "Cash"],
+        splitRules: ["50/50 Split", "100% Personal", "Shared Household"],
+        staffMembers: [],
+        recurringBills: [],
+        expenseCategories: [
+            { "name": "Groceries", "icon": "fa-basket-shopping", "color": "emerald" },
+            { "name": "Utilities", "icon": "fa-bolt", "color": "amber" },
+            { "name": "Dining & Food", "icon": "fa-utensils", "color": "orange" },
+            { "name": "Domestic Staff", "icon": "fa-users-gear", "color": "purple" },
+            { "name": "Healthcare & Medical", "icon": "fa-notes-medical", "color": "rose" },
+            { "name": "Transportation & Fuel", "icon": "fa-car", "color": "blue" },
+            { "name": "Shopping & Lifestyle", "icon": "fa-bag-shopping", "color": "pink" },
+            { "name": "Home Maintenance", "icon": "fa-screwdriver-wrench", "color": "slate" }
+        ],
+        updatedAt: new Date().toISOString()
+    };
+    writeJsonFile(path.join(dir, 'config.json'), initialConfig);
+    writeJsonFile(path.join(dir, 'attendance.json'), {});
+    writeJsonFile(path.join(dir, 'audit_log.json'), [{
+        id: `AUD-${Date.now()}-INIT`,
+        timestamp: new Date().toISOString(),
+        action: 'CREATE_HOUSEHOLD',
+        actor: actor,
+        details: `Household ${newHousehold.householdName} (${nextId}) created`
+    }]);
+
+    return newHousehold;
+}
+
+function createUser(data, actor = 'System') {
+    if (!data || !data.username) throw new Error('Username is required.');
+    if (!data.householdId) throw new Error('Household assignment is required.');
+    
+    const cleanUsername = String(data.username).trim().toLowerCase();
+    if (!/^[a-z0-9_.-]{3,30}$/.test(cleanUsername)) {
+        throw new Error('Username must be 3-30 alphanumeric characters.');
+    }
+    
+    const existing = getUserByUsernameOrEmail(cleanUsername);
+    if (existing) {
+        throw new Error(`Username or email '${cleanUsername}' already exists.`);
+    }
+
+    const households = getAllHouseholds();
+    const targetHousehold = households.find(h => h.householdId === data.householdId);
+    if (!targetHousehold) {
+        throw new Error(`Household ${data.householdId} does not exist.`);
+    }
+
+    const users = getAllUsers();
+    let maxId = 0;
+    users.forEach(u => {
+        const m = u.userId.match(/^U(\d+)$/i);
+        if (m) {
+            const num = parseInt(m[1], 10);
+            if (num > maxId) maxId = num;
+        }
+    });
+    const nextId = 'U' + String(maxId + 1).padStart(3, '0');
+
+    const newUser = {
+        userId: nextId,
+        username: cleanUsername,
+        email: String(data.email || `${cleanUsername}@homeexpenses.local`).trim().toLowerCase(),
+        name: String(data.name || cleanUsername).trim(),
+        passwordHash: data.passwordHash,
+        householdId: data.householdId,
+        role: (data.role || 'MEMBER').toUpperCase(),
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+
+    users.push(newUser);
+    writeJsonFile(USERS_FILE, users);
+
+    // Link user to household memberUserIds
+    if (!targetHousehold.memberUserIds) targetHousehold.memberUserIds = [];
+    if (!targetHousehold.memberUserIds.includes(nextId)) {
+        targetHousehold.memberUserIds.push(nextId);
+        targetHousehold.updatedAt = new Date().toISOString();
+        writeJsonFile(HOUSEHOLDS_FILE, households);
+    }
+
+    // Also add name to household config.json familyMembers if not already present
+    try {
+        const configPath = getHouseholdFilePath(data.householdId, 'config.json');
+        const config = readJsonFile(configPath);
+        if (config && Array.isArray(config.familyMembers)) {
+            if (!config.familyMembers.includes(newUser.name)) {
+                config.familyMembers.push(newUser.name);
+                writeJsonFile(configPath, config);
+            }
+        }
+    } catch (e) {}
+
+    return {
+        userId: newUser.userId,
+        username: newUser.username,
+        email: newUser.email,
+        name: newUser.name,
+        householdId: newUser.householdId,
+        role: newUser.role,
+        status: newUser.status,
+        createdAt: newUser.createdAt
+    };
+}
+
+function updateHousehold(householdId, updates) {
+    const cleanId = sanitizeId(householdId);
+    if (!cleanId) throw new Error('Invalid household ID.');
+    const households = getAllHouseholds();
+    const idx = households.findIndex(h => h.householdId === cleanId);
+    if (idx === -1) throw new Error('Household not found.');
+    
+    households[idx] = {
+        ...households[idx],
+        ...updates,
+        householdId: cleanId,
+        updatedAt: new Date().toISOString()
+    };
+    writeJsonFile(HOUSEHOLDS_FILE, households);
+    return households[idx];
+}
+
 // ==========================================
 // HOUSEHOLD-SCOPED EXPENSES REPOSITORY
 // ==========================================
@@ -486,6 +651,9 @@ module.exports = {
     getUserByUsernameOrEmail,
     getAllHouseholds,
     getHouseholdById,
+    createHousehold,
+    createUser,
+    updateHousehold,
     getHouseholdExpenses,
     getHouseholdExpenseById,
     saveHouseholdExpense,

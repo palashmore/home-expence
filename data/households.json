@@ -5,6 +5,7 @@
     "status": "active",
     "ownerUserId": "U001",
     "memberUserIds": [
+      "U000",
       "U001",
       "U002"
     ],
@@ -21,5 +22,17 @@
     ],
     "createdAt": "2026-09-28T18:31:24.246Z",
     "updatedAt": "2026-09-28T18:31:24.246Z"
+  },
+  {
+    "householdId": "H003",
+    "householdName": "Mehta Residency",
+    "status": "active",
+    "ownerUserId": "U000",
+    "memberUserIds": [
+      "U000",
+      "U004"
+    ],
+    "createdAt": "2026-09-28T19:22:22.696Z",
+    "updatedAt": "2026-09-28T19:22:22.742Z"
   }
 ]

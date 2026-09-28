@@ -1,0 +1,9 @@
+[
+  {
+    "id": "AUD-1790623342699-INIT",
+    "timestamp": "2026-09-28T19:22:22.699Z",
+    "action": "CREATE_HOUSEHOLD",
+    "actor": "admin",
+    "details": "Household Mehta Residency (H003) created"
+  }
+]

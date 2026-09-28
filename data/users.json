@@ -1,5 +1,17 @@
 [
   {
+    "userId": "U000",
+    "username": "admin",
+    "email": "admin@homeexpenses.local",
+    "name": "System Administrator",
+    "passwordHash": "df8df5fbd10f375df55cfa5216ca67e1:8c1084cd0dfc4aedace6498754821ee52f6adda41a12af99cf65ef04e0c8ea4e043a851ef98cc06f452cd7e86fe0903698f896e0d383d2b354d36dcaae9b62c1",
+    "householdId": "H001",
+    "role": "ADMIN",
+    "status": "active",
+    "createdAt": "2024-12-17T00:00:00.000Z",
+    "updatedAt": "2026-09-29T00:00:00.000Z"
+  },
+  {
     "userId": "U001",
     "username": "palash",
     "email": "palash@homeexpenses.local",
@@ -34,5 +46,17 @@
     "status": "active",
     "createdAt": "2026-09-28T18:31:24.246Z",
     "updatedAt": "2026-09-28T18:31:24.246Z"
+  },
+  {
+    "userId": "U004",
+    "username": "kavita",
+    "email": "kavita@mehta.local",
+    "name": "Kavita Mehta",
+    "passwordHash": "75a40f340b6202800eaeb7f88aa232e5:c53ed4f2ca0be8dafda6abec48fc358e55241e1980d0690fca1a607acd6a204be5247c9825d07d24367660d93bccaed0df76d30e8af791e084916e42960b5d18",
+    "householdId": "H003",
+    "role": "OWNER",
+    "status": "active",
+    "createdAt": "2026-09-28T19:22:22.742Z",
+    "updatedAt": "2026-09-28T19:22:22.742Z"
   }
 ]

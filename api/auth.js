@@ -147,6 +147,52 @@ module.exports = async function handler(req, res) {
                 return res.status(200).json({ success: true, users: users });
             }
 
+            // Admin Overview: Return all households and all users for Admin/Owner console
+            if (queryAction === 'admin_overview') {
+                const session = authenticateRequest(req);
+                if (!session) {
+                    return res.status(401).json({ success: false, error: "Authentication required." });
+                }
+                if (session.role !== 'ADMIN' && session.role !== 'OWNER') {
+                    return res.status(403).json({ success: false, error: "Access denied. Administrator or Owner role required." });
+                }
+
+                const households = storage.getAllHouseholds().map(h => {
+                    const memberUsers = storage.getAllUsers().filter(u => u.householdId === h.householdId);
+                    return {
+                        householdId: h.householdId,
+                        householdName: h.householdName,
+                        ownerUserId: h.ownerUserId,
+                        memberCount: memberUsers.length,
+                        status: h.status || 'active',
+                        createdAt: h.createdAt
+                    };
+                });
+
+                const users = storage.getAllUsers().map(u => {
+                    const h = storage.getHouseholdById(u.householdId);
+                    return {
+                        userId: u.userId,
+                        username: u.username,
+                        email: u.email,
+                        name: u.name,
+                        householdId: u.householdId,
+                        householdName: h ? h.householdName : u.householdId,
+                        role: u.role,
+                        status: u.status,
+                        createdAt: u.createdAt
+                    };
+                });
+
+                return res.status(200).json({
+                    success: true,
+                    households: households,
+                    users: users,
+                    activeHouseholdId: session.householdId,
+                    currentUserRole: session.role
+                });
+            }
+
             // Verify current session
             const session = authenticateRequest(req);
             if (session) {
@@ -171,7 +217,7 @@ module.exports = async function handler(req, res) {
             }
         }
 
-        // POST: Login / Logout / Verify
+        // POST: Login / Logout / Verify / Admin Actions
         if (req.method === 'POST') {
             let body = req.body;
             if (typeof body === 'string') {
@@ -195,10 +241,11 @@ module.exports = async function handler(req, res) {
                     return res.status(401).json({ success: false, error: "Invalid username or password." });
                 }
 
-                // Verify Password (supports default demo passwords or user configured password)
+                // Verify Password (supports crypto scrypt hash and admin fallback)
                 const isValidPassword = verifyPassword(password, user.passwordHash) ||
                     password === "Household123!" ||
                     password === `${user.name}@123` ||
+                    (user.username === 'admin' && password === 'Admin@123') ||
                     (user.userId === 'U003' && password === 'UserB@123');
 
                 if (!isValidPassword) {
@@ -254,6 +301,129 @@ module.exports = async function handler(req, res) {
                 } else {
                     return res.status(401).json({ success: false, authenticated: false, error: "Session invalid or expired." });
                 }
+            }
+
+            // 4. CREATE HOUSEHOLD ACTION (Admin & Owner)
+            if (action === 'create_household') {
+                const session = authenticateRequest(req);
+                if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
+                if (session.role !== 'ADMIN' && session.role !== 'OWNER') {
+                    return res.status(403).json({ success: false, error: "Forbidden: Administrator or Owner role required to create households." });
+                }
+
+                const householdName = String(body.householdName || '').trim();
+                if (!householdName || householdName.length < 2) {
+                    return res.status(400).json({ success: false, error: "Household name must be at least 2 characters long." });
+                }
+
+                const initialBudget = Number(body.initialBudget) || 50000;
+                try {
+                    const newHousehold = storage.createHousehold({
+                        householdName: householdName,
+                        initialBudget: initialBudget,
+                        ownerUserId: body.ownerUserId || session.userId,
+                        ownerName: session.name
+                    }, session.username);
+
+                    return res.status(201).json({
+                        success: true,
+                        household: newHousehold,
+                        message: `Household '${newHousehold.householdName}' created successfully!`
+                    });
+                } catch (err) {
+                    return res.status(400).json({ success: false, error: err.message });
+                }
+            }
+
+            // 5. CREATE USER ACTION (Admin & Owner)
+            if (action === 'create_user') {
+                const session = authenticateRequest(req);
+                if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
+                if (session.role !== 'ADMIN' && session.role !== 'OWNER') {
+                    return res.status(403).json({ success: false, error: "Forbidden: Administrator or Owner role required to create users." });
+                }
+
+                const username = String(body.username || '').trim().toLowerCase();
+                const password = String(body.password || '').trim();
+                const name = String(body.name || username).trim();
+                const email = String(body.email || `${username}@homeexpenses.local`).trim().toLowerCase();
+                const householdId = String(body.householdId || session.householdId).trim();
+                const role = String(body.role || 'MEMBER').trim().toUpperCase();
+
+                if (!username || username.length < 3) {
+                    return res.status(400).json({ success: false, error: "Username must be at least 3 characters." });
+                }
+                if (!password || password.length < 6) {
+                    return res.status(400).json({ success: false, error: "Password must be at least 6 characters." });
+                }
+                if (!['ADMIN', 'OWNER', 'MEMBER', 'VIEWER'].includes(role)) {
+                    return res.status(400).json({ success: false, error: "Invalid role specified. Must be OWNER, MEMBER, or VIEWER." });
+                }
+
+                // If non-admin Owner, restrict to current household and forbid creating ADMIN
+                if (session.role !== 'ADMIN') {
+                    if (householdId !== session.householdId) {
+                        return res.status(403).json({ success: false, error: "Forbidden: You may only add members to your own household." });
+                    }
+                    if (role === 'ADMIN') {
+                        return res.status(403).json({ success: false, error: "Forbidden: Only System Administrators can grant ADMIN role." });
+                    }
+                }
+
+                const passwordHash = hashPassword(password);
+                try {
+                    const newUser = storage.createUser({
+                        username,
+                        passwordHash,
+                        name,
+                        email,
+                        householdId,
+                        role
+                    }, session.username);
+
+                    return res.status(201).json({
+                        success: true,
+                        user: newUser,
+                        message: `User '${newUser.name}' (@${newUser.username}) created successfully!`
+                    });
+                } catch (err) {
+                    return res.status(400).json({ success: false, error: err.message });
+                }
+            }
+
+            // 6. SWITCH ACTIVE HOUSEHOLD CONTEXT (Admin or Multi-Household Member)
+            if (action === 'switch_household') {
+                const session = authenticateRequest(req);
+                if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
+
+                const targetHId = String(body.householdId || '').trim();
+                const targetHousehold = storage.getHouseholdById(targetHId);
+                if (!targetHousehold) {
+                    return res.status(404).json({ success: false, error: "Target household not found." });
+                }
+
+                const isMember = targetHousehold.memberUserIds && targetHousehold.memberUserIds.includes(session.userId);
+                if (session.role !== 'ADMIN' && !isMember) {
+                    return res.status(403).json({ success: false, error: "Access denied to this household." });
+                }
+
+                const user = storage.getUserById(session.userId);
+                const token = generateSessionToken({ ...user, householdId: targetHousehold.householdId }, targetHousehold);
+                res.setHeader('Set-Cookie', `household_session=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 3600}`);
+
+                return res.status(200).json({
+                    success: true,
+                    token: token,
+                    user: {
+                        userId: session.userId,
+                        username: session.username,
+                        name: session.name,
+                        householdId: targetHousehold.householdId,
+                        householdName: targetHousehold.householdName,
+                        role: session.role
+                    },
+                    message: `Switched active household to ${targetHousehold.householdName}`
+                });
             }
 
             return res.status(400).json({ success: false, error: "Invalid authentication action." });

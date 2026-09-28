@@ -460,6 +460,23 @@ function toggleMobileActionMenu() {
 }
 window.toggleMobileActionMenu = toggleMobileActionMenu;
 
+function openMobileMoreSheet() {
+    if (typeof triggerHaptic === 'function') triggerHaptic('light');
+    const sheet = document.getElementById("moreNavSheet");
+    const drawer = document.getElementById("moreNavDrawer");
+    if (sheet) sheet.classList.remove("hidden");
+    if (drawer) drawer.classList.remove("hidden");
+}
+window.openMobileMoreSheet = openMobileMoreSheet;
+
+function closeMobileMoreSheet() {
+    const sheet = document.getElementById("moreNavSheet");
+    const drawer = document.getElementById("moreNavDrawer");
+    if (sheet) sheet.classList.add("hidden");
+    if (drawer) drawer.classList.add("hidden");
+}
+window.closeMobileMoreSheet = closeMobileMoreSheet;
+
 // Global listener to close dropdowns when clicked outside
 document.addEventListener("click", function(e) {
     const mobileMenu = document.getElementById("mobileActionDropdown");
@@ -473,6 +490,12 @@ document.addEventListener("click", function(e) {
     const exportBtn = e.target.closest("button[onclick*='toggleExportMenu']");
     if (exportMenu && !exportMenu.classList.contains("hidden") && !exportMenu.contains(e.target) && !exportBtn) {
         exportMenu.classList.add("hidden");
+    }
+});
+
+document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape") {
+        closeMobileMoreSheet();
     }
 });
 
@@ -491,6 +514,7 @@ function switchTab(tabId) {
     });
     document.querySelectorAll(".tab-view").forEach(view => {
         view.classList.add("hidden");
+        view.classList.remove("section-enter");
     });
 
     const activeBtn = document.getElementById(`tab-${tabId}`);
@@ -514,6 +538,10 @@ function switchTab(tabId) {
     const activeView = document.getElementById(`view-${tabId}`);
     if (activeView) {
         activeView.classList.remove("hidden");
+        // Trigger section-enter animation
+        requestAnimationFrame(() => {
+            activeView.classList.add("section-enter");
+        });
     }
 
     if (tabId === 'admin' && window.renderAdminView) {
@@ -610,6 +638,7 @@ function updateSyncBadge(text, color) {
 function updateHeaderStatus() {
     const countEl = document.getElementById("hdrTxCount");
     const updatedEl = document.getElementById("hdrLastUpdated");
+    const statusEl = document.getElementById("hdrStatusText");
     if (countEl) countEl.textContent = `${expenses.length} Transactions`;
     if (updatedEl) {
         const d = new Date();
@@ -618,6 +647,19 @@ function updateHeaderStatus() {
         const ampm = hours >= 12 ? 'PM' : 'AM';
         const displayHours = hours % 12 || 12;
         updatedEl.textContent = `${displayHours}:${mins} ${ampm}`;
+    }
+    // Update live/offline status text in v5.0 header
+    if (statusEl) {
+        statusEl.textContent = navigator.onLine ? 'Live' : 'Offline';
+    }
+    // Update header period badge
+    const periodBadge = document.getElementById("hdrPeriodBadge");
+    if (periodBadge) {
+        const p = getCurrentPeriod();
+        const monthShort = p.monthName.substring(0, 3);
+        const yearShort = String(p.year).substring(2);
+        const periodSpan = periodBadge.querySelector('span');
+        if (periodSpan) periodSpan.textContent = `${monthShort} '${yearShort}`;
     }
 }
 

@@ -1,5 +1,47 @@
 [
   {
+    "id": "audit-1790624815629-hoc7h",
+    "householdId": "H001",
+    "timestamp": "2026-09-28T19:46:55.629Z",
+    "action": {
+      "id": "AUD-1790624815629-DEL-H",
+      "action": "DELETE_HOUSEHOLD",
+      "actor": "admin",
+      "details": "Deleted household 'Verma Grand Villa' (H003)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1790624511030-ernik",
+    "householdId": "H001",
+    "timestamp": "2026-09-28T19:41:51.030Z",
+    "action": {
+      "id": "AUD-1790624511030-DEL-H",
+      "action": "DELETE_HOUSEHOLD",
+      "actor": "admin",
+      "details": "Deleted household 'Sharma Family Estate' (H003)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1790624357242-pq456",
+    "householdId": "H001",
+    "timestamp": "2026-09-28T19:39:17.242Z",
+    "action": {
+      "id": "AUD-1790624357242-DEL-H",
+      "action": "DELETE_HOUSEHOLD",
+      "actor": "admin",
+      "details": "Deleted household 'Mehta Luxury Residence' (H003)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
     "id": "audit-1790620495432-2vvnp",
     "householdId": "H001",
     "timestamp": "2026-09-28T18:34:55.432Z",

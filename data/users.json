@@ -46,17 +46,5 @@
     "status": "active",
     "createdAt": "2026-09-28T18:31:24.246Z",
     "updatedAt": "2026-09-28T18:31:24.246Z"
-  },
-  {
-    "userId": "U004",
-    "username": "kavita",
-    "email": "kavita@mehta.local",
-    "name": "Kavita Mehta",
-    "passwordHash": "75a40f340b6202800eaeb7f88aa232e5:c53ed4f2ca0be8dafda6abec48fc358e55241e1980d0690fca1a607acd6a204be5247c9825d07d24367660d93bccaed0df76d30e8af791e084916e42960b5d18",
-    "householdId": "H003",
-    "role": "OWNER",
-    "status": "active",
-    "createdAt": "2026-09-28T19:22:22.742Z",
-    "updatedAt": "2026-09-28T19:22:22.742Z"
   }
 ]

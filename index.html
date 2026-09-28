@@ -2091,6 +2091,7 @@
                                             <th class="py-2 px-2.5">Household</th>
                                             <th class="py-2 px-2.5 text-center">Role</th>
                                             <th class="py-2 px-2.5 text-center">Status</th>
+                                            <th class="py-2 px-2.5 text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody id="adminUsersTableBody" class="divide-y divide-slate-100 font-semibold text-slate-700">
@@ -3338,6 +3339,145 @@
                     <button type="submit" id="btnSubmitCreateUser" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md shadow-emerald-500/20 transition flex items-center justify-center space-x-1.5">
                         <i class="fa-solid fa-user-plus"></i>
                         <span>Create User</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: EDIT HOUSEHOLD ================= -->
+    <div id="modalEditHousehold" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md">
+        <div class="modal-content glass-card bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden transform transition-all">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-white">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-black text-slate-900">Edit Household</h3>
+                        <span id="editHouseholdIdBadge" class="text-[10px] font-mono text-slate-500 font-bold">H001</span>
+                    </div>
+                </div>
+                <button type="button" onclick="closeEditHouseholdModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form onsubmit="event.preventDefault(); submitEditHousehold();" class="p-5 space-y-4">
+                <input type="hidden" id="editHouseholdId">
+
+                <div>
+                    <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">Household Name *</label>
+                    <input type="text" id="editHouseholdName" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">Monthly Budget Limit (₹)</label>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                        <input type="number" step="1000" min="1000" id="editHouseholdBudget" class="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">Household Status</label>
+                    <select id="editHouseholdStatus" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                        <option value="active">Active</option>
+                        <option value="archived">Archived / Inactive</option>
+                    </select>
+                </div>
+
+                <div id="editHouseholdError" class="hidden p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold"></div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeEditHouseholdModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
+                        Cancel
+                    </button>
+                    <button type="submit" id="btnSubmitEditHousehold" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-md shadow-indigo-500/20 transition flex items-center justify-center space-x-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Save Changes</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: EDIT USER & PERMISSIONS ================= -->
+    <div id="modalEditUser" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md">
+        <div class="modal-content glass-card bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden transform transition-all">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-user-pen"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-black text-slate-900">Edit User &amp; Permissions</h3>
+                        <span id="editUserIdBadge" class="text-[10px] font-mono text-slate-500 font-bold">U001</span>
+                    </div>
+                </div>
+                <button type="button" onclick="closeEditUserModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form onsubmit="event.preventDefault(); submitEditUser();" class="p-5 space-y-3.5">
+                <input type="hidden" id="editUserId">
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">Full Name *</label>
+                        <input type="text" id="editUserName" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-emerald-500 focus:bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">Username *</label>
+                        <input type="text" id="editUserUsername" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-emerald-500 focus:bg-white transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">Email Address</label>
+                    <input type="email" id="editUserEmail" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:border-emerald-500 focus:bg-white transition">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">Assigned Household *</label>
+                        <select id="editUserHouseholdSelect" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-emerald-500 focus:bg-white transition">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">Role / Permission *</label>
+                        <select id="editUserRoleSelect" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-emerald-500 focus:bg-white transition">
+                            <option value="MEMBER">Member (Standard)</option>
+                            <option value="OWNER">Owner (Household Admin)</option>
+                            <option value="VIEWER">Viewer (Read-Only)</option>
+                            <option value="ADMIN">System Admin (Global)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">Account Status</label>
+                    <select id="editUserStatusSelect" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-emerald-500 focus:bg-white transition">
+                        <option value="active">Active</option>
+                        <option value="disabled">Disabled / Inactive</option>
+                    </select>
+                </div>
+
+                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                    <label class="block text-[11px] font-black text-slate-700 uppercase tracking-wider">Reset Password (Optional)</label>
+                    <input type="password" id="editUserPassword" placeholder="Leave blank to keep current password" class="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:border-emerald-500 transition">
+                    <p class="text-[10px] text-slate-500">Provide 6+ characters only if you want to set a new password for this user.</p>
+                </div>
+
+                <div id="editUserError" class="hidden p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold"></div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeEditUserModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
+                        Cancel
+                    </button>
+                    <button type="submit" id="btnSubmitEditUser" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md shadow-emerald-500/20 transition flex items-center justify-center space-x-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Save Changes</span>
                     </button>
                 </div>
             </form>

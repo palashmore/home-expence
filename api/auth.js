@@ -196,16 +196,31 @@ module.exports = async function handler(req, res) {
             // Verify current session
             const session = authenticateRequest(req);
             if (session) {
+                // Fetch fresh user record to reflect any live permission/status changes
+                const userRec = storage.getUserById(session.userId);
+                if (userRec && userRec.status === 'disabled') {
+                    return res.status(403).json({
+                        success: false,
+                        authenticated: false,
+                        error: "Account has been disabled. Please contact administrator."
+                    });
+                }
+                const activeRole = userRec ? userRec.role : session.role;
+                const activeHouseholdId = userRec ? userRec.householdId : session.householdId;
+                const hh = storage.getHouseholdById(activeHouseholdId);
+                const finalHouseholdId = hh ? activeHouseholdId : 'H001';
+                const finalHousehold = hh || storage.getHouseholdById('H001');
+
                 return res.status(200).json({
                     success: true,
                     authenticated: true,
                     user: {
                         userId: session.userId,
-                        username: session.username,
-                        name: session.name,
-                        householdId: session.householdId,
-                        householdName: session.householdName,
-                        role: session.role
+                        username: userRec ? userRec.username : session.username,
+                        name: userRec ? userRec.name : session.name,
+                        householdId: finalHouseholdId,
+                        householdName: finalHousehold ? finalHousehold.householdName : 'Primary Household',
+                        role: activeRole
                     }
                 });
             } else {
@@ -286,16 +301,26 @@ module.exports = async function handler(req, res) {
             if (action === 'verify') {
                 const session = authenticateRequest(req) || (body.token ? verifySessionToken(body.token) : null);
                 if (session) {
+                    const userRec = storage.getUserById(session.userId);
+                    if (userRec && userRec.status === 'disabled') {
+                        return res.status(403).json({ success: false, authenticated: false, error: "Account has been disabled." });
+                    }
+                    const activeRole = userRec ? userRec.role : session.role;
+                    const activeHouseholdId = userRec ? userRec.householdId : session.householdId;
+                    const hh = storage.getHouseholdById(activeHouseholdId);
+                    const finalHouseholdId = hh ? activeHouseholdId : 'H001';
+                    const finalHousehold = hh || storage.getHouseholdById('H001');
+
                     return res.status(200).json({
                         success: true,
                         authenticated: true,
                         user: {
                             userId: session.userId,
-                            username: session.username,
-                            name: session.name,
-                            householdId: session.householdId,
-                            householdName: session.householdName,
-                            role: session.role
+                            username: userRec ? userRec.username : session.username,
+                            name: userRec ? userRec.name : session.name,
+                            householdId: finalHouseholdId,
+                            householdName: finalHousehold ? finalHousehold.householdName : 'Primary Household',
+                            role: activeRole
                         }
                     });
                 } else {
@@ -424,6 +449,141 @@ module.exports = async function handler(req, res) {
                     },
                     message: `Switched active household to ${targetHousehold.householdName}`
                 });
+            }
+
+            // 7. EDIT HOUSEHOLD ACTION (Admin & Owner)
+            if (action === 'edit_household') {
+                const session = authenticateRequest(req);
+                if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
+
+                const targetHId = String(body.householdId || '').trim();
+                if (!targetHId) return res.status(400).json({ success: false, error: "Household ID required." });
+
+                if (session.role !== 'ADMIN' && (session.role !== 'OWNER' || session.householdId !== targetHId)) {
+                    return res.status(403).json({ success: false, error: "Forbidden: Not authorized to edit this household." });
+                }
+
+                try {
+                    const updated = storage.updateHousehold(targetHId, {
+                        householdName: body.householdName,
+                        monthlyBudgetLimit: body.monthlyBudgetLimit,
+                        status: body.status
+                    }, session.username);
+
+                    return res.status(200).json({
+                        success: true,
+                        household: updated,
+                        message: `Household '${updated.householdName}' updated successfully!`
+                    });
+                } catch (err) {
+                    return res.status(400).json({ success: false, error: err.message });
+                }
+            }
+
+            // 8. DELETE HOUSEHOLD ACTION (Admin Only)
+            if (action === 'delete_household') {
+                const session = authenticateRequest(req);
+                if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
+                if (session.role !== 'ADMIN') {
+                    return res.status(403).json({ success: false, error: "Forbidden: Only System Administrators can delete households." });
+                }
+
+                const targetHId = String(body.householdId || '').trim();
+                if (!targetHId) return res.status(400).json({ success: false, error: "Household ID required." });
+
+                try {
+                    const result = storage.deleteHousehold(targetHId, session.username);
+                    return res.status(200).json({
+                        success: true,
+                        message: `Household '${result.householdName}' deleted successfully!`
+                    });
+                } catch (err) {
+                    return res.status(400).json({ success: false, error: err.message });
+                }
+            }
+
+            // 9. EDIT USER ACTION (Admin & Owner)
+            if (action === 'edit_user') {
+                const session = authenticateRequest(req);
+                if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
+
+                const targetUId = String(body.userId || '').trim();
+                if (!targetUId) return res.status(400).json({ success: false, error: "User ID required." });
+
+                const targetUser = storage.getUserById(targetUId);
+                if (!targetUser) return res.status(404).json({ success: false, error: "User not found." });
+
+                // Check permissions
+                if (session.role !== 'ADMIN') {
+                    if (session.role !== 'OWNER' || targetUser.householdId !== session.householdId) {
+                        return res.status(403).json({ success: false, error: "Forbidden: You may only edit users in your household." });
+                    }
+                    if (body.role === 'ADMIN') {
+                        return res.status(403).json({ success: false, error: "Forbidden: Only System Administrators can assign ADMIN role." });
+                    }
+                    if (body.householdId && body.householdId !== session.householdId) {
+                        return res.status(403).json({ success: false, error: "Forbidden: Cannot transfer users to other households." });
+                    }
+                }
+
+                const updates = {};
+                if (body.name) updates.name = String(body.name).trim();
+                if (body.username) updates.username = String(body.username).trim().toLowerCase();
+                if (body.email) updates.email = String(body.email).trim().toLowerCase();
+                if (body.role) updates.role = String(body.role).trim().toUpperCase();
+                if (body.status) updates.status = String(body.status).trim().toLowerCase();
+                if (body.householdId) updates.householdId = String(body.householdId).trim();
+
+                // If password is being reset
+                if (body.password && String(body.password).trim().length >= 6) {
+                    updates.passwordHash = hashPassword(String(body.password).trim());
+                }
+
+                try {
+                    const updatedUser = storage.updateUser(targetUId, updates, session.username);
+                    return res.status(200).json({
+                        success: true,
+                        user: updatedUser,
+                        message: `User '${updatedUser.name}' updated successfully!`
+                    });
+                } catch (err) {
+                    return res.status(400).json({ success: false, error: err.message });
+                }
+            }
+
+            // 10. DELETE USER ACTION (Admin & Owner)
+            if (action === 'delete_user') {
+                const session = authenticateRequest(req);
+                if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
+
+                const targetUId = String(body.userId || '').trim();
+                if (!targetUId) return res.status(400).json({ success: false, error: "User ID required." });
+
+                if (session.userId === targetUId) {
+                    return res.status(400).json({ success: false, error: "Action Forbidden: You cannot delete your own active account." });
+                }
+
+                const targetUser = storage.getUserById(targetUId);
+                if (!targetUser) return res.status(404).json({ success: false, error: "User not found." });
+
+                if (session.role !== 'ADMIN') {
+                    if (session.role !== 'OWNER' || targetUser.householdId !== session.householdId) {
+                        return res.status(403).json({ success: false, error: "Forbidden: You may only delete users from your own household." });
+                    }
+                    if (targetUser.role === 'ADMIN' || targetUser.role === 'OWNER') {
+                        return res.status(403).json({ success: false, error: "Forbidden: Cannot delete ADMIN or OWNER accounts." });
+                    }
+                }
+
+                try {
+                    const result = storage.deleteUser(targetUId, session.username);
+                    return res.status(200).json({
+                        success: true,
+                        message: `User '@${result.username}' deleted successfully!`
+                    });
+                } catch (err) {
+                    return res.status(400).json({ success: false, error: err.message });
+                }
             }
 
             return res.status(400).json({ success: false, error: "Invalid authentication action." });

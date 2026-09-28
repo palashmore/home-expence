@@ -254,21 +254,253 @@ function createUser(data, actor = 'System') {
     };
 }
 
-function updateHousehold(householdId, updates) {
+function updateHousehold(householdId, updates, actor = 'System') {
     const cleanId = sanitizeId(householdId);
     if (!cleanId) throw new Error('Invalid household ID.');
     const households = getAllHouseholds();
     const idx = households.findIndex(h => h.householdId === cleanId);
     if (idx === -1) throw new Error('Household not found.');
-    
+
+    const current = households[idx];
+    const newName = updates.householdName ? String(updates.householdName).trim() : current.householdName;
+    const newStatus = updates.status ? String(updates.status).trim().toLowerCase() : (current.status || 'active');
+
     households[idx] = {
-        ...households[idx],
-        ...updates,
-        householdId: cleanId,
+        ...current,
+        householdName: newName,
+        status: newStatus,
         updatedAt: new Date().toISOString()
     };
     writeJsonFile(HOUSEHOLDS_FILE, households);
+
+    // If monthly budget limit updated, update household config
+    if (updates.monthlyBudgetLimit != null) {
+        try {
+            const configPath = getHouseholdFilePath(cleanId, 'config.json');
+            const cfg = readJsonFile(configPath, {});
+            cfg.monthlyBudgetLimit = Number(updates.monthlyBudgetLimit) || 50000;
+            cfg.updatedAt = new Date().toISOString();
+            writeJsonFile(configPath, cfg);
+        } catch (e) {}
+    }
+
+    logHouseholdAudit(cleanId, {
+        id: `AUD-${Date.now()}-EDIT-H`,
+        action: 'UPDATE_HOUSEHOLD',
+        actor: actor,
+        details: `Updated household '${newName}' (${cleanId})`
+    }).catch(() => {});
+
     return households[idx];
+}
+
+function deleteHousehold(householdId, actor = 'System') {
+    const cleanId = sanitizeId(householdId);
+    if (!cleanId) throw new Error('Invalid household ID.');
+    if (cleanId === 'H001') {
+        throw new Error('Action Forbidden: Primary household H001 is protected and cannot be deleted.');
+    }
+
+    const households = getAllHouseholds();
+    const idx = households.findIndex(h => h.householdId === cleanId);
+    if (idx === -1) throw new Error('Household not found.');
+
+    const targetH = households[idx];
+
+    // Remove from households list
+    households.splice(idx, 1);
+    writeJsonFile(HOUSEHOLDS_FILE, households);
+
+    // Reassign any users belonging to this household to H001
+    const users = getAllUsers();
+    let usersModified = false;
+    users.forEach(u => {
+        if (u.householdId === cleanId) {
+            u.householdId = 'H001';
+            u.role = 'MEMBER';
+            u.updatedAt = new Date().toISOString();
+            usersModified = true;
+        }
+    });
+    if (usersModified) {
+        writeJsonFile(USERS_FILE, users);
+    }
+
+    // Safely archive the physical folder if exists
+    try {
+        const hDir = path.join(HOUSEHOLDS_DIR, cleanId);
+        if (fs.existsSync(hDir)) {
+            const archiveDir = path.join(HOUSEHOLDS_DIR, `_archived_${cleanId}_${Date.now()}`);
+            fs.renameSync(hDir, archiveDir);
+        }
+    } catch (e) {
+        console.warn(`[Storage] Could not archive directory for ${cleanId}:`, e.message);
+    }
+
+    logHouseholdAudit('H001', {
+        id: `AUD-${Date.now()}-DEL-H`,
+        action: 'DELETE_HOUSEHOLD',
+        actor: actor,
+        details: `Deleted household '${targetH.householdName}' (${cleanId})`
+    }).catch(() => {});
+
+    return { success: true, deletedHouseholdId: cleanId, householdName: targetH.householdName };
+}
+
+function updateUser(userId, updates, actor = 'System') {
+    const cleanUId = sanitizeId(userId);
+    if (!cleanUId) throw new Error('Invalid user ID.');
+
+    const users = getAllUsers();
+    const idx = users.findIndex(u => u.userId === cleanUId);
+    if (idx === -1) throw new Error('User not found.');
+
+    const current = users[idx];
+
+    // Protected: U000 (System Admin) cannot have role changed away from ADMIN or disabled
+    if (cleanUId === 'U000') {
+        if (updates.role && updates.role !== 'ADMIN') {
+            throw new Error('Action Forbidden: System Administrator role cannot be changed.');
+        }
+        if (updates.status && updates.status !== 'active') {
+            throw new Error('Action Forbidden: System Administrator account cannot be disabled.');
+        }
+    }
+
+    // Check username uniqueness if changed
+    if (updates.username) {
+        const cleanUsername = String(updates.username).trim().toLowerCase();
+        if (cleanUsername !== current.username) {
+            if (!/^[a-z0-9_.-]{3,30}$/.test(cleanUsername)) {
+                throw new Error('Username must be 3-30 alphanumeric characters.');
+            }
+            const existing = users.find(u => u.username === cleanUsername && u.userId !== cleanUId);
+            if (existing) throw new Error(`Username '@${cleanUsername}' is already taken.`);
+            current.username = cleanUsername;
+        }
+    }
+
+    // Check email uniqueness if changed
+    if (updates.email) {
+        const cleanEmail = String(updates.email).trim().toLowerCase();
+        if (cleanEmail !== current.email) {
+            const existing = users.find(u => u.email === cleanEmail && u.userId !== cleanUId);
+            if (existing) throw new Error(`Email '${cleanEmail}' is already registered.`);
+            current.email = cleanEmail;
+        }
+    }
+
+    if (updates.name) current.name = String(updates.name).trim();
+    if (updates.role) current.role = String(updates.role).trim().toUpperCase();
+    if (updates.status) current.status = String(updates.status).trim().toLowerCase();
+
+    // Check household transfer
+    if (updates.householdId && updates.householdId !== current.householdId) {
+        const newHId = sanitizeId(updates.householdId);
+        const households = getAllHouseholds();
+        const targetH = households.find(h => h.householdId === newHId);
+        if (!targetH) throw new Error(`Target household '${newHId}' does not exist.`);
+
+        const oldHId = current.householdId;
+        const oldH = households.find(h => h.householdId === oldHId);
+        if (oldH && oldH.memberUserIds) {
+            oldH.memberUserIds = oldH.memberUserIds.filter(id => id !== cleanUId);
+            oldH.updatedAt = new Date().toISOString();
+        }
+
+        if (!targetH.memberUserIds) targetH.memberUserIds = [];
+        if (!targetH.memberUserIds.includes(cleanUId)) {
+            targetH.memberUserIds.push(cleanUId);
+            targetH.updatedAt = new Date().toISOString();
+        }
+
+        writeJsonFile(HOUSEHOLDS_FILE, households);
+        current.householdId = newHId;
+
+        // Add to new household's config.json familyMembers if not present
+        try {
+            const configPath = getHouseholdFilePath(newHId, 'config.json');
+            const cfg = readJsonFile(configPath, {});
+            if (cfg && Array.isArray(cfg.familyMembers) && !cfg.familyMembers.includes(current.name)) {
+                cfg.familyMembers.push(current.name);
+                writeJsonFile(configPath, cfg);
+            }
+        } catch (e) {}
+    }
+
+    // Update password if provided
+    if (updates.passwordHash) {
+        current.passwordHash = updates.passwordHash;
+    }
+
+    current.updatedAt = new Date().toISOString();
+    users[idx] = current;
+    writeJsonFile(USERS_FILE, users);
+
+    logHouseholdAudit(current.householdId, {
+        id: `AUD-${Date.now()}-EDIT-U`,
+        action: 'UPDATE_USER',
+        actor: actor,
+        details: `Updated user '${current.name}' (@${current.username}, ${current.role})`
+    }).catch(() => {});
+
+    return {
+        userId: current.userId,
+        username: current.username,
+        email: current.email,
+        name: current.name,
+        householdId: current.householdId,
+        role: current.role,
+        status: current.status,
+        updatedAt: current.updatedAt
+    };
+}
+
+function deleteUser(userId, actor = 'System') {
+    const cleanUId = sanitizeId(userId);
+    if (!cleanUId) throw new Error('Invalid user ID.');
+
+    if (cleanUId === 'U000' || cleanUId === 'U001') {
+        throw new Error('Action Forbidden: System Administrator and Primary Owner accounts are protected and cannot be deleted.');
+    }
+
+    const users = getAllUsers();
+    const idx = users.findIndex(u => u.userId === cleanUId);
+    if (idx === -1) throw new Error('User not found.');
+
+    const targetUser = users[idx];
+
+    // Remove user from users list
+    users.splice(idx, 1);
+    writeJsonFile(USERS_FILE, users);
+
+    // Remove user ID from all households memberUserIds
+    const households = getAllHouseholds();
+    let householdsModified = false;
+    households.forEach(h => {
+        if (h.memberUserIds && h.memberUserIds.includes(cleanUId)) {
+            h.memberUserIds = h.memberUserIds.filter(id => id !== cleanUId);
+            h.updatedAt = new Date().toISOString();
+            householdsModified = true;
+        }
+        if (h.ownerUserId === cleanUId) {
+            h.ownerUserId = null;
+            h.updatedAt = new Date().toISOString();
+            householdsModified = true;
+        }
+    });
+    if (householdsModified) {
+        writeJsonFile(HOUSEHOLDS_FILE, households);
+    }
+
+    logHouseholdAudit(targetUser.householdId, {
+        id: `AUD-${Date.now()}-DEL-U`,
+        action: 'DELETE_USER',
+        actor: actor,
+        details: `Deleted user '${targetUser.name}' (@${targetUser.username})`
+    }).catch(() => {});
+
+    return { success: true, deletedUserId: cleanUId, username: targetUser.username };
 }
 
 // ==========================================
@@ -654,6 +886,9 @@ module.exports = {
     createHousehold,
     createUser,
     updateHousehold,
+    deleteHousehold,
+    updateUser,
+    deleteUser,
     getHouseholdExpenses,
     getHouseholdExpenseById,
     saveHouseholdExpense,

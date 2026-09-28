@@ -3470,15 +3470,28 @@ function renderAdminDirectoryUI() {
                         <span class="text-xs font-bold text-slate-600">${h.memberCount || 1}</span>
                     </td>
                     <td class="py-2.5 px-2.5 text-right">
-                        ${!isActive && userRole === 'ADMIN' ? `
-                            <button onclick="switchActiveHousehold('${h.householdId}')" class="px-2.5 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-[11px] font-black rounded-lg transition" title="Switch active workspace to this household">
-                                Switch
-                            </button>
-                        ` : `
-                            <span class="text-[11px] font-bold text-emerald-600 flex items-center justify-end gap-1">
-                                <i class="fa-solid fa-check"></i> Current
-                            </span>
-                        `}
+                        <div class="flex items-center justify-end gap-1.5">
+                            ${!isActive && userRole === 'ADMIN' ? `
+                                <button onclick="switchActiveHousehold('${h.householdId}')" class="px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-[11px] font-black rounded-lg transition" title="Switch active workspace to this household">
+                                    Switch
+                                </button>
+                            ` : ''}
+                            ${isActive ? `
+                                <span class="text-[11px] font-bold text-emerald-600 mr-1 hidden sm:inline-flex items-center gap-1">
+                                    <i class="fa-solid fa-check"></i> Current
+                                </span>
+                            ` : ''}
+                            ${userRole === 'ADMIN' || (userRole === 'OWNER' && isActive) ? `
+                                <button onclick="openEditHouseholdModal('${h.householdId}')" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Edit Household Details">
+                                    <i class="fa-solid fa-pen-to-square text-xs"></i>
+                                </button>
+                            ` : ''}
+                            ${userRole === 'ADMIN' && h.householdId !== 'H001' ? `
+                                <button onclick="confirmDeleteHousehold('${h.householdId}', '${escapeHtml(h.householdName)}')" class="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Delete Household">
+                                    <i class="fa-solid fa-trash text-xs"></i>
+                                </button>
+                            ` : ''}
+                        </div>
                     </td>
                 </tr>
                 `;
@@ -3490,10 +3503,12 @@ function renderAdminDirectoryUI() {
     const uTableBody = document.getElementById("adminUsersTableBody");
     if (uTableBody) {
         if (users.length === 0) {
-            uTableBody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-400 text-xs">No users registered.</td></tr>`;
+            uTableBody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-slate-400 text-xs">No users registered.</td></tr>`;
         } else {
             uTableBody.innerHTML = users.map(u => {
                 const isCurrent = currentSessionUser && currentSessionUser.userId === u.userId;
+                const canEditUser = userRole === 'ADMIN' || (userRole === 'OWNER' && u.householdId === activeHId);
+                const canDeleteUser = (userRole === 'ADMIN' || (userRole === 'OWNER' && u.householdId === activeHId)) && u.userId !== 'U000' && u.userId !== 'U001' && (!currentSessionUser || u.userId !== currentSessionUser.userId) && (userRole === 'ADMIN' || u.role !== 'OWNER');
                 const roleBadgeClass = u.role === 'ADMIN' 
                     ? 'bg-purple-100 text-purple-800 border-purple-200'
                     : (u.role === 'OWNER' 
@@ -3513,13 +3528,27 @@ function renderAdminDirectoryUI() {
                         </div>
                     </td>
                     <td class="py-2 px-2.5">
-                        <span class="text-[11px] font-medium text-slate-600 block truncate max-w-[120px]">${escapeHtml(u.householdName || u.householdId)}</span>
+                        <span class="text-[11px] font-medium text-slate-600 block truncate max-w-[110px]">${escapeHtml(u.householdName || u.householdId)}</span>
                     </td>
                     <td class="py-2 px-2.5 text-center">
                         <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${roleBadgeClass}">${u.role}</span>
                     </td>
                     <td class="py-2 px-2.5 text-center">
-                        <span class="text-[10px] font-bold text-emerald-600">Active</span>
+                        <span class="text-[10px] font-bold ${u.status === 'disabled' ? 'text-rose-500' : 'text-emerald-600'}">${u.status === 'disabled' ? 'Disabled' : 'Active'}</span>
+                    </td>
+                    <td class="py-2 px-2.5 text-right">
+                        <div class="flex items-center justify-end gap-1.5">
+                            ${canEditUser ? `
+                                <button onclick="openEditUserModal('${u.userId}')" class="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition" title="Edit User & Permissions">
+                                    <i class="fa-solid fa-user-pen text-xs"></i>
+                                </button>
+                            ` : ''}
+                            ${canDeleteUser ? `
+                                <button onclick="confirmDeleteUser('${u.userId}', '${escapeHtml(u.username)}')" class="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Delete User Account">
+                                    <i class="fa-solid fa-trash text-xs"></i>
+                                </button>
+                            ` : ''}
+                        </div>
                     </td>
                 </tr>
                 `;
@@ -3758,4 +3787,317 @@ async function switchActiveHousehold(targetHId) {
     }
 }
 window.switchActiveHousehold = switchActiveHousehold;
+
+// ==========================================
+// EDIT & DELETE HOUSEHOLD HANDLERS
+// ==========================================
+function openEditHouseholdModal(householdId) {
+    if (typeof triggerHaptic === 'function') triggerHaptic('light');
+    const h = adminDirectoryData.households.find(x => x.householdId === householdId);
+    if (!h) return;
+
+    const modal = document.getElementById("modalEditHousehold");
+    const err = document.getElementById("editHouseholdError");
+    if (err) err.classList.add("hidden");
+
+    document.getElementById("editHouseholdId").value = h.householdId;
+    document.getElementById("editHouseholdIdBadge").textContent = h.householdId;
+    document.getElementById("editHouseholdName").value = h.householdName;
+    document.getElementById("editHouseholdStatus").value = h.status || 'active';
+
+    const budgetInput = document.getElementById("editHouseholdBudget");
+    if (budgetInput) {
+        budgetInput.value = (window.masterConfig && window.masterConfig.monthlyBudgetLimit) || 50000;
+    }
+
+    if (modal) modal.classList.remove("hidden");
+}
+window.openEditHouseholdModal = openEditHouseholdModal;
+
+function closeEditHouseholdModal() {
+    const modal = document.getElementById("modalEditHousehold");
+    if (modal) modal.classList.add("hidden");
+}
+window.closeEditHouseholdModal = closeEditHouseholdModal;
+
+async function submitEditHousehold() {
+    const householdId = document.getElementById("editHouseholdId")?.value;
+    const householdName = (document.getElementById("editHouseholdName")?.value || '').trim();
+    const monthlyBudgetLimit = Number(document.getElementById("editHouseholdBudget")?.value) || 50000;
+    const status = document.getElementById("editHouseholdStatus")?.value || 'active';
+    const errEl = document.getElementById("editHouseholdError");
+    const btn = document.getElementById("btnSubmitEditHousehold");
+
+    if (!householdName || householdName.length < 2) {
+        if (errEl) {
+            errEl.textContent = "Please provide a valid household name.";
+            errEl.classList.remove("hidden");
+        }
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Saving...`;
+    }
+
+    try {
+        const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                action: 'edit_household',
+                householdId,
+                householdName,
+                monthlyBudgetLimit,
+                status
+            })
+        });
+        const result = await res.json();
+        if (result.success) {
+            closeEditHouseholdModal();
+            if (typeof showToast === 'function') {
+                showToast('success', 'Household Updated', result.message || 'Household details saved successfully.');
+            }
+            if (currentSessionUser && currentSessionUser.householdId === householdId) {
+                currentSessionUser.householdName = householdName;
+                localStorage.setItem("household_session_user", JSON.stringify(currentSessionUser));
+                updateUserProfileUI();
+            }
+            await loadAdminConsoleData();
+        } else {
+            if (errEl) {
+                errEl.textContent = result.error || "Failed to update household.";
+                errEl.classList.remove("hidden");
+            }
+        }
+    } catch (e) {
+        if (errEl) {
+            errEl.textContent = "Network error updating household.";
+            errEl.classList.remove("hidden");
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> <span>Save Changes</span>`;
+        }
+    }
+}
+window.submitEditHousehold = submitEditHousehold;
+
+async function confirmDeleteHousehold(householdId, householdName) {
+    if (householdId === 'H001') {
+        alert('Action Forbidden: Primary household H001 is protected and cannot be deleted.');
+        return;
+    }
+
+    const confirmed = confirm(`Are you sure you want to delete household "${householdName}" (${householdId})?\n\nAny users assigned to this household will be safely reassigned to the primary household.`);
+    if (!confirmed) return;
+
+    if (typeof triggerHaptic === 'function') triggerHaptic('heavy');
+
+    try {
+        const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                action: 'delete_household',
+                householdId
+            })
+        });
+        const result = await res.json();
+        if (result.success) {
+            if (typeof showToast === 'function') {
+                showToast('success', 'Household Deleted', result.message || `Household '${householdName}' deleted.`);
+            }
+            if (currentSessionUser && currentSessionUser.householdId === householdId) {
+                await switchActiveHousehold('H001');
+            } else {
+                await loadAdminConsoleData();
+            }
+        } else {
+            alert(`Delete failed: ${result.error || 'Server error'}`);
+        }
+    } catch (e) {
+        alert('Network error while deleting household.');
+    }
+}
+window.confirmDeleteHousehold = confirmDeleteHousehold;
+
+// ==========================================
+// EDIT & DELETE USER HANDLERS
+// ==========================================
+function openEditUserModal(userId) {
+    if (typeof triggerHaptic === 'function') triggerHaptic('light');
+    const u = adminDirectoryData.users.find(x => x.userId === userId);
+    if (!u) return;
+
+    const modal = document.getElementById("modalEditUser");
+    const err = document.getElementById("editUserError");
+    if (err) err.classList.add("hidden");
+
+    document.getElementById("editUserId").value = u.userId;
+    document.getElementById("editUserIdBadge").textContent = u.userId;
+    document.getElementById("editUserName").value = u.name;
+    document.getElementById("editUserUsername").value = u.username;
+    document.getElementById("editUserEmail").value = u.email || '';
+    document.getElementById("editUserPassword").value = '';
+
+    const hSelect = document.getElementById("editUserHouseholdSelect");
+    const userRole = currentSessionUser?.role || 'MEMBER';
+    if (hSelect) {
+        const households = adminDirectoryData.households || [];
+        const selectableHouseholds = userRole === 'ADMIN' ? households : households.filter(h => h.householdId === currentSessionUser.householdId);
+        hSelect.innerHTML = selectableHouseholds.map(h =>
+            `<option value="${h.householdId}" ${h.householdId === u.householdId ? 'selected' : ''}>${escapeHtml(h.householdName)} (${h.householdId})</option>`
+        ).join('');
+    }
+
+    const rSelect = document.getElementById("editUserRoleSelect");
+    if (rSelect) {
+        rSelect.value = u.role || 'MEMBER';
+        rSelect.disabled = (u.userId === 'U000');
+    }
+
+    const sSelect = document.getElementById("editUserStatusSelect");
+    if (sSelect) {
+        sSelect.value = u.status || 'active';
+        sSelect.disabled = (u.userId === 'U000');
+    }
+
+    if (modal) modal.classList.remove("hidden");
+}
+window.openEditUserModal = openEditUserModal;
+
+function closeEditUserModal() {
+    const modal = document.getElementById("modalEditUser");
+    if (modal) modal.classList.add("hidden");
+}
+window.closeEditUserModal = closeEditUserModal;
+
+async function submitEditUser() {
+    const userId = document.getElementById("editUserId")?.value;
+    const name = (document.getElementById("editUserName")?.value || '').trim();
+    const username = (document.getElementById("editUserUsername")?.value || '').trim().toLowerCase();
+    const email = (document.getElementById("editUserEmail")?.value || '').trim().toLowerCase();
+    const householdId = document.getElementById("editUserHouseholdSelect")?.value;
+    const role = document.getElementById("editUserRoleSelect")?.value;
+    const status = document.getElementById("editUserStatusSelect")?.value || 'active';
+    const password = (document.getElementById("editUserPassword")?.value || '').trim();
+    const errEl = document.getElementById("editUserError");
+    const btn = document.getElementById("btnSubmitEditUser");
+
+    if (!name || !username || !householdId) {
+        if (errEl) {
+            errEl.textContent = "Full name, username, and household are required.";
+            errEl.classList.remove("hidden");
+        }
+        return;
+    }
+
+    if (password && password.length < 6) {
+        if (errEl) {
+            errEl.textContent = "New password must be at least 6 characters long.";
+            errEl.classList.remove("hidden");
+        }
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Saving...`;
+    }
+
+    try {
+        const payload = {
+            action: 'edit_user',
+            userId,
+            name,
+            username,
+            email,
+            householdId,
+            role,
+            status
+        };
+        if (password) payload.password = password;
+
+        const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (result.success) {
+            closeEditUserModal();
+            if (typeof showToast === 'function') {
+                showToast('success', 'User Updated', result.message || `User @${username} updated successfully.`);
+            }
+            if (currentSessionUser && currentSessionUser.userId === userId) {
+                currentSessionUser = {
+                    ...currentSessionUser,
+                    ...result.user
+                };
+                localStorage.setItem("household_session_user", JSON.stringify(currentSessionUser));
+                updateUserProfileUI();
+            }
+            await loadAdminConsoleData();
+        } else {
+            if (errEl) {
+                errEl.textContent = result.error || "Failed to update user.";
+                errEl.classList.remove("hidden");
+            }
+        }
+    } catch (e) {
+        if (errEl) {
+            errEl.textContent = "Network error updating user.";
+            errEl.classList.remove("hidden");
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> <span>Save Changes</span>`;
+        }
+    }
+}
+window.submitEditUser = submitEditUser;
+
+async function confirmDeleteUser(userId, username) {
+    if (userId === 'U000' || userId === 'U001') {
+        alert('Action Forbidden: System Administrator and Primary Owner accounts are protected and cannot be deleted.');
+        return;
+    }
+    if (currentSessionUser && currentSessionUser.userId === userId) {
+        alert('Action Forbidden: You cannot delete your own active account.');
+        return;
+    }
+
+    const confirmed = confirm(`Are you sure you want to delete user @${username} (${userId})?\n\nThis will permanently delete this user account and revoke their access.`);
+    if (!confirmed) return;
+
+    if (typeof triggerHaptic === 'function') triggerHaptic('heavy');
+
+    try {
+        const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                action: 'delete_user',
+                userId
+            })
+        });
+        const result = await res.json();
+        if (result.success) {
+            if (typeof showToast === 'function') {
+                showToast('success', 'User Deleted', result.message || `User @${username} deleted.`);
+            }
+            await loadAdminConsoleData();
+        } else {
+            alert(`Delete failed: ${result.error || 'Server error'}`);
+        }
+    } catch (e) {
+        alert('Network error while deleting user.');
+    }
+}
+window.confirmDeleteUser = confirmDeleteUser;
+
 

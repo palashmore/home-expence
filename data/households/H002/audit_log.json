@@ -1,5 +1,61 @@
 [
   {
+    "id": "audit-1790624815628-qjbtp",
+    "householdId": "H002",
+    "timestamp": "2026-09-28T19:46:55.628Z",
+    "action": {
+      "id": "AUD-1790624815628-DEL-U",
+      "action": "DELETE_USER",
+      "actor": "admin",
+      "details": "Deleted user 'Anita Verma' (@anita)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1790624815623-fq088",
+    "householdId": "H002",
+    "timestamp": "2026-09-28T19:46:55.623Z",
+    "action": {
+      "id": "AUD-1790624815623-EDIT-U",
+      "action": "UPDATE_USER",
+      "actor": "admin",
+      "details": "Updated user 'Anita Verma' (@anita, OWNER)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1790624511013-6zkde",
+    "householdId": "H002",
+    "timestamp": "2026-09-28T19:41:51.013Z",
+    "action": {
+      "id": "AUD-1790624511013-DEL-U",
+      "action": "DELETE_USER",
+      "actor": "admin",
+      "details": "Deleted user 'Rohit K. Sharma' (@rohit_test)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1790624510951-gqwnz",
+    "householdId": "H002",
+    "timestamp": "2026-09-28T19:41:50.951Z",
+    "action": {
+      "id": "AUD-1790624510951-EDIT-U",
+      "action": "UPDATE_USER",
+      "actor": "admin",
+      "details": "Updated user 'Rohit K. Sharma' (@rohit_test, OWNER)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
     "id": "audit-1790620495422-ez0kb",
     "householdId": "H002",
     "timestamp": "2026-09-28T18:34:55.422Z",

@@ -559,8 +559,18 @@ function switchTab(tabId) {
     }
 
     if (tabId === 'admin') {
+        const adminCard = document.getElementById("adminTenantManagementCard");
+        if (adminCard) {
+            if (currentSessionUser && currentSessionUser.role === 'ADMIN') {
+                adminCard.classList.remove("hidden");
+            } else {
+                adminCard.classList.add("hidden");
+            }
+        }
         if (window.renderAdminView) window.renderAdminView();
-        if (window.loadAdminConsoleData) window.loadAdminConsoleData();
+        if (currentSessionUser && currentSessionUser.role === 'ADMIN' && window.loadAdminConsoleData) {
+            window.loadAdminConsoleData();
+        }
     }
     if (tabId === 'audit' && window.renderAuditView) {
         window.renderAuditView();
@@ -751,6 +761,16 @@ function updateUserProfileUI() {
     if (pModalRole) pModalRole.textContent = role;
     if (pModalAvatar) pModalAvatar.textContent = initial;
     if (pModalHName) pModalHName.textContent = hName;
+
+    // Restrict Section 0: Household & User Access Management STRICTLY to System Admin
+    const adminCard = document.getElementById("adminTenantManagementCard");
+    if (adminCard) {
+        if (currentSessionUser && currentSessionUser.role === 'ADMIN') {
+            adminCard.classList.remove("hidden");
+        } else {
+            adminCard.classList.add("hidden");
+        }
+    }
 }
 window.updateUserProfileUI = updateUserProfileUI;
 
@@ -3363,7 +3383,12 @@ window.escapeHtml = escapeHtml;
 let adminDirectoryData = { households: [], users: [], activeHouseholdId: '' };
 
 async function loadAdminConsoleData(showFeedback = false) {
-    if (!authToken || !currentSessionUser) return;
+    const card = document.getElementById("adminTenantManagementCard");
+    if (!authToken || !currentSessionUser || currentSessionUser.role !== 'ADMIN') {
+        if (card) card.classList.add("hidden");
+        return;
+    }
+    if (card) card.classList.remove("hidden");
 
     try {
         const res = await fetch('/api/auth?action=admin_overview', {
@@ -3372,10 +3397,7 @@ async function loadAdminConsoleData(showFeedback = false) {
         });
 
         if (!res.ok) {
-            const card = document.getElementById("adminTenantManagementCard");
-            if (card && currentSessionUser.role !== 'ADMIN' && currentSessionUser.role !== 'OWNER') {
-                card.classList.add("hidden");
-            }
+            if (card) card.classList.add("hidden");
             return;
         }
 
@@ -3402,12 +3424,8 @@ function renderAdminDirectoryUI() {
     // 1. Role Badge & Active Household Display
     const roleBadge = document.getElementById("adminRoleBadge");
     if (roleBadge) {
-        roleBadge.textContent = `${userRole} CONSOLE`;
-        if (userRole === 'ADMIN') {
-            roleBadge.className = "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200";
-        } else {
-            roleBadge.className = "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200";
-        }
+        roleBadge.textContent = "SYSTEM ADMINISTRATOR ONLY";
+        roleBadge.className = "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200";
     }
 
     const activeDisplay = document.getElementById("adminActiveHouseholdDisplay");

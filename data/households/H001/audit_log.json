@@ -1,5 +1,33 @@
 [
   {
+    "id": "audit-1790626582342-9zqz0",
+    "householdId": "H001",
+    "timestamp": "2026-09-28T20:16:22.342Z",
+    "action": {
+      "id": "AUD-1790626582342-DEL-H",
+      "action": "DELETE_HOUSEHOLD",
+      "actor": "admin",
+      "details": "Deleted household 'Verma Grand Villa' (H003)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1790625972924-25vht",
+    "householdId": "H001",
+    "timestamp": "2026-09-28T20:06:12.924Z",
+    "action": {
+      "id": "AUD-1790625972924-EDIT-H",
+      "action": "UPDATE_HOUSEHOLD",
+      "actor": "admin",
+      "details": "Updated household 'Palash & Pallavi Household' (H001)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
     "id": "audit-1790624815629-hoc7h",
     "householdId": "H001",
     "timestamp": "2026-09-28T19:46:55.629Z",

@@ -37,14 +37,14 @@
   },
   {
     "userId": "U003",
-    "username": "userb",
+    "username": "sanjay",
     "email": "userb@homeexpenses.local",
-    "name": "User B",
-    "passwordHash": "29d32c920b6bbec0415481df7c725222:ee2052d9528cde302009ddeceb3a413c66782d02475d14a0143d53110d9d466fe5caea5fd5592d5c2cbc8de5c0240a45f8663da0fe01423f43c6a4129c34afa9",
+    "name": "Sanjay",
+    "passwordHash": "722bfb75b9bcd706658679f317e7319d:ea9a53877a252cb9f887aa5786fb741b0ffb61fa42dd21e1deb0ded748e93a2f4669345e0d950fd11b9265999fc571e48a0ce04c76cce59183ec847675e1aab1",
     "householdId": "H002",
     "role": "OWNER",
     "status": "active",
     "createdAt": "2026-09-28T18:31:24.246Z",
-    "updatedAt": "2026-09-28T18:31:24.246Z"
+    "updatedAt": "2026-09-28T20:05:31.167Z"
   }
 ]

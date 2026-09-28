@@ -151,11 +151,12 @@
     "cycleEndDay": 5,
     "description": "5th of current month to 5th of next month"
   },
-  "monthlyBudgetLimit": 50000,
+  "monthlyBudgetLimit": 20000,
   "splitRules": [
     "Household Expense (Palash Reimburses Pallavi 100%)",
     "Personal Expense (Pallavi - Not Reimbursed)",
     "Personal Expense (Palash)",
     "Equal (50/50)"
-  ]
+  ],
+  "updatedAt": "2026-09-28T20:06:12.923Z"
 }

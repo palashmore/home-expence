@@ -56,9 +56,10 @@
     "Rohit K. Sharma",
     "Anita Verma"
   ],
-  "monthlyBudgetLimit": 30000,
+  "monthlyBudgetLimit": 20000,
   "splitRules": [
     "Personal Expense (User B)",
     "Household Expense"
-  ]
+  ],
+  "updatedAt": "2026-09-28T20:06:02.772Z"
 }

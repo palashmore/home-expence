@@ -1,5 +1,61 @@
 [
   {
+    "id": "audit-1790626582336-plly7",
+    "householdId": "H002",
+    "timestamp": "2026-09-28T20:16:22.336Z",
+    "action": {
+      "id": "AUD-1790626582336-DEL-U",
+      "action": "DELETE_USER",
+      "actor": "admin",
+      "details": "Deleted user 'Anita Verma' (@anita)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1790626582325-8sr05",
+    "householdId": "H002",
+    "timestamp": "2026-09-28T20:16:22.325Z",
+    "action": {
+      "id": "AUD-1790626582325-EDIT-U",
+      "action": "UPDATE_USER",
+      "actor": "admin",
+      "details": "Updated user 'Anita Verma' (@anita, OWNER)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1790625962781-cpna2",
+    "householdId": "H002",
+    "timestamp": "2026-09-28T20:06:02.781Z",
+    "action": {
+      "id": "AUD-1790625962781-EDIT-H",
+      "action": "UPDATE_HOUSEHOLD",
+      "actor": "admin",
+      "details": "Updated household 'House Arjuni/more' (H002)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1790625931168-oyjvb",
+    "householdId": "H002",
+    "timestamp": "2026-09-28T20:05:31.168Z",
+    "action": {
+      "id": "AUD-1790625931168-EDIT-U",
+      "action": "UPDATE_USER",
+      "actor": "admin",
+      "details": "Updated user 'Sanjay' (@sanjay, OWNER)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
     "id": "audit-1790624815628-qjbtp",
     "householdId": "H002",
     "timestamp": "2026-09-28T19:46:55.628Z",

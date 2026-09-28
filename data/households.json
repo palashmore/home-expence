@@ -10,17 +10,17 @@
       "U002"
     ],
     "createdAt": "2024-12-17T00:00:00.000Z",
-    "updatedAt": "2026-09-28T18:31:24.246Z"
+    "updatedAt": "2026-09-28T20:06:12.921Z"
   },
   {
     "householdId": "H002",
-    "householdName": "User B Household",
+    "householdName": "House Arjuni/more",
     "status": "active",
     "ownerUserId": "U003",
     "memberUserIds": [
       "U003"
     ],
     "createdAt": "2026-09-28T18:31:24.246Z",
-    "updatedAt": "2026-09-28T19:46:55.627Z"
+    "updatedAt": "2026-09-28T20:16:22.335Z"
   }
 ]

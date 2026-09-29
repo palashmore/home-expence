@@ -39,29 +39,61 @@ module.exports = async function handler(req, res) {
                 return res.status(400).json({ success: false, error: 'Missing attendance data' });
             }
 
-            // Action: Toggle single day attendance
-            if (body.action === 'toggleDay') {
-                const { staffName, monthKey, day, status } = body;
-                if (!staffName || !monthKey || !day) {
-                    return res.status(400).json({ success: false, error: 'staffName, monthKey, and day are required' });
-                }
-
-                const attendance = await storage.getHouseholdAttendance(householdId);
+            // Action: Save or update staff monthly attendance record (standard payload from saveAttendanceToApi)
+            const staffName = body.staff || body.staffName;
+            const monthKey = body.month || body.monthKey;
+            if (staffName && monthKey) {
+                const attendance = await storage.getHouseholdAttendance(householdId) || {};
                 if (!attendance[staffName]) {
-                    attendance[staffName] = { baseSalary: 4500, billingCycleDay: 30, months: {} };
+                    attendance[staffName] = {
+                        baseSalary: staffName.includes('Nilima') ? 4500 : 800,
+                        billingCycleDay: staffName.includes('Nilima') ? 30 : 21,
+                        months: {}
+                    };
                 }
                 if (!attendance[staffName].months) {
                     attendance[staffName].months = {};
                 }
-                if (!attendance[staffName].months[monthKey]) {
-                    attendance[staffName].months[monthKey] = { days: {}, notes: '' };
-                }
-                if (!attendance[staffName].months[monthKey].days) {
-                    attendance[staffName].months[monthKey].days = {};
+                attendance[staffName].months[monthKey] = {
+                    days: body.days || {},
+                    bonus: Number(body.bonus) || 0,
+                    notes: body.notes || '',
+                    updatedAt: new Date().toISOString()
+                };
+
+                await storage.saveHouseholdAttendance(householdId, attendance, actorUser);
+                return res.status(200).json({
+                    success: true,
+                    message: `Attendance updated for ${staffName} (${monthKey})`,
+                    data: attendance
+                });
+            }
+
+            // Action: Toggle single day attendance
+            if (body.action === 'toggleDay') {
+                const targetStaff = body.staffName || body.staff;
+                const targetMonth = body.monthKey || body.month;
+                const { day, status } = body;
+                if (!targetStaff || !targetMonth || !day) {
+                    return res.status(400).json({ success: false, error: 'staffName, monthKey, and day are required' });
                 }
 
-                attendance[staffName].months[monthKey].days[String(day)] = status;
-                attendance[staffName].months[monthKey].updatedAt = new Date().toISOString();
+                const attendance = await storage.getHouseholdAttendance(householdId) || {};
+                if (!attendance[targetStaff]) {
+                    attendance[targetStaff] = { baseSalary: 4500, billingCycleDay: 30, months: {} };
+                }
+                if (!attendance[targetStaff].months) {
+                    attendance[targetStaff].months = {};
+                }
+                if (!attendance[targetStaff].months[targetMonth]) {
+                    attendance[targetStaff].months[targetMonth] = { days: {}, notes: '' };
+                }
+                if (!attendance[targetStaff].months[targetMonth].days) {
+                    attendance[targetStaff].months[targetMonth].days = {};
+                }
+
+                attendance[targetStaff].months[targetMonth].days[String(day)] = status;
+                attendance[targetStaff].months[targetMonth].updatedAt = new Date().toISOString();
 
                 await storage.saveHouseholdAttendance(householdId, attendance, actorUser);
                 return res.status(200).json({ success: true, message: 'Attendance day updated', data: attendance });
@@ -73,7 +105,7 @@ module.exports = async function handler(req, res) {
                 return res.status(200).json({ success: true, message: 'All staff attendance synchronized', data: body.data });
             }
 
-            return res.status(400).json({ success: false, error: 'Unknown action' });
+            return res.status(400).json({ success: false, error: 'Unknown attendance action or missing staff/month fields' });
         }
 
         return res.status(405).json({ success: false, error: 'Method not allowed' });

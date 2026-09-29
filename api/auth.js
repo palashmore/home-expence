@@ -92,10 +92,13 @@ function verifySessionToken(token) {
 function authenticateRequest(req) {
     let token = '';
 
-    // 1. Check Authorization Header (Bearer <token>)
-    const authHeader = req.headers && req.headers.authorization;
+    // 1. Check Authorization Header (Bearer <token>) or X-Auth-Token
+    const authHeader = req.headers && (req.headers.authorization || req.headers['authorization']);
     if (authHeader && typeof authHeader === 'string') {
         token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    }
+    if (!token && req.headers && req.headers['x-auth-token']) {
+        token = String(req.headers['x-auth-token']).trim();
     }
 
     // 2. Check Cookie (session_token=<token>)

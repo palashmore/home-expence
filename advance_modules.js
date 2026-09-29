@@ -991,6 +991,7 @@
         method: 'POST',
         headers: headers,
         body: JSON.stringify({
+          action: 'saveMonth',
           staff: staffName,
           month: monthKey,
           days: record.days || {},
@@ -2251,6 +2252,25 @@
           if (configsEl) configsEl.textContent = inAppAuditLogs.filter(l => l.action === 'UPDATE_CONFIG').length;
           if (mutationsEl) mutationsEl.textContent = inAppAuditLogs.filter(l => l.action === 'CREATE_EXPENSE' || l.action === 'DELETE_EXPENSE').length;
 
+          // Dynamically populate actor filter dropdown
+          const actorSelect = document.getElementById('inAppAuditActorFilter');
+          if (actorSelect && inAppAuditLogs && inAppAuditLogs.length > 0) {
+            const currentVal = actorSelect.value || 'ALL';
+            const actors = new Set();
+            inAppAuditLogs.forEach(l => {
+              const a = l.actor || l.user || l.metadata?.paidBy;
+              if (a && a !== 'System' && a !== 'undefined') actors.add(a);
+            });
+            let opts = '<option value="ALL">👥 All Actors</option><option value="System">⚡ System Sync</option>';
+            Array.from(actors).sort().forEach(act => {
+              opts += `<option value="${act}">${act}</option>`;
+            });
+            actorSelect.innerHTML = opts;
+            if (Array.from(actorSelect.options).some(o => o.value === currentVal)) {
+              actorSelect.value = currentVal;
+            }
+          }
+
           renderInAppAuditList();
         }
       }
@@ -2263,9 +2283,41 @@
   }
   window.renderAuditView = renderAuditView;
 
+  function escapeAuditHtml(str) {
+    if (typeof str !== 'string') return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  window.setAuditLayoutMode = function(mode) {
+    const timelineC = document.getElementById('inAppAuditTimelineContainer');
+    const tableC = document.getElementById('inAppAuditTableContainer');
+    const btnT = document.getElementById('btnAuditViewTimeline');
+    const btnTab = document.getElementById('btnAuditViewTable');
+    if (mode === 'table') {
+      if (timelineC) timelineC.classList.add('hidden');
+      if (tableC) tableC.classList.remove('hidden');
+      if (btnTab) {
+        btnTab.className = 'px-2.5 py-1 rounded-lg bg-white text-indigo-700 font-black shadow-xs transition flex items-center gap-1';
+      }
+      if (btnT) {
+        btnT.className = 'px-2.5 py-1 rounded-lg text-slate-600 font-bold hover:text-slate-900 transition flex items-center gap-1';
+      }
+    } else {
+      if (timelineC) timelineC.classList.remove('hidden');
+      if (tableC) tableC.classList.add('hidden');
+      if (btnT) {
+        btnT.className = 'px-2.5 py-1 rounded-lg bg-white text-indigo-700 font-black shadow-xs transition flex items-center gap-1';
+      }
+      if (btnTab) {
+        btnTab.className = 'px-2.5 py-1 rounded-lg text-slate-600 font-bold hover:text-slate-900 transition flex items-center gap-1';
+      }
+    }
+  };
+
   function renderInAppAuditList() {
+    const timelineContainer = document.getElementById('inAppAuditTimeline');
     const tbody = document.getElementById('inAppAuditTbody') || document.getElementById('inAppAuditList');
-    if (!tbody) return;
+    if (!timelineContainer && !tbody) return;
 
     const search = (document.getElementById('inAppAuditSearch')?.value || '').toLowerCase().trim();
     const actorFilter = (document.getElementById('inAppAuditActorFilter')?.value || 'ALL').trim();
@@ -2288,35 +2340,65 @@
     });
 
     if (filtered.length === 0) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="7" class="p-12 text-center text-slate-400">
-            <div class="w-12 h-12 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center text-xl text-slate-400 mb-2">
+      if (timelineContainer) {
+        timelineContainer.innerHTML = `
+          <div class="p-10 text-center glass-card rounded-2xl border border-slate-200/90 bg-white">
+            <div class="w-12 h-12 mx-auto rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl mb-3 shadow-inner">
               <i class="fa-solid fa-filter-circle-xmark"></i>
             </div>
-            <div class="text-sm font-bold text-slate-700">No matching audit events found</div>
-            <div class="text-xs text-slate-400 mt-0.5">Try resetting active filters or searching by different terms.</div>
-            <button onclick="document.getElementById('inAppAuditSearch').value=''; document.getElementById('inAppAuditActorFilter').value='ALL'; window.setInAppAuditFilter('ALL');" class="mt-3 px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition">
+            <div class="text-sm font-black text-slate-800">No matching audit events found</div>
+            <div class="text-xs text-slate-500 mt-1 max-w-sm mx-auto font-medium">Try resetting active filters or searching by different terms.</div>
+            <button onclick="document.getElementById('inAppAuditSearch').value=''; document.getElementById('inAppAuditActorFilter').value='ALL'; window.setInAppAuditFilter('ALL');" class="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow transition">
               Reset Filters
             </button>
-          </td>
-        </tr>
-      `;
+          </div>
+        `;
+      }
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="p-12 text-center text-slate-400">
+              <div class="w-12 h-12 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center text-xl text-slate-400 mb-2">
+                <i class="fa-solid fa-filter-circle-xmark"></i>
+              </div>
+              <div class="text-sm font-bold text-slate-700">No matching audit events found</div>
+              <div class="text-xs text-slate-400 mt-0.5">Try resetting active filters or searching by different terms.</div>
+              <button onclick="document.getElementById('inAppAuditSearch').value=''; document.getElementById('inAppAuditActorFilter').value='ALL'; window.setInAppAuditFilter('ALL');" class="mt-3 px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition">
+                Reset Filters
+              </button>
+            </td>
+          </tr>
+        `;
+      }
       return;
     }
 
-    tbody.innerHTML = filtered.map((item, idx) => {
+    let timelineHtml = '';
+    let tableHtml = '';
+
+    filtered.forEach((item, idx) => {
       let badge = '';
+      let dotClass = 'dot-system';
+      let dotIcon = 'fa-solid fa-bolt';
+
       if (item.action === 'UPDATE_EXPENSE') {
+        dotClass = 'dot-update';
+        dotIcon = 'fa-solid fa-pen-to-square';
         badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap"><i class="fa-solid fa-pen-to-square"></i> Edit</span>';
       } else if (item.action === 'CREATE_EXPENSE') {
+        dotClass = 'dot-create';
+        dotIcon = 'fa-solid fa-plus';
         badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap"><i class="fa-solid fa-plus"></i> New</span>';
       } else if (item.action === 'DELETE_EXPENSE') {
+        dotClass = 'dot-delete';
+        dotIcon = 'fa-solid fa-trash';
         badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap"><i class="fa-solid fa-trash"></i> Delete</span>';
       } else if (item.action === 'UPDATE_CONFIG') {
+        dotClass = 'dot-config';
+        dotIcon = 'fa-solid fa-sliders';
         badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap"><i class="fa-solid fa-sliders"></i> Config</span>';
       } else {
-        badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap">${item.action}</span>`;
+        badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">${item.action}</span>`;
       }
 
       const meta = item.metadata || {};
@@ -2408,12 +2490,55 @@
         changeHtml = '<span class="text-slate-400 italic text-xs">No explicit field diff</span>';
       }
 
-      const inspectId = `inAppDetail_${idx}`;
-      const jsonStr = JSON.stringify(item, null, 2);
+      const timelineInspectId = `timelineInspect_${idx}`;
+      const tableInspectId = `tableInspect_${idx}`;
+      const jsonStr = escapeAuditHtml(JSON.stringify(item, null, 2));
 
-      return `
+      // 1. Timeline Card
+      timelineHtml += `
+        <div class="audit-timeline-node">
+          <div class="audit-timeline-dot ${dotClass}" title="${item.action}">
+            <i class="${dotIcon}"></i>
+          </div>
+          <div class="glass-card p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xs bg-white hover:shadow-md transition">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div class="flex items-center gap-2 flex-wrap">
+                ${badge}
+                <span class="px-2 py-0.5 rounded bg-slate-100 font-mono text-[11px] font-bold text-slate-700 border border-slate-200">${item.recordId || 'N/A'}</span>
+                ${actorHtml}
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">${relTime}</span>
+                <span class="text-xs text-slate-400 font-medium">${fullTime}</span>
+                <button onclick="window.toggleAuditInspect('${timelineInspectId}')" class="p-1 px-2.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition text-[11px] font-bold" title="Inspect Raw Payload">
+                  <i class="fa-solid fa-code mr-1"></i>Inspect
+                </button>
+              </div>
+            </div>
+            <div class="mt-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div class="min-w-0">
+                ${contextHtml}
+              </div>
+              <div class="flex-1">
+                ${changeHtml}
+              </div>
+            </div>
+            <div id="${timelineInspectId}" class="hidden mt-3 bg-slate-950 text-slate-300 rounded-xl p-3 border border-slate-800 font-mono text-[11px] overflow-x-auto leading-relaxed">
+              <pre><code>${jsonStr}</code></pre>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // 2. Table Row
+      tableHtml += `
         <tr class="hover:bg-slate-50/80 transition text-xs border-b border-slate-100 last:border-0">
-          <td class="py-3 px-4 whitespace-nowrap">
+          <td class="py-3 px-3 text-center whitespace-nowrap">
+            <div class="w-6 h-6 mx-auto rounded-full ${dotClass} flex items-center justify-center text-[10px] text-white shadow-xs" title="${item.action}">
+              <i class="${dotIcon}"></i>
+            </div>
+          </td>
+          <td class="py-3 px-3 whitespace-nowrap">
             <div class="font-extrabold text-slate-900 text-xs">${fullTime}</div>
             <div class="text-[10px] text-indigo-600 font-bold">${relTime}</div>
           </td>
@@ -2422,23 +2547,26 @@
             <span class="px-2 py-0.5 rounded bg-slate-100 font-mono text-xs font-bold text-slate-700 border border-slate-200">${item.recordId || 'N/A'}</span>
           </td>
           <td class="py-3 px-3 whitespace-nowrap">${actorHtml}</td>
-          <td class="py-3 px-3 min-w-[160px]">${contextHtml}</td>
+          <td class="py-3 px-3 min-w-[150px]">${contextHtml}</td>
           <td class="py-3 px-4">${changeHtml}</td>
           <td class="py-3 px-3 text-center whitespace-nowrap">
-            <button onclick="window.toggleAuditInspect('${inspectId}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition" title="Inspect Raw Payload">
+            <button onclick="window.toggleAuditInspect('${tableInspectId}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition" title="Inspect Raw Payload">
               <i class="fa-solid fa-code text-xs"></i>
             </button>
           </td>
         </tr>
-        <tr id="${inspectId}" class="hidden bg-slate-950 text-slate-300 border-b border-slate-800">
-          <td colspan="7" class="p-4">
+        <tr id="${tableInspectId}" class="hidden bg-slate-950 text-slate-300 border-b border-slate-800">
+          <td colspan="8" class="p-4">
             <div class="font-mono text-[11px] bg-slate-900 p-3 rounded-xl border border-slate-800 overflow-x-auto leading-relaxed">
               <pre><code>${jsonStr}</code></pre>
             </div>
           </td>
         </tr>
       `;
-    }).join('');
+    });
+
+    if (timelineContainer) timelineContainer.innerHTML = timelineHtml;
+    if (tbody) tbody.innerHTML = tableHtml;
   }
 
   window.toggleAuditInspect = function(id) {

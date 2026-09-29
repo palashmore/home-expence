@@ -23,7 +23,7 @@
     <!-- SheetJS (XLSX) for Excel Export & Import -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="styles.css?v=5.0.0">
+    <link rel="stylesheet" href="styles.css?v=5.3.0">
     <script>
         tailwind.config = {
             theme: {
@@ -74,8 +74,8 @@
         <div class="max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8">
             <div class="flex justify-between h-14 sm:h-16 items-center gap-3">
                 
-                <!-- Zone 1: Logo, Brand & Active Household (Left) -->
-                <div class="flex items-center gap-2 sm:gap-3 shrink min-w-0">
+                <!-- Zone 1: Logo, Brand & Active Household (Left - Always Visible) -->
+                <div class="flex items-center gap-2 sm:gap-3 shrink-0">
                     <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-600 to-indigo-800 flex items-center justify-center text-white shadow-lg shadow-indigo-600/40 shrink-0 border border-indigo-400/20" title="Home Expence">
                         <svg class="w-4 h-4 sm:w-6 sm:h-6 text-white" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M16 3L3 14H7V27C7 27.55 7.45 28 8 28H24C24.55 28 25 27.55 25 27V14H29L16 3Z" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -113,24 +113,24 @@
                 </div>
 
                 <!-- Zone 3: Mobile Controls (< sm) -->
-                <div class="flex sm:hidden items-center space-x-1.5 shrink-0">
+                <div class="flex sm:hidden items-center space-x-1 shrink-0">
                     <!-- Mobile Account / Household Profile -->
                     <button type="button" onclick="openUserProfileModal()" class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-xs border border-indigo-400/40 shadow-sm shrink-0" id="mobileUserBtn" title="Account Profile & Sign Out">
                         <span id="mobileUserInitial">P</span>
                     </button>
                     
-                    <!-- Mobile Live Theme Selector (8 Luxury Options) -->
-                    <div class="flex items-center space-x-1 bg-slate-800/90 text-slate-200 border border-slate-700/80 rounded-xl px-2 py-1.5 shadow-sm text-xs font-semibold">
-                        <i class="fa-solid fa-palette text-amber-400 text-xs"></i>
-                        <select id="mobileThemeSelector" onchange="changeTheme(this.value)" class="bg-transparent text-slate-200 text-xs font-black focus:outline-none cursor-pointer border-none p-0 pr-0.5">
-                            <option value="indigo" class="bg-slate-900 text-white">✨ Royal Indigo</option>
-                            <option value="dark" class="bg-slate-900 text-white">🌙 Obsidian Dark</option>
-                            <option value="emerald" class="bg-slate-900 text-white">🌿 Emerald Mint</option>
-                            <option value="rose" class="bg-slate-900 text-white">🌅 Sunset Rose</option>
-                            <option value="ocean" class="bg-slate-900 text-white">🌊 Ocean Blue</option>
-                            <option value="amber" class="bg-slate-900 text-white">👑 Golden Amber</option>
-                            <option value="purple" class="bg-slate-900 text-white">🔮 Amethyst Purple</option>
-                            <option value="slate" class="bg-slate-900 text-white">⚙️ Platinum Slate</option>
+                    <!-- Mobile Compact Theme Palette Trigger (32px, tap opens 8 luxury themes) -->
+                    <div class="relative w-8 h-8 rounded-xl bg-slate-800/90 text-amber-400 border border-slate-700/80 shadow-sm flex items-center justify-center shrink-0 cursor-pointer overflow-hidden" title="Select Color Theme">
+                        <i class="fa-solid fa-palette text-xs pointer-events-none"></i>
+                        <select id="mobileThemeSelector" onchange="changeTheme(this.value)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer bg-slate-900 text-white" aria-label="Theme Selector">
+                            <option value="indigo">✨ Royal Indigo</option>
+                            <option value="dark">🌙 Obsidian Dark</option>
+                            <option value="emerald">🌿 Emerald Mint</option>
+                            <option value="rose">🌅 Sunset Rose</option>
+                            <option value="ocean">🌊 Ocean Sapphire</option>
+                            <option value="amber">👑 Golden Amber</option>
+                            <option value="purple">🔮 Amethyst Purple</option>
+                            <option value="slate">⚙️ Platinum Slate</option>
                         </select>
                     </div>
 
@@ -481,7 +481,7 @@
         </div>
 
         <!-- ================= ADVANCED MULTI-DIMENSIONAL FILTER TOOLBAR ================= -->
-        <section class="glass-card p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-3.5">
+        <section id="mainFilterToolbar" class="glass-card p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-3.5">
             
             <!-- Primary Filter Dropdowns -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -2517,34 +2517,58 @@
                     <button onclick="window.setInAppAuditFilter('DELETE_EXPENSE')" id="inAppFlt-DELETE_EXPENSE" class="inapp-flt-btn px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 transition">🗑️ Deletes</button>
                 </div>
 
-                <!-- Member / Actor Filter -->
-                <div class="flex items-center gap-1.5 text-xs font-bold">
-                    <span class="text-[11px] text-slate-400 uppercase tracking-wider mr-1">Actor:</span>
-                    <select id="inAppAuditActorFilter" onchange="window.filterInAppAuditLogs()" class="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer">
-                        <option value="ALL">👥 All Actors</option>
-                        <option value="System">⚡ System Sync</option>
-                    </select>
+                <!-- Member / Actor Filter & Layout Mode Switcher -->
+                <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[11px] text-slate-400 uppercase tracking-wider">Actor:</span>
+                        <select id="inAppAuditActorFilter" onchange="window.filterInAppAuditLogs()" class="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                            <option value="ALL">👥 All Actors</option>
+                            <option value="System">⚡ System Sync</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs font-bold">
+                        <button type="button" id="btnAuditViewTimeline" onclick="window.setAuditLayoutMode('timeline')" class="px-2.5 py-1 rounded-lg bg-white text-indigo-700 font-black shadow-xs transition flex items-center gap-1">
+                            <i class="fa-solid fa-timeline text-[11px]"></i>
+                            <span>Timeline</span>
+                        </button>
+                        <button type="button" id="btnAuditViewTable" onclick="window.setAuditLayoutMode('table')" class="px-2.5 py-1 rounded-lg text-slate-600 font-bold hover:text-slate-900 transition flex items-center gap-1">
+                            <i class="fa-solid fa-table-list text-[11px]"></i>
+                            <span>Table</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- In-App Audit Event Stream Table -->
-            <div class="glass-card rounded-2xl border border-slate-200/80 shadow-md bg-white overflow-hidden">
+            <!-- 1. Chronological Timeline Stream Container (With Glowing Indicator Dots) -->
+            <div id="inAppAuditTimelineContainer" class="block space-y-4">
+                <div id="inAppAuditTimeline" class="audit-timeline-container pr-1 sm:pr-4">
+                    <div class="p-8 text-center text-slate-400">
+                        <i class="fa-solid fa-spinner animate-spin text-3xl text-indigo-500 mb-3"></i>
+                        <div class="text-sm font-bold text-slate-700">Connecting to Cloud Audit Stream...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Tabular Ledger Container (With Chronological Status Dots) -->
+            <div id="inAppAuditTableContainer" class="hidden glass-card rounded-2xl border border-slate-200/80 shadow-md bg-white overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse text-xs">
                         <thead>
                             <tr class="bg-slate-50 text-slate-500 font-extrabold uppercase tracking-wider text-[11px] border-b border-slate-200">
-                                <th class="py-3.5 px-4 w-44">Date &amp; Time</th>
-                                <th class="py-3.5 px-3 w-36">Event</th>
+                                <th class="py-3.5 px-3 w-12 text-center">Status</th>
+                                <th class="py-3.5 px-3 w-40">Date &amp; Time</th>
+                                <th class="py-3.5 px-3 w-32">Event</th>
                                 <th class="py-3.5 px-3 w-28">Record ID</th>
                                 <th class="py-3.5 px-3 w-32">Actor</th>
-                                <th class="py-3.5 px-3 w-48">Item Context</th>
-                                <th class="py-3.5 px-4 min-w-[280px]">Changes Made (Before ➔ After)</th>
-                                <th class="py-3.5 px-3 w-20 text-center">Inspect</th>
+                                <th class="py-3.5 px-3 w-44">Item Context</th>
+                                <th class="py-3.5 px-4 min-w-[260px]">Changes Made (Before ➔ After)</th>
+                                <th class="py-3.5 px-3 w-16 text-center">Inspect</th>
                             </tr>
                         </thead>
                         <tbody id="inAppAuditTbody" class="divide-y divide-slate-100 text-slate-700 font-medium">
                             <tr>
-                                <td colspan="7" class="p-12 text-center text-slate-400">
+                                <td colspan="8" class="p-12 text-center text-slate-400">
                                     <i class="fa-solid fa-spinner animate-spin text-3xl text-indigo-500 mb-3"></i>
                                     <div class="text-sm font-bold text-slate-700">Connecting to Cloud Audit Stream...</div>
                                     <div class="text-xs text-slate-400 mt-1">Fetching cryptographic tamper-evident records</div>
@@ -3502,7 +3526,7 @@
     </div>
 
     <!-- Core Application Logic -->
-    <script src="tracker_app.js?v=5.2.0"></script>
-    <script src="advance_modules.js?v=5.2.0"></script>
+    <script src="tracker_app.js?v=5.3.0"></script>
+    <script src="advance_modules.js?v=5.3.0"></script>
 </body>
 </html>

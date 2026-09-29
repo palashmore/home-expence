@@ -569,6 +569,16 @@ function switchTab(tabId) {
         });
     }
 
+    // Contextually toggle global expense filter toolbar
+    const filterToolbar = document.getElementById("mainFilterToolbar");
+    if (filterToolbar) {
+        if (['dashboard', 'expenses', 'matrix', 'personal'].includes(tabId)) {
+            filterToolbar.classList.remove("hidden");
+        } else {
+            filterToolbar.classList.add("hidden");
+        }
+    }
+
     if (tabId === 'admin') {
         const adminCard = document.getElementById("adminTenantManagementCard");
         if (adminCard) {

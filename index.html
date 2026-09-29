@@ -2086,25 +2086,6 @@
                         </div>
                     </div>
 
-                    <!-- Active Context Switcher Bar (Visible for Admins & Multi-Household Users) -->
-                    <div id="adminHouseholdSwitcherBar" class="p-3.5 bg-indigo-950 text-white rounded-2xl flex flex-col sm:flex-row justify-between sm:items-center gap-3 shadow-sm">
-                        <div class="flex items-center space-x-2.5">
-                            <div class="w-8 h-8 rounded-lg bg-indigo-500/30 flex items-center justify-center text-indigo-300">
-                                <i class="fa-solid fa-network-wired text-sm"></i>
-                            </div>
-                            <div>
-                                <span class="text-[10px] uppercase font-black text-indigo-300 tracking-wider block">Active Household Context</span>
-                                <span id="adminActiveHouseholdDisplay" class="text-xs font-extrabold text-white">Palash &amp; Pallavi Household (H001)</span>
-                            </div>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <label for="adminHouseholdQuickSwitch" class="text-[11px] text-indigo-200 font-semibold shrink-0">Switch To:</label>
-                            <select id="adminHouseholdQuickSwitch" onchange="onAdminSelectHouseholdSwitch(this.value)" class="bg-indigo-900 border border-indigo-700 text-white text-xs rounded-xl px-3 py-1.5 font-bold focus:ring-2 focus:ring-indigo-400">
-                                <!-- Populated dynamically by loadAdminConsoleData() -->
-                            </select>
-                        </div>
-                    </div>
-
                     <!-- Two Sub-Tables: Households & Users -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         <!-- Left Panel: Households -->
@@ -2180,8 +2161,13 @@
                         </button>
                     </div>
 
-                    <!-- Staff Table Container -->
-                    <div class="overflow-x-auto">
+                    <!-- Staff Mobile Card View (block md:hidden) -->
+                    <div id="adminStaffMobileList" class="block md:hidden space-y-3">
+                        <!-- Dynamically populated by renderAdminView() -->
+                    </div>
+
+                    <!-- Staff Table Container (Desktop) -->
+                    <div class="hidden md:block overflow-x-auto">
                         <table class="w-full text-left border-collapse text-xs">
                             <thead>
                                 <tr class="bg-slate-900 text-slate-200 uppercase font-black tracking-wider">
@@ -2229,8 +2215,13 @@
                         </button>
                     </div>
 
-                    <!-- Bills Table Container -->
-                    <div class="overflow-x-auto">
+                    <!-- Bills Mobile Card View (block md:hidden) -->
+                    <div id="adminBillsMobileList" class="block md:hidden space-y-3">
+                        <!-- Dynamically populated by renderAdminView() -->
+                    </div>
+
+                    <!-- Bills Table Container (Desktop) -->
+                    <div class="hidden md:block overflow-x-auto">
                         <table class="w-full text-left border-collapse text-xs">
                             <thead>
                                 <tr class="bg-slate-900 text-slate-200 uppercase font-black tracking-wider">
@@ -2389,9 +2380,15 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
                         <div>
                             <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Monthly Budget Target (₹)</label>
-                            <div class="relative">
-                                <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-                                <input type="number" step="500" min="1000" id="adminMonthlyBudgetLimit" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-black text-slate-900 focus:border-indigo-500">
+                            <div class="flex items-center gap-2">
+                                <div class="relative flex-1">
+                                    <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                                    <input type="number" step="500" min="1000" id="adminMonthlyBudgetLimit" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-black text-slate-900 focus:border-indigo-500">
+                                </div>
+                                <button type="button" onclick="adminSaveBudget()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 shrink-0" title="Save Budget Limit">
+                                    <i class="fa-solid fa-floppy-disk"></i>
+                                    <span>Save Budget</span>
+                                </button>
                             </div>
                         </div>
                         <div class="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl text-xs text-emerald-900 font-semibold space-y-1">

@@ -25,6 +25,9 @@ try {
     const storedUser = (typeof localStorage !== 'undefined') ? localStorage.getItem("household_session_user") : null;
     if (storedUser) currentSessionUser = JSON.parse(storedUser);
 } catch (e) {}
+if (typeof window !== 'undefined') {
+    window.currentSessionUser = currentSessionUser;
+}
 
 let FAMILY_MEMBERS = _win.FAMILY_MEMBERS || (currentSessionUser?.name ? [currentSessionUser.name] : ["Palash", "Pallavi"]);
 if (typeof window !== 'undefined') {
@@ -631,9 +634,9 @@ function switchTab(tabId) {
 
     if (tabId === 'admin' || tabId === 'settings') {
         const adminCard = document.getElementById("adminTenantManagementCard");
-        const canManage = currentSessionUser && (currentSessionUser.role === 'ADMIN' || currentSessionUser.role === 'OWNER');
+        const isSysAdmin = currentSessionUser && (currentSessionUser.role === 'ADMIN' || currentSessionUser.role === 'SYSTEM_ADMIN');
         if (adminCard) {
-            if (canManage) {
+            if (isSysAdmin) {
                 adminCard.classList.remove("hidden");
             } else {
                 adminCard.classList.add("hidden");
@@ -646,7 +649,7 @@ function switchTab(tabId) {
         } else if (window.renderAdminView) {
             window.renderAdminView();
         }
-        if (tabId === 'admin' && canManage && window.loadAdminConsoleData) {
+        if (tabId === 'admin' && isSysAdmin && window.loadAdminConsoleData) {
             window.loadAdminConsoleData();
         }
         if (tabId === 'settings') {
@@ -798,6 +801,7 @@ function updateHeaderStatus() {
 function getActiveHouseholdId() {
     return currentSessionUser?.householdId || 'H001';
 }
+window.getActiveHouseholdId = getActiveHouseholdId;
 
 function getHouseholdCacheKey() {
     return `household_expenses_cache_${getActiveHouseholdId()}`;
@@ -962,6 +966,7 @@ async function signIn(username, password) {
         if (result.success && result.token) {
             authToken = result.token;
             currentSessionUser = result.user;
+            window.currentSessionUser = currentSessionUser;
             localStorage.setItem("household_auth_token", authToken);
             localStorage.setItem("household_session_user", JSON.stringify(currentSessionUser));
 
@@ -975,7 +980,8 @@ async function signIn(username, password) {
             await loadData();
             if (window.loadMasterConfig) await window.loadMasterConfig();
             if (window.renderAdminView) window.renderAdminView();
-            if (window.loadAdminConsoleData) window.loadAdminConsoleData();
+            const isSysAdmin = currentSessionUser && (currentSessionUser.role === 'ADMIN' || currentSessionUser.role === 'SYSTEM_ADMIN');
+            if (isSysAdmin && window.loadAdminConsoleData) window.loadAdminConsoleData();
             showToast('success', `Signed In as ${result.user.name}`, `Active: ${result.user.householdName}`);
             if (window.syncPushSubscriptionSilently) window.syncPushSubscriptionSilently();
         } else {
@@ -1002,6 +1008,7 @@ function signOut() {
     if (typeof triggerHaptic === 'function') triggerHaptic('medium');
     authToken = '';
     currentSessionUser = null;
+    window.currentSessionUser = null;
     expenses = [];
     window.expenses = [];
     window.expensesData = [];
@@ -1025,7 +1032,7 @@ async function initAuthSession() {
     const storedUser = localStorage.getItem("household_session_user");
 
     if (storedUser) {
-        try { currentSessionUser = JSON.parse(storedUser); } catch (e) {}
+        try { currentSessionUser = JSON.parse(storedUser); window.currentSessionUser = currentSessionUser; } catch (e) {}
     }
 
     if (storedToken) {
@@ -1038,12 +1045,14 @@ async function initAuthSession() {
             const result = await res.json();
             if (result.success && result.user) {
                 currentSessionUser = result.user;
+                window.currentSessionUser = currentSessionUser;
                 localStorage.setItem("household_session_user", JSON.stringify(currentSessionUser));
                 updateUserProfileUI();
                 await loadData();
                 if (window.loadMasterConfig) await window.loadMasterConfig();
                 if (window.renderAdminView) window.renderAdminView();
-                if (window.loadAdminConsoleData) window.loadAdminConsoleData();
+                const isSysAdmin = currentSessionUser && (currentSessionUser.role === 'ADMIN' || currentSessionUser.role === 'SYSTEM_ADMIN');
+                if (isSysAdmin && window.loadAdminConsoleData) window.loadAdminConsoleData();
                 if (window.syncPushSubscriptionSilently) window.syncPushSubscriptionSilently();
                 return;
             }
@@ -3058,8 +3067,12 @@ function onCategoryChange() {
     else if (cat === "Dish Bill (DTH)") paidTo.value = "Dish TV / Tata Play";
 }
 
+let isSavingExpense = false;
+
 async function saveExpense(e) {
     if (e && e.preventDefault) e.preventDefault();
+    if (isSavingExpense) return;
+    isSavingExpense = true;
 
     const idInput = document.getElementById("expenseId");
     const id = idInput ? idInput.value.trim() : "";
@@ -3080,16 +3093,19 @@ async function saveExpense(e) {
 
     // 1. Validation
     if (!date || isNaN(new Date(date).getTime())) {
+        isSavingExpense = false;
         triggerHaptic('error');
         showToast("error", "Validation Error", "Please select a valid transaction date.");
         return;
     }
     if (isNaN(amount) || amount <= 0) {
+        isSavingExpense = false;
         triggerHaptic('error');
         showToast("error", "Validation Error", "Amount must be a positive number greater than zero.");
         return;
     }
     if (!category || category === '__NEW_CAT__') {
+        isSavingExpense = false;
         triggerHaptic('error');
         showToast("error", "Validation Error", "Please select or add an expense category.");
         if (category === '__NEW_CAT__' && window.promptNewCategoryForExpense) {
@@ -3131,6 +3147,7 @@ async function saveExpense(e) {
 
     // Check immediate offline state before network dispatch
     if (!navigator.onLine) {
+        isSavingExpense = false;
         saveOfflineDraft(payload, isEdit, existingRecord, submitBtn);
         return;
     }
@@ -3235,8 +3252,8 @@ async function saveExpense(e) {
                 }).catch(() => {});
             }
 
-            // 9. Silent Background Sync to Verify Server Parity & Broadcast
-            loadData(true);
+            // 9. Silent Background Sync to Verify Server Parity & Broadcast (Canonical read-after-write)
+            await loadData(true);
             if (window.loadMasterConfig) window.loadMasterConfig();
             broadcastTransactionUpdate(isEdit ? 'UPDATE' : 'CREATE');
         } else {
@@ -3248,9 +3265,10 @@ async function saveExpense(e) {
         console.warn("Save network exception, saving safely to offline sync queue:", err);
         saveOfflineDraft(payload, isEdit, existingRecord, submitBtn);
     } finally {
+        isSavingExpense = false;
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = `Save Expense Record`;
+            submitBtn.innerHTML = isEdit ? `Save Changes` : `Save Expense Record`;
         }
     }
 }
@@ -3889,6 +3907,10 @@ window.updateGlobalsFromConfig = function(config) {
     if (config.familyMembers && Array.isArray(config.familyMembers)) {
         FAMILY_MEMBERS = config.familyMembers;
         window.FAMILY_MEMBERS = FAMILY_MEMBERS;
+    }
+    if (config.monthlyBudgetLimit !== undefined) {
+        monthlyBudgetLimit = Number(config.monthlyBudgetLimit) || 50000;
+        window.monthlyBudgetLimit = monthlyBudgetLimit;
     }
 };
 

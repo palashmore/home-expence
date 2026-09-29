@@ -91,9 +91,9 @@
       "name": "MSCB Electricity Bill",
       "category": "Electricity Bill",
       "dueDay": 10,
-      "approxAmount": 3450.5,
-      "budgetedAmount": 3450.5,
-      "icon": "⚡"
+      "approxAmount": 2200,
+      "icon": "⚡",
+      "budgetedAmount": 2200
     },
     {
       "id": "bill-2",
@@ -142,7 +142,6 @@
     }
   ],
   "familyMembers": [
-    "System Administrator",
     "Palash",
     "Pallavi"
   ],
@@ -165,6 +164,6 @@
     "Personal Expense (Palash)",
     "Equal (50/50)"
   ],
-  "updatedAt": "2026-09-29T18:07:59.107Z",
+  "updatedAt": "2026-09-29T18:53:49.471Z",
   "householdId": "H001"
 }

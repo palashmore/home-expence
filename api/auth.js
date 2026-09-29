@@ -54,19 +54,6 @@ function verifySessionToken(token) {
     if (!token || typeof token !== 'string') return null;
     const parts = token.trim().split('.');
     if (parts.length !== 2) {
-        // Fallback for legacy demo direct access tokens
-        if (token === 'direct_access') {
-            return {
-                userId: 'U001',
-                username: 'palash',
-                name: 'Palash',
-                householdId: 'H001',
-                householdName: 'Palash & Pallavi Household',
-                role: 'OWNER',
-                iat: Date.now(),
-                exp: Date.now() + SESSION_EXPIRY_MS
-            };
-        }
         return null;
     }
 
@@ -150,23 +137,21 @@ module.exports = async function handler(req, res) {
                 return res.status(200).json({ success: true, users: users });
             }
 
-            // Admin/Owner Overview: Return households and users for console
+            // Admin Overview: Return households and users for console (Restricted strictly to SYSTEM_ADMIN / ADMIN)
             if (queryAction === 'admin_overview') {
                 const session = authenticateRequest(req);
                 if (!session) {
                     return res.status(401).json({ success: false, error: "Authentication required." });
                 }
-                if (session.role !== 'ADMIN' && session.role !== 'OWNER') {
-                    return res.status(403).json({ success: false, error: "Access denied. Administrator or Household Owner role required." });
+                const isSysAdmin = session.role === 'ADMIN' || session.role === 'SYSTEM_ADMIN';
+                if (!isSysAdmin) {
+                    return res.status(403).json({ success: false, error: "Forbidden: Access denied. System Administrator role required." });
                 }
 
                 const allHouseholds = storage.getAllHouseholds();
                 const allUsers = storage.getAllUsers();
 
-                const filteredHouseholds = session.role === 'ADMIN'
-                    ? allHouseholds
-                    : allHouseholds.filter(h => h.householdId === session.householdId || h.ownerUserId === session.userId || (h.memberUserIds && h.memberUserIds.includes(session.userId)));
-
+                const filteredHouseholds = allHouseholds;
                 const allowedHIds = new Set(filteredHouseholds.map(h => h.householdId));
 
                 const households = filteredHouseholds.map(h => {
@@ -220,10 +205,11 @@ module.exports = async function handler(req, res) {
                     });
                 }
                 const activeRole = userRec ? userRec.role : session.role;
+                const isSysAdmin = activeRole === 'SYSTEM_ADMIN' || activeRole === 'ADMIN';
                 const activeHouseholdId = userRec ? userRec.householdId : session.householdId;
                 const hh = storage.getHouseholdById(activeHouseholdId);
-                const finalHouseholdId = hh ? activeHouseholdId : 'H001';
-                const finalHousehold = hh || storage.getHouseholdById('H001');
+                const finalHouseholdId = hh ? activeHouseholdId : (isSysAdmin ? 'SYSTEM' : 'H001');
+                const finalHousehold = hh || (isSysAdmin ? { householdId: 'SYSTEM', householdName: 'System Administration' } : storage.getHouseholdById('H001'));
 
                 return res.status(200).json({
                     success: true,
@@ -321,9 +307,10 @@ module.exports = async function handler(req, res) {
                     }
                     const activeRole = userRec ? userRec.role : session.role;
                     const activeHouseholdId = userRec ? userRec.householdId : session.householdId;
+                    const isSysAdmin = activeRole === 'SYSTEM_ADMIN' || activeRole === 'ADMIN';
                     const hh = storage.getHouseholdById(activeHouseholdId);
-                    const finalHouseholdId = hh ? activeHouseholdId : 'H001';
-                    const finalHousehold = hh || storage.getHouseholdById('H001');
+                    const finalHouseholdId = hh ? activeHouseholdId : (isSysAdmin ? 'SYSTEM' : 'H001');
+                    const finalHousehold = hh || (isSysAdmin ? { householdId: 'SYSTEM', householdName: 'System Administration' } : storage.getHouseholdById('H001'));
 
                     return res.status(200).json({
                         success: true,
@@ -342,12 +329,13 @@ module.exports = async function handler(req, res) {
                 }
             }
 
-            // 4. CREATE HOUSEHOLD ACTION (Admin & Owner)
+            // 4. CREATE HOUSEHOLD ACTION (Restricted strictly to SYSTEM_ADMIN / ADMIN)
             if (action === 'create_household') {
                 const session = authenticateRequest(req);
                 if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
-                if (session.role !== 'ADMIN' && session.role !== 'OWNER') {
-                    return res.status(403).json({ success: false, error: "Forbidden: Administrator or Household Owner role required to create households." });
+                const isSysAdmin = session.role === 'ADMIN' || session.role === 'SYSTEM_ADMIN';
+                if (!isSysAdmin) {
+                    return res.status(403).json({ success: false, error: "Forbidden: System Administrator role required to create households." });
                 }
 
                 const householdName = String(body.householdName || '').trim();
@@ -356,7 +344,7 @@ module.exports = async function handler(req, res) {
                 }
 
                 const initialBudget = Number(body.initialBudget) || 50000;
-                const ownerUserId = (session.role === 'ADMIN' && body.ownerUserId) ? body.ownerUserId : session.userId;
+                const ownerUserId = body.ownerUserId || session.userId;
                 const ownerUser = storage.getUserById(ownerUserId);
 
                 try {
@@ -364,7 +352,7 @@ module.exports = async function handler(req, res) {
                         householdName: householdName,
                         initialBudget: initialBudget,
                         ownerUserId: ownerUserId,
-                        ownerName: ownerUser ? ownerUser.name : session.name
+                        ownerName: ownerUser ? ownerUser.name : (body.ownerName || 'Household Owner')
                     }, session.username);
 
                     return res.status(201).json({
@@ -377,12 +365,13 @@ module.exports = async function handler(req, res) {
                 }
             }
 
-            // 5. CREATE USER ACTION (Admin & Owner)
+            // 5. CREATE USER ACTION (Restricted strictly to SYSTEM_ADMIN / ADMIN)
             if (action === 'create_user') {
                 const session = authenticateRequest(req);
                 if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
-                if (session.role !== 'ADMIN' && session.role !== 'OWNER') {
-                    return res.status(403).json({ success: false, error: "Forbidden: Administrator or Household Owner role required to create users." });
+                const isSysAdmin = session.role === 'ADMIN' || session.role === 'SYSTEM_ADMIN';
+                if (!isSysAdmin) {
+                    return res.status(403).json({ success: false, error: "Forbidden: System Administrator role required to create users." });
                 }
 
                 const username = String(body.username || '').trim().toLowerCase();
@@ -398,20 +387,8 @@ module.exports = async function handler(req, res) {
                 if (!password || password.length < 6) {
                     return res.status(400).json({ success: false, error: "Password must be at least 6 characters." });
                 }
-                if (!['ADMIN', 'OWNER', 'MEMBER', 'VIEWER'].includes(role)) {
+                if (!['ADMIN', 'SYSTEM_ADMIN', 'OWNER', 'MEMBER', 'VIEWER'].includes(role)) {
                     return res.status(400).json({ success: false, error: "Invalid role specified. Must be OWNER, MEMBER, or VIEWER." });
-                }
-
-                // If non-admin Owner, restrict to their authorized households and forbid creating ADMIN
-                if (session.role !== 'ADMIN') {
-                    const hh = storage.getHouseholdById(householdId);
-                    const isAuthorizedH = hh && (hh.ownerUserId === session.userId || hh.householdId === session.householdId);
-                    if (!isAuthorizedH) {
-                        return res.status(403).json({ success: false, error: "Forbidden: You may only add members to your own household." });
-                    }
-                    if (role === 'ADMIN') {
-                        return res.status(403).json({ success: false, error: "Forbidden: Only System Administrators can grant ADMIN role." });
-                    }
                 }
 
                 const passwordHash = hashPassword(password);
@@ -435,43 +412,11 @@ module.exports = async function handler(req, res) {
                 }
             }
 
-            // 6. SWITCH ACTIVE HOUSEHOLD CONTEXT (Admin & Authorized Household Members)
+            // 6. SWITCH ACTIVE HOUSEHOLD CONTEXT (Disabled in production for strict tenancy)
             if (action === 'switch_household') {
-                const session = authenticateRequest(req);
-                if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
-
-                const targetHId = String(body.householdId || '').trim();
-                const targetHousehold = storage.getHouseholdById(targetHId);
-                if (!targetHousehold) {
-                    return res.status(404).json({ success: false, error: "Target household not found." });
-                }
-
-                // Permission check: ADMIN can switch to any household.
-                // Others can only switch if owner or member.
-                if (session.role !== 'ADMIN') {
-                    const isMember = targetHousehold.ownerUserId === session.userId || 
-                                     (targetHousehold.memberUserIds && targetHousehold.memberUserIds.includes(session.userId));
-                    if (!isMember) {
-                        return res.status(403).json({ success: false, error: "Forbidden: You are not a registered member of this household." });
-                    }
-                }
-
-                const user = storage.getUserById(session.userId);
-                const token = generateSessionToken({ ...user, householdId: targetHousehold.householdId }, targetHousehold);
-                res.setHeader('Set-Cookie', `household_session=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 3600}`);
-
-                return res.status(200).json({
-                    success: true,
-                    token: token,
-                    user: {
-                        userId: session.userId,
-                        username: session.username,
-                        name: session.name,
-                        householdId: targetHousehold.householdId,
-                        householdName: targetHousehold.householdName,
-                        role: session.role
-                    },
-                    message: `Switched active household to ${targetHousehold.householdName}`
+                return res.status(403).json({
+                    success: false,
+                    error: "Forbidden: Household switching is disabled in production. Please sign in directly with the appropriate household credentials."
                 });
             }
 
@@ -486,7 +431,8 @@ module.exports = async function handler(req, res) {
                 const targetH = storage.getHouseholdById(targetHId);
                 if (!targetH) return res.status(404).json({ success: false, error: "Household not found." });
 
-                if (session.role !== 'ADMIN') {
+                const isSysAdmin = session.role === 'ADMIN' || session.role === 'SYSTEM_ADMIN';
+                if (!isSysAdmin) {
                     if (targetH.ownerUserId !== session.userId && targetH.householdId !== session.householdId) {
                         return res.status(403).json({ success: false, error: "Forbidden: You can only edit your own household." });
                     }
@@ -513,7 +459,8 @@ module.exports = async function handler(req, res) {
             if (action === 'delete_household') {
                 const session = authenticateRequest(req);
                 if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
-                if (session.role !== 'ADMIN') {
+                const isSysAdmin = session.role === 'ADMIN' || session.role === 'SYSTEM_ADMIN';
+                if (!isSysAdmin) {
                     return res.status(403).json({ success: false, error: "Forbidden: Only System Administrators can delete households." });
                 }
 
@@ -535,7 +482,8 @@ module.exports = async function handler(req, res) {
             if (action === 'edit_user') {
                 const session = authenticateRequest(req);
                 if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
-                if (session.role !== 'ADMIN' && session.role !== 'OWNER') {
+                const isSysAdmin = session.role === 'ADMIN' || session.role === 'SYSTEM_ADMIN';
+                if (!isSysAdmin && session.role !== 'OWNER') {
                     return res.status(403).json({ success: false, error: "Forbidden: Administrator or Household Owner role required to edit users." });
                 }
 
@@ -545,14 +493,14 @@ module.exports = async function handler(req, res) {
                 const targetUser = storage.getUserById(targetUId);
                 if (!targetUser) return res.status(404).json({ success: false, error: "User not found." });
 
-                if (session.role !== 'ADMIN') {
+                if (!isSysAdmin) {
                     if (targetUser.householdId !== session.householdId && targetUser.userId !== session.userId) {
                         return res.status(403).json({ success: false, error: "Forbidden: You may only edit users in your own household." });
                     }
-                    if (targetUser.role === 'ADMIN') {
+                    if (targetUser.role === 'ADMIN' || targetUser.role === 'SYSTEM_ADMIN') {
                         return res.status(403).json({ success: false, error: "Forbidden: You cannot modify administrator accounts." });
                     }
-                    if (body.role === 'ADMIN') {
+                    if (body.role === 'ADMIN' || body.role === 'SYSTEM_ADMIN') {
                         return res.status(403).json({ success: false, error: "Forbidden: Only System Administrators can grant ADMIN role." });
                     }
                 }
@@ -563,7 +511,7 @@ module.exports = async function handler(req, res) {
                 if (body.email) updates.email = String(body.email).trim().toLowerCase();
                 if (body.role) updates.role = String(body.role).trim().toUpperCase();
                 if (body.status) updates.status = String(body.status).trim().toLowerCase();
-                if (session.role === 'ADMIN' && body.householdId) updates.householdId = String(body.householdId).trim();
+                if (isSysAdmin && body.householdId) updates.householdId = String(body.householdId).trim();
 
                 // If password is being reset
                 if (body.password && String(body.password).trim().length >= 6) {
@@ -586,7 +534,8 @@ module.exports = async function handler(req, res) {
             if (action === 'delete_user') {
                 const session = authenticateRequest(req);
                 if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
-                if (session.role !== 'ADMIN' && session.role !== 'OWNER') {
+                const isSysAdmin = session.role === 'ADMIN' || session.role === 'SYSTEM_ADMIN';
+                if (!isSysAdmin && session.role !== 'OWNER') {
                     return res.status(403).json({ success: false, error: "Forbidden: Administrator or Household Owner role required to delete users." });
                 }
 
@@ -600,11 +549,11 @@ module.exports = async function handler(req, res) {
                 const targetUser = storage.getUserById(targetUId);
                 if (!targetUser) return res.status(404).json({ success: false, error: "User not found." });
 
-                if (session.role !== 'ADMIN') {
+                if (!isSysAdmin) {
                     if (targetUser.householdId !== session.householdId) {
                         return res.status(403).json({ success: false, error: "Forbidden: You may only delete users from your own household." });
                     }
-                    if (targetUser.role === 'ADMIN' || targetUser.role === 'OWNER') {
+                    if (targetUser.role === 'ADMIN' || targetUser.role === 'SYSTEM_ADMIN' || targetUser.role === 'OWNER') {
                         return res.status(403).json({ success: false, error: "Forbidden: Household Owners cannot delete Admin or Owner accounts." });
                     }
                 }

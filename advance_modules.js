@@ -1717,7 +1717,7 @@
       return;
     }
 
-    // 1. Staff Members Table
+    // 1. Staff Members Table & Mobile Cards
     const staffTbody = document.getElementById('adminStaffTableBody');
     if (staffTbody && config.staff) {
       staffTbody.innerHTML = config.staff.map((s) => `
@@ -1766,7 +1766,55 @@
       `).join('');
     }
 
-    // 2. Recurring Bills Table
+    const staffMobile = document.getElementById('adminStaffMobileList');
+    if (staffMobile && config.staff) {
+      staffMobile.innerHTML = config.staff.map((s) => `
+        <div class="staff-mobile-card p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 shadow-2xs" data-staff-id="${s.id}">
+          <div class="flex items-center justify-between gap-2">
+            <input type="text" class="staff-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 focus:bg-white focus:border-indigo-500" value="${s.name}" placeholder="Staff Name">
+            <button onclick="adminDeleteStaff('${s.id}')" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0" title="Delete staff member">
+              <i class="fa-solid fa-trash text-xs"></i>
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Role</label>
+              <input type="text" class="staff-edit-role bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs w-full focus:bg-white focus:border-indigo-500" value="${s.role || ''}" placeholder="Role">
+            </div>
+            <div>
+              <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Base Salary (₹)</label>
+              <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
+                <span class="text-slate-400 mr-1 font-bold text-xs">₹</span>
+                <input type="number" step="50" min="0" class="staff-edit-salary bg-transparent font-black text-xs w-full focus:outline-none" value="${s.baseSalary}">
+              </div>
+            </div>
+            <div>
+              <label class="block text-[10px] font-black uppercase text-indigo-600 mb-0.5">Allowed Leaves</label>
+              <input type="number" min="0" max="31" class="staff-edit-leaves bg-indigo-50 border border-indigo-200 rounded-xl px-2 py-1 font-black text-xs text-indigo-900 w-full text-center" value="${s.allowedPaidLeaves ?? 4}">
+            </div>
+            <div>
+              <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Payday</label>
+              <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
+                <span class="text-[10px] text-slate-400 font-bold mr-1">Day</span>
+                <input type="number" min="1" max="31" class="staff-edit-cycleday bg-transparent font-black text-xs w-full focus:outline-none" value="${s.billingCycleDay || 30}">
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
+            <select class="staff-edit-cycletype bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-semibold">
+              <option value="calendar_month" ${s.cycleType === 'calendar_month' ? 'selected' : ''}>Calendar Month</option>
+              <option value="custom_cycle" ${s.cycleType === 'custom_cycle' ? 'selected' : ''}>Custom Cycle</option>
+            </select>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
+              <input type="checkbox" class="staff-edit-active rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" ${s.active !== false ? 'checked' : ''}>
+              <span>Active</span>
+            </label>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 2. Recurring Bills Table & Mobile Cards
     const billsTbody = document.getElementById('adminBillsTableBody');
     if (billsTbody && config.recurringBills) {
       billsTbody.innerHTML = config.recurringBills.map((b) => {
@@ -1804,6 +1852,50 @@
             </button>
           </td>
         </tr>
+      `;
+      }).join('');
+    }
+
+    const billsMobile = document.getElementById('adminBillsMobileList');
+    if (billsMobile && config.recurringBills) {
+      billsMobile.innerHTML = config.recurringBills.map((b) => {
+        const billAmt = Number(b.approxAmount !== undefined && b.approxAmount !== null ? b.approxAmount : (b.budgetedAmount !== undefined ? b.budgetedAmount : 0)) || 0;
+        return `
+        <div class="bill-mobile-card p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 shadow-2xs" data-bill-id="${b.id}">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 flex-1">
+              <input type="text" class="bill-edit-icon bg-slate-50 border border-slate-200 rounded-xl px-1 py-1 text-center font-bold text-base w-9 shrink-0" value="${b.icon || '⚡'}">
+              <input type="text" class="bill-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 focus:bg-white focus:border-indigo-500" value="${b.name}" placeholder="Bill Name">
+            </div>
+            <button onclick="adminDeleteBill('${b.id}')" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0" title="Delete bill">
+              <i class="fa-solid fa-trash text-xs"></i>
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="col-span-2">
+              <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Category</label>
+              <select class="bill-edit-cat bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-semibold focus:bg-white focus:border-indigo-500 w-full">
+                ${(config.categories || []).map(c => `
+                  <option value="${c.name}" ${c.name === b.category ? 'selected' : ''}>${c.name}</option>
+                `).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Due Day</label>
+              <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
+                <span class="text-[10px] text-slate-400 font-bold mr-1">Day</span>
+                <input type="number" min="1" max="31" class="bill-edit-dueday bg-transparent font-black text-xs text-indigo-700 w-full focus:outline-none" value="${b.dueDay}">
+              </div>
+            </div>
+            <div>
+              <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Approx Amount (₹)</label>
+              <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
+                <span class="text-slate-400 mr-1 font-bold text-xs">₹</span>
+                <input type="number" step="50" min="0" class="bill-edit-amount bg-transparent font-black text-xs w-full focus:outline-none" value="${billAmt}">
+              </div>
+            </div>
+          </div>
+        </div>
       `;
       }).join('');
     }
@@ -1918,18 +2010,22 @@
   window.saveAdminConfigFromUI = async function () {
     const config = window.masterConfig || {};
 
-    // 1. Gather Staff Table Data
-    const staffRows = document.querySelectorAll('#adminStaffTableBody tr');
+    // 1. Gather Staff Data (Check mobile cards first if on mobile, else table rows)
+    const mobileStaffCards = document.querySelectorAll('#adminStaffMobileList .staff-mobile-card');
+    const staffElements = (window.innerWidth < 768 && mobileStaffCards.length > 0)
+      ? mobileStaffCards
+      : document.querySelectorAll('#adminStaffTableBody tr');
+
     const updatedStaff = [];
-    staffRows.forEach((tr, index) => {
-      const id = tr.dataset.staffId || `staff-${index + 1}`;
-      const name = tr.querySelector('.staff-edit-name')?.value.trim() || 'Staff';
-      const role = tr.querySelector('.staff-edit-role')?.value.trim() || '';
-      const baseSalary = parseFloat(tr.querySelector('.staff-edit-salary')?.value) || 0;
-      const allowedPaidLeaves = parseInt(tr.querySelector('.staff-edit-leaves')?.value, 10) || 0;
-      const billingCycleDay = parseInt(tr.querySelector('.staff-edit-cycleday')?.value, 10) || 30;
-      const cycleType = tr.querySelector('.staff-edit-cycletype')?.value || 'calendar_month';
-      const active = tr.querySelector('.staff-edit-active')?.checked !== false;
+    staffElements.forEach((el, index) => {
+      const id = el.dataset.staffId || `staff-${index + 1}`;
+      const name = el.querySelector('.staff-edit-name')?.value.trim() || 'Staff';
+      const role = el.querySelector('.staff-edit-role')?.value.trim() || '';
+      const baseSalary = parseFloat(el.querySelector('.staff-edit-salary')?.value) || 0;
+      const allowedPaidLeaves = parseInt(el.querySelector('.staff-edit-leaves')?.value, 10) || 0;
+      const billingCycleDay = parseInt(el.querySelector('.staff-edit-cycleday')?.value, 10) || 30;
+      const cycleType = el.querySelector('.staff-edit-cycletype')?.value || 'calendar_month';
+      const active = el.querySelector('.staff-edit-active')?.checked !== false;
 
       const shortName = name.includes(' - ') ? name.split(' - ')[1].trim() : name;
 
@@ -1946,16 +2042,20 @@
       });
     });
 
-    // 2. Gather Recurring Bills Table Data
-    const billRows = document.querySelectorAll('#adminBillsTableBody tr');
+    // 2. Gather Recurring Bills Data (Check mobile cards first if on mobile, else table rows)
+    const mobileBillCards = document.querySelectorAll('#adminBillsMobileList .bill-mobile-card');
+    const billElements = (window.innerWidth < 768 && mobileBillCards.length > 0)
+      ? mobileBillCards
+      : document.querySelectorAll('#adminBillsTableBody tr');
+
     const updatedBills = [];
-    billRows.forEach((tr, index) => {
-      const id = tr.dataset.billId || `bill-${index + 1}`;
-      const icon = tr.querySelector('.bill-edit-icon')?.value.trim() || '⚡';
-      const name = tr.querySelector('.bill-edit-name')?.value.trim() || 'Bill';
-      const category = tr.querySelector('.bill-edit-cat')?.value || 'Electricity Bill';
-      const dueDay = parseInt(tr.querySelector('.bill-edit-dueday')?.value, 10) || 10;
-      const rawAmt = tr.querySelector('.bill-edit-amount')?.value;
+    billElements.forEach((el, index) => {
+      const id = el.dataset.billId || `bill-${index + 1}`;
+      const icon = el.querySelector('.bill-edit-icon')?.value.trim() || '⚡';
+      const name = el.querySelector('.bill-edit-name')?.value.trim() || 'Bill';
+      const category = el.querySelector('.bill-edit-cat')?.value || 'Electricity Bill';
+      const dueDay = parseInt(el.querySelector('.bill-edit-dueday')?.value, 10) || 10;
+      const rawAmt = el.querySelector('.bill-edit-amount')?.value;
       const approxAmount = Number(String(rawAmt || '0').replace(/[^0-9.]/g, '')) || 0;
 
       updatedBills.push({
@@ -1999,6 +2099,20 @@
     };
 
     await saveMasterConfig(payload);
+  };
+
+  window.adminSaveBudget = async function () {
+    const budgetInput = document.getElementById('adminMonthlyBudgetLimit');
+    const rawVal = budgetInput ? budgetInput.value : '';
+    const cleanBudget = parseFloat(String(rawVal || '').replace(/[^0-9.]/g, ''));
+    if (isNaN(cleanBudget) || cleanBudget <= 0) {
+      if (window.showToast) window.showToast('error', 'Invalid Budget', 'Please enter a valid positive budget amount.');
+      return;
+    }
+    const success = await saveMasterConfig({ monthlyBudgetLimit: cleanBudget });
+    if (success && window.showToast) {
+      window.showToast('success', 'Budget Saved', `Monthly budget updated to ₹${cleanBudget.toLocaleString('en-IN')}`);
+    }
   };
 
   window.adminAddSplitRule = async function () {
@@ -4401,19 +4515,40 @@
 
   // ========================================================
   // IN-APP FLOATING HEADS-UP NOTIFICATION BANNER SYSTEM
+  // Compact 72-90px Height, Mobile Safe-Area, Strict Deduplication
   // ========================================================
-  window.showInAppNotificationBanner = function ({ title, body, icon, url, type, actor, amount } = {}) {
+  const seenNotificationEventIds = new Set();
+
+  window.showInAppNotificationBanner = function ({ id, eventId, notificationEventId, title, body, icon, url, type, actor, amount } = {}) {
+    const uniqueKey = eventId || notificationEventId || id || (title + ':' + body);
+    if (uniqueKey) {
+      if (seenNotificationEventIds.has(uniqueKey)) return;
+      seenNotificationEventIds.add(uniqueKey);
+      if (seenNotificationEventIds.size > 200) {
+        const first = seenNotificationEventIds.values().next().value;
+        seenNotificationEventIds.delete(first);
+      }
+    }
+
     let container = document.getElementById('inAppNotificationBannerContainer');
     if (!container) {
       container = document.createElement('div');
       container.id = 'inAppNotificationBannerContainer';
-      container.className = 'fixed top-3 inset-x-2 sm:inset-x-auto sm:right-6 sm:top-5 z-[9999] pointer-events-none flex flex-col items-center sm:items-end space-y-2.5 max-w-md mx-auto sm:mx-0 w-full';
+      container.className = 'fixed top-3 inset-x-3 sm:inset-x-auto sm:right-5 sm:top-5 z-[9999] pointer-events-none flex flex-col items-center sm:items-end gap-2 max-w-[calc(100vw-24px)] sm:max-w-sm mx-auto sm:mx-0 w-full';
       document.body.appendChild(container);
+    }
+
+    // Enforce maximum 1 or 2 visible notifications (dismiss oldest)
+    const existing = container.querySelectorAll('.in-app-banner');
+    if (existing.length >= 2) {
+      for (let i = 0; i <= existing.length - 2; i++) {
+        if (existing[i].dismissBanner) existing[i].dismissBanner();
+      }
     }
 
     // Play subtle haptic feedback on supported mobile devices
     if (navigator.vibrate) {
-      try { navigator.vibrate([120, 60, 120]); } catch (e) {}
+      try { navigator.vibrate([100, 50, 100]); } catch (e) {}
     }
 
     // Gentle unobtrusive audio chime using Web Audio API
@@ -4425,19 +4560,19 @@
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(659.25, ctx.currentTime); // E5
-        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
-        gain.gain.setValueAtTime(0.09, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start();
-        osc.stop(ctx.currentTime + 0.35);
+        osc.stop(ctx.currentTime + 0.3);
       }
     } catch (e) {}
 
     const banner = document.createElement('div');
-    banner.className = 'in-app-banner pointer-events-auto w-full max-w-sm rounded-2xl bg-slate-900/95 text-white border border-indigo-500/50 shadow-2xl backdrop-blur-md p-3.5 flex items-start gap-3 transform transition-all duration-300 ease-out translate-y-[-24px] opacity-0 cursor-pointer select-none hover:border-indigo-400 active:scale-[0.98] shadow-indigo-950/50';
+    banner.className = 'in-app-banner pointer-events-auto w-full max-w-[calc(100vw-24px)] sm:max-w-sm rounded-2xl bg-slate-900/95 text-white border border-indigo-500/50 shadow-xl backdrop-blur-md px-3.5 py-2.5 flex items-center gap-2.5 transform transition-all duration-300 ease-out translate-y-[-24px] opacity-0 cursor-pointer select-none hover:border-indigo-400 active:scale-[0.98] shadow-indigo-950/50 min-h-[72px] max-h-[90px]';
     banner.setAttribute('role', 'alert');
 
     let displayIcon = '<i class="fa-solid fa-bell text-amber-400"></i>';
@@ -4455,37 +4590,34 @@
     const safeBody = (body || 'New household activity received.').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
     banner.innerHTML = `
-      <div class="w-10 h-10 rounded-xl bg-slate-800/90 border border-slate-700/80 flex items-center justify-center shrink-0 text-base shadow-sm">
+      <div class="w-9 h-9 rounded-xl bg-slate-800/90 border border-slate-700/80 flex items-center justify-center shrink-0 text-sm shadow-sm">
         ${displayIcon}
       </div>
-      <div class="flex-1 min-w-0 pt-0.5">
+      <div class="flex-1 min-w-0">
         <div class="flex items-center justify-between gap-1 mb-0.5">
-          <span class="text-[10px] font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+          <span class="text-[9px] font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-            Home Expence • Live
+            Live Alert
           </span>
-          <span class="text-[10px] font-bold text-slate-400">Now</span>
+          <span class="text-[9px] font-bold text-slate-400">Now</span>
         </div>
         <div class="text-xs font-black text-white leading-tight truncate">${safeTitle}</div>
-        <div class="text-[11px] font-medium text-slate-300 leading-snug line-clamp-2 mt-0.5">${safeBody}</div>
-        <div class="mt-2.5 flex items-center gap-2">
-          <button class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black shadow transition" onclick="event.stopPropagation(); this.closest('.in-app-banner').click();">
-            View Update
-          </button>
-          <button class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] font-bold transition" onclick="event.stopPropagation(); this.closest('.in-app-banner').dismissBanner();">
-            Dismiss
-          </button>
-        </div>
+        <div class="text-[11px] font-medium text-slate-300 leading-tight truncate mt-0.5">${safeBody}</div>
       </div>
-      <button class="text-slate-400 hover:text-white transition p-1 -mr-1 -mt-1 text-xs shrink-0" onclick="event.stopPropagation(); this.closest('.in-app-banner').dismissBanner();" title="Close">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
+      <div class="flex items-center gap-1 shrink-0">
+        <button class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black shadow transition" onclick="event.stopPropagation(); this.closest('.in-app-banner').click();">
+          View
+        </button>
+        <button class="text-slate-400 hover:text-white transition p-1 text-xs shrink-0" onclick="event.stopPropagation(); this.closest('.in-app-banner').dismissBanner();" title="Close">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
     `;
 
     const dismiss = () => {
       banner.style.transform = 'translateY(-24px)';
       banner.style.opacity = '0';
-      setTimeout(() => banner.remove(), 300);
+      setTimeout(() => banner.remove(), 250);
     };
     banner.dismissBanner = dismiss;
 
@@ -4514,8 +4646,8 @@
       banner.style.opacity = '1';
     });
 
-    // Auto dismiss after 6.5 seconds
-    const timer = setTimeout(dismiss, 6500);
+    // Auto dismiss after 6 seconds
+    const timer = setTimeout(dismiss, 6000);
     banner.addEventListener('mouseenter', () => clearTimeout(timer));
   };
 

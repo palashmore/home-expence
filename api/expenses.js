@@ -20,7 +20,36 @@ module.exports = async function handler(req, res) {
         });
     }
 
-    const householdId = session.householdId;
+    let householdId = session.householdId;
+    const requestedHId = req.query?.householdId || (req.body && req.body.householdId);
+    if (requestedHId) {
+        if (session.role === 'ADMIN' || session.role === 'SYSTEM_ADMIN') {
+            householdId = requestedHId;
+        } else if (requestedHId !== session.householdId) {
+            return res.status(403).json({
+                success: false,
+                error: "Forbidden: You cannot access financial records of another household."
+            });
+        }
+    }
+
+    // SYSTEM administration context does not have personal expenses mixed with tenant data
+    if (householdId === 'SYSTEM') {
+        if (req.method === 'GET') {
+            return res.status(200).json({
+                success: true,
+                householdId: 'SYSTEM',
+                count: 0,
+                data: []
+            });
+        } else {
+            return res.status(400).json({
+                success: false,
+                error: "Administrative account cannot record expenses in SYSTEM context. Please select a specific household or manage via tenant console."
+            });
+        }
+    }
+
     const actorUser = session.name || session.username || 'Authenticated User';
 
     try {

@@ -19,11 +19,18 @@ module.exports = async function handler(req, res) {
     }
 
     // Role-based household scoping:
-    // ADMIN can access/modify any household requested; OWNER and MEMBER strictly scoped to their household.
+    // ADMIN and SYSTEM_ADMIN can access/modify any household requested; OWNER and MEMBER strictly scoped to their household.
     let householdId = session.householdId;
     const requestedHId = req.query?.householdId || (req.body && req.body.householdId);
-    if (requestedHId && (session.role === 'ADMIN' || requestedHId === session.householdId)) {
-        householdId = requestedHId;
+    if (requestedHId) {
+        if (session.role === 'ADMIN' || session.role === 'SYSTEM_ADMIN') {
+            householdId = requestedHId;
+        } else if (requestedHId !== session.householdId) {
+            return res.status(403).json({
+                success: false,
+                error: "Forbidden: You cannot access or modify configuration for another household."
+            });
+        }
     }
 
     const actorUser = session.name || session.username || 'Authenticated User';
@@ -32,12 +39,6 @@ module.exports = async function handler(req, res) {
         // GET: Fetch config for authenticated household (Strict fresh reload from disk)
         if (req.method === 'GET') {
             const config = await storage.getHouseholdConfig(householdId, true);
-            if (config && session && session.name) {
-                if (!Array.isArray(config.familyMembers)) config.familyMembers = [];
-                if (!config.familyMembers.includes(session.name)) {
-                    config.familyMembers.unshift(session.name);
-                }
-            }
             return res.status(200).json({
                 success: true,
                 householdId: householdId,

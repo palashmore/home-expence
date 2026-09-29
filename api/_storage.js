@@ -142,43 +142,60 @@ function createHousehold(data, actor = 'System') {
     households.push(newHousehold);
     writeJsonFile(HOUSEHOLDS_FILE, households);
     
-    // Initialize household directory structure
-    const dir = getHouseholdDir(nextId);
-    writeJsonFile(path.join(dir, 'expenses.json'), []);
-    
-    const initialConfig = {
-        monthlyBudgetLimit: Number(data.initialBudget) || 50000,
-        cycleType: data.cycleType || "calendar",
-        cycleStartDay: Number(data.cycleStartDay) || 1,
-        cycleEndDay: Number(data.cycleEndDay) || 31,
-        familyMembers: ownerName ? [ownerName] : ["Family Member"],
-        paymentModes: ["UPI", "Credit Card", "Debit Card", "Net Banking", "Cash"],
-        splitRules: ["50/50 Split", "100% Personal", "Shared Household"],
-        staffMembers: [],
-        recurringBills: [],
-        categories: [
-            { "name": "Grocery & Vegetables", "icon": "🛒", "type": "expense", "defaultPaidTo": "Blinkit" },
-            { "name": "Electricity Bill", "icon": "⚡", "type": "expense", "defaultPaidTo": "MSCB / MSEDCL" },
-            { "name": "Flat Maintenance", "icon": "🏢", "type": "expense", "defaultPaidTo": "Society Office" },
-            { "name": "Wifi & Internet", "icon": "📶", "type": "expense", "defaultPaidTo": "Airtel" },
-            { "name": "Dish Bill (DTH)", "icon": "📺", "type": "expense", "defaultPaidTo": "Tata Play" },
-            { "name": "Shopping & Miscellaneous", "icon": "🛍️", "type": "expense", "defaultPaidTo": "Amazon" },
-            { "name": "Accepted Payments (Income)", "icon": "💰", "type": "income", "defaultPaidTo": "" },
-            { "name": "Settlement / Transfer", "icon": "🤝", "type": "transfer", "defaultPaidTo": "" }
-        ],
-        updatedAt: new Date().toISOString()
-    };
-    writeJsonFile(path.join(dir, 'config.json'), initialConfig);
-    writeJsonFile(path.join(dir, 'attendance.json'), {});
-    writeJsonFile(path.join(dir, 'audit_log.json'), [{
-        id: `AUD-${Date.now()}-INIT`,
-        timestamp: new Date().toISOString(),
-        action: 'CREATE_HOUSEHOLD',
-        actor: actor,
-        details: `Household ${newHousehold.householdName} (${nextId}) created`
-    }]);
+    try {
+        // Initialize household directory structure recursively
+        const dir = getHouseholdDir(nextId);
+        fs.mkdirSync(dir, { recursive: true });
+        const receiptsDir = path.join(dir, 'receipts');
+        if (!fs.existsSync(receiptsDir)) fs.mkdirSync(receiptsDir, { recursive: true });
 
-    return newHousehold;
+        // Zero records initially copied - clean independent ledger
+        writeJsonFile(path.join(dir, 'expenses.json'), []);
+        
+        const initialConfig = {
+            monthlyBudgetLimit: Number(data.initialBudget) || 50000,
+            cycleType: data.cycleType || "calendar",
+            cycleStartDay: Number(data.cycleStartDay) || 1,
+            cycleEndDay: Number(data.cycleEndDay) || 31,
+            familyMembers: ownerName ? [ownerName] : ["Family Member"],
+            paymentModes: ["UPI", "Credit Card", "Debit Card", "Net Banking", "Cash"],
+            splitRules: ["50/50 Split", "100% Personal", "Shared Household"],
+            staffMembers: [],
+            recurringBills: [],
+            categories: [
+                { "name": "Grocery & Vegetables", "icon": "🛒", "type": "expense", "defaultPaidTo": "Blinkit" },
+                { "name": "Electricity Bill", "icon": "⚡", "type": "expense", "defaultPaidTo": "MSCB / MSEDCL" },
+                { "name": "Flat Maintenance", "icon": "🏢", "type": "expense", "defaultPaidTo": "Society Office" },
+                { "name": "Wifi & Internet", "icon": "📶", "type": "expense", "defaultPaidTo": "Airtel" },
+                { "name": "Dish Bill (DTH)", "icon": "📺", "type": "expense", "defaultPaidTo": "Tata Play" },
+                { "name": "Shopping & Miscellaneous", "icon": "🛍️", "type": "expense", "defaultPaidTo": "Amazon" },
+                { "name": "Accepted Payments (Income)", "icon": "💰", "type": "income", "defaultPaidTo": "" },
+                { "name": "Settlement / Transfer", "icon": "🤝", "type": "transfer", "defaultPaidTo": "" }
+            ],
+            updatedAt: new Date().toISOString()
+        };
+        writeJsonFile(path.join(dir, 'config.json'), initialConfig);
+        writeJsonFile(path.join(dir, 'attendance.json'), {});
+        writeJsonFile(path.join(dir, 'notifications.json'), []);
+        writeJsonFile(path.join(dir, 'audit_log.json'), [{
+            id: `AUD-${Date.now()}-INIT`,
+            timestamp: new Date().toISOString(),
+            action: 'CREATE_HOUSEHOLD',
+            actor: actor,
+            details: `Household ${newHousehold.householdName} (${nextId}) created`
+        }]);
+
+        return newHousehold;
+    } catch (err) {
+        // Transactional rollback on failure
+        const rollbackList = getAllHouseholds().filter(h => h.householdId !== nextId);
+        writeJsonFile(HOUSEHOLDS_FILE, rollbackList);
+        const dir = path.join(HOUSEHOLDS_DIR, nextId);
+        if (fs.existsSync(dir)) {
+            try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
+        }
+        throw new Error(`Household creation failed: ${err.message}`);
+    }
 }
 
 function createUser(data, actor = 'System') {

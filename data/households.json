@@ -5,7 +5,6 @@
     "status": "active",
     "ownerUserId": "U001",
     "memberUserIds": [
-      "U000",
       "U001",
       "U002"
     ],

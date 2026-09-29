@@ -187,12 +187,10 @@ async function sendPushToHouseholdMembers({ householdId, title, body, url, tag, 
     const cleanExcludeUsername = (excludeUsername || '').toLowerCase().trim();
     const cleanExcludeUserId = (excludeUserId || '').trim();
 
-    // Target ALL members who belong to this household (or legacy unassigned subscriptions if single household)
+    // Target strictly members who belong to this household (Zero cross-household leakage)
     const targetSubs = subs.filter(sub => {
-        if (sub.householdId && sub.householdId !== householdId) {
-            return false;
-        }
-        return true;
+        const subHId = sub.householdId || (sub.user && sub.user.householdId);
+        return subHId === householdId;
     });
 
     if (!targetSubs.length) {
@@ -401,7 +399,18 @@ module.exports = async function handler(req, res) {
 
             if (action === 'list_in_app') {
                 const session = authenticateRequest(req);
-                const householdId = (session && session.householdId) || req.query.householdId || 'H001';
+                if (!session) {
+                    return res.status(401).json({ success: false, error: "Unauthorized: Sign in required to view notifications." });
+                }
+                let householdId = session.householdId;
+                const requestedHId = req.query?.householdId;
+                if (requestedHId && requestedHId !== session.householdId) {
+                    if (session.role === 'ADMIN' || session.role === 'SYSTEM_ADMIN') {
+                        householdId = requestedHId;
+                    } else {
+                        return res.status(403).json({ success: false, error: "Forbidden: Cannot view notifications of another household." });
+                    }
+                }
                 const list = getHouseholdInAppNotifications(householdId, 40);
                 return res.status(200).json({
                     success: true,

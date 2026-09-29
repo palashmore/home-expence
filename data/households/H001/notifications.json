@@ -1,5 +1,31 @@
 [
   {
+    "id": "notif_1790708029478_ssmr1",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1790708029477",
+    "actor": "Palash",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-09-29T18:53:49.478Z",
+    "readBy": []
+  },
+  {
+    "id": "notif_1790708029438_fvixv",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1790708029437",
+    "actor": "Palash",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-09-29T18:53:49.438Z",
+    "readBy": []
+  },
+  {
     "id": "notif_1790699678453_n3s9g",
     "householdId": "H001",
     "title": "💰 Palash added expense: ₹475.25",

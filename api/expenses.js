@@ -2,6 +2,7 @@
 // Multi-Tenant Household-Scoped Financial Transaction Engine
 const { authenticateRequest } = require('./auth');
 const storage = require('./_storage');
+const notifications = require('./notifications');
 
 module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
@@ -72,10 +73,52 @@ module.exports = async function handler(req, res) {
                 }
             }
 
+            const isEdit = req.method === 'PUT';
             const saved = await storage.saveHouseholdExpense(householdId, body, actorUser);
+
+            // Closed-app Push Notification & In-App Activity Alert to linked household members
+            // E.g., when Palash adds/updates, Pallavi receives a push notification, and vice versa!
+            try {
+                const actorName = session.name || session.username || actorUser;
+                const formattedAmount = Number(saved.amount || body.amount || 0).toLocaleString('en-IN');
+                const category = saved.category || body.category || 'General';
+                const notes = saved.note || body.note || saved.description || body.description || '';
+                const paidBy = saved.paidBy || body.paidBy || actorName;
+
+                let notifTitle, notifBody, actionType;
+                if (isEdit) {
+                    actionType = 'EXPENSE_UPDATE';
+                    notifTitle = `✏️ ${actorName} updated an expense`;
+                    notifBody = `${category} • ₹${formattedAmount}${notes ? ` • "${notes}"` : ''}`;
+                } else {
+                    actionType = 'EXPENSE_CREATE';
+                    notifTitle = `💰 ${actorName} added expense: ₹${formattedAmount}`;
+                    notifBody = `${category} • Paid by ${paidBy}${notes ? ` • "${notes}"` : ''}`;
+                }
+
+                await notifications.sendPushToHouseholdMembers({
+                    householdId: householdId,
+                    title: notifTitle,
+                    body: notifBody,
+                    url: '/#tab-expenses',
+                    tag: `expense-${isEdit ? 'update' : 'new'}-${saved.id || Date.now()}`,
+                    excludeUserId: session.userId,
+                    excludeUsername: session.username,
+                    actor: {
+                        userId: session.userId,
+                        username: session.username,
+                        name: actorName
+                    },
+                    type: actionType,
+                    amount: saved.amount
+                });
+            } catch (pushErr) {
+                console.warn('[Push] Notification trigger notice:', pushErr.message);
+            }
+
             return res.status(200).json({
                 success: true,
-                message: req.method === 'PUT' ? "Expense record updated successfully!" : "New expense record saved successfully!",
+                message: isEdit ? "Expense record updated successfully!" : "New expense record saved successfully!",
                 data: saved
             });
         }
@@ -100,6 +143,32 @@ module.exports = async function handler(req, res) {
 
             const deleted = await storage.deleteHouseholdExpense(householdId, id, actorUser);
             if (deleted) {
+                // Closed-app Push Notification to linked household members
+                try {
+                    const actorName = session.name || session.username || actorUser;
+                    const formattedAmount = Number(existing.amount || 0).toLocaleString('en-IN');
+                    const category = existing.category || 'General';
+
+                    await notifications.sendPushToHouseholdMembers({
+                        householdId: householdId,
+                        title: `🗑️ ${actorName} deleted an expense`,
+                        body: `${category} • ₹${formattedAmount} removed from ledger`,
+                        url: '/#tab-expenses',
+                        tag: `expense-delete-${id}`,
+                        excludeUserId: session.userId,
+                        excludeUsername: session.username,
+                        actor: {
+                            userId: session.userId,
+                            username: session.username,
+                            name: actorName
+                        },
+                        type: 'EXPENSE_DELETE',
+                        amount: existing.amount
+                    });
+                } catch (pushErr) {
+                    console.warn('[Push] Notification delete trigger notice:', pushErr.message);
+                }
+
                 return res.status(200).json({ success: true, message: "Expense record deleted successfully." });
             } else {
                 return res.status(404).json({ success: false, error: "Record not found or already deleted." });

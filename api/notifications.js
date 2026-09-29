@@ -1,9 +1,12 @@
 // Web Push Notification & Closed-App Mobile Alerts System (/api/notifications)
+// Multi-Tenant Household-Scoped Device Push Dispatcher
 const fs = require('fs');
 const path = require('path');
 const webpush = require('web-push');
 const cloudSync = require('./_cloud_sync');
 const db = require('./_db');
+const { authenticateRequest } = require('./auth');
+const storage = require('./_storage');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const VAPID_FILE = path.join(DATA_DIR, 'vapid_keys.json');
@@ -64,6 +67,64 @@ async function writeSubscriptions(list) {
     } catch (e) {}
 }
 
+// In-App Notification File per Household
+function getHouseholdNotifsFile(householdId) {
+    let dir;
+    try {
+        dir = storage.getHouseholdDir ? storage.getHouseholdDir(householdId) : path.join(DATA_DIR, 'households', householdId);
+    } catch (e) {
+        dir = path.join(DATA_DIR, 'households', householdId || 'H001');
+    }
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    return path.join(dir, 'notifications.json');
+}
+
+function getHouseholdInAppNotifications(householdId, limit = 50) {
+    try {
+        const file = getHouseholdNotifsFile(householdId);
+        if (fs.existsSync(file)) {
+            const raw = fs.readFileSync(file, 'utf8');
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed.slice(0, limit);
+        }
+    } catch (e) {}
+    return [];
+}
+
+function recordHouseholdInAppNotification({ householdId, title, body, url, tag, actor, type = 'activity', amount = null }) {
+    try {
+        const file = getHouseholdNotifsFile(householdId);
+        let list = [];
+        if (fs.existsSync(file)) {
+            try { list = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) {}
+        }
+        if (!Array.isArray(list)) list = [];
+
+        const newRecord = {
+            id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            householdId: householdId || 'H001',
+            title,
+            body,
+            url: url || '/#tab-expenses',
+            tag: tag || `notif-${Date.now()}`,
+            actor: actor || 'System',
+            type,
+            amount,
+            timestamp: new Date().toISOString(),
+            readBy: []
+        };
+
+        list.unshift(newRecord);
+        if (list.length > 100) list = list.slice(0, 100);
+
+        fs.writeFileSync(file, JSON.stringify(list, null, 2), 'utf8');
+        return newRecord;
+    } catch (err) {
+        console.warn('Warning recording in-app notification:', err.message);
+        return null;
+    }
+}
+
 // Dispatch push notification to all stored device subscriptions
 async function sendPushToAll(payload) {
     const subs = await readSubscriptions();
@@ -71,7 +132,6 @@ async function sendPushToAll(payload) {
 
     let delivered = 0;
     const remainingSubs = [];
-
     const stringified = JSON.stringify(payload);
 
     for (const sub of subs) {
@@ -81,10 +141,7 @@ async function sendPushToAll(payload) {
             remainingSubs.push(sub);
         } catch (err) {
             console.warn(`Push to ${sub.endpoint?.slice(0, 35)}... error:`, err.statusCode || err.message);
-            // 404 or 410 indicates subscription has expired or unsubscribed
-            if (err.statusCode === 404 || err.statusCode === 410) {
-                // Do not keep
-            } else {
+            if (err.statusCode !== 404 && err.statusCode !== 410) {
                 remainingSubs.push(sub);
             }
         }
@@ -95,6 +152,88 @@ async function sendPushToAll(payload) {
     }
 
     return { delivered, removed: subs.length - remainingSubs.length, total: subs.length };
+}
+
+// Dispatch push notification to LINKED household members only, EXCLUDING the actor
+async function sendPushToHouseholdMembers({ householdId, title, body, url, tag, excludeUserId, excludeUsername, actor, type = 'activity', amount = null }) {
+    // 1. Record In-App notification for the household
+    recordHouseholdInAppNotification({
+        householdId,
+        title,
+        body,
+        url,
+        tag,
+        actor: actor?.name || actor?.username || 'Household Member',
+        type,
+        amount
+    });
+
+    // 2. Dispatch Closed-App Web Push Notification to other linked household members
+    const subs = await readSubscriptions();
+    if (!subs.length) {
+        return { delivered: 0, total: 0, reason: 'no_subscriptions_stored' };
+    }
+
+    const cleanExcludeUsername = (excludeUsername || '').toLowerCase().trim();
+    const cleanExcludeUserId = (excludeUserId || '').trim();
+
+    // Target ONLY linked household members, EXCLUDING the actor who made the change
+    const targetSubs = subs.filter(sub => {
+        // Must belong to this linked household (or legacy unassigned subscriptions if single household)
+        if (sub.householdId && sub.householdId !== householdId) {
+            return false;
+        }
+        // Exclude the actor who triggered the action
+        if (cleanExcludeUsername && sub.username && sub.username.toLowerCase() === cleanExcludeUsername) {
+            return false;
+        }
+        if (cleanExcludeUserId && sub.userId && sub.userId === cleanExcludeUserId) {
+            return false;
+        }
+        return true;
+    });
+
+    if (!targetSubs.length) {
+        return { delivered: 0, total: 0, reason: 'no_recipient_subscribers' };
+    }
+
+    const payload = JSON.stringify({
+        title,
+        body,
+        url: url || '/#tab-expenses',
+        tag: tag || `expense-${Date.now()}`
+    });
+
+    let delivered = 0;
+    const remainingEndpoints = new Set();
+
+    for (const sub of targetSubs) {
+        try {
+            await webpush.sendNotification(sub, payload);
+            delivered++;
+            remainingEndpoints.add(sub.endpoint);
+        } catch (err) {
+            console.warn(`[Push Error] to ${sub.endpoint?.slice(0, 35)}...:`, err.statusCode || err.message);
+            // 404/410 means expired/uninstalled; keep only if not expired
+            if (err.statusCode !== 404 && err.statusCode !== 410) {
+                remainingEndpoints.add(sub.endpoint);
+            }
+        }
+    }
+
+    // Prune expired endpoints from global subscription store
+    const cleanedSubs = subs.filter(s => {
+        if (targetSubs.some(t => t.endpoint === s.endpoint)) {
+            return remainingEndpoints.has(s.endpoint);
+        }
+        return true;
+    });
+
+    if (cleanedSubs.length !== subs.length) {
+        await writeSubscriptions(cleanedSubs);
+    }
+
+    return { delivered, total: targetSubs.length };
 }
 
 // Background Reminder Scanner: Evaluates bills & staff cutoffs
@@ -212,7 +351,7 @@ async function checkAndSendScheduledReminders() {
 module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Auth-Token');
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -227,6 +366,18 @@ module.exports = async function handler(req, res) {
                 return res.status(200).json({
                     success: true,
                     publicKey: vapidKeys.publicKey
+                });
+            }
+
+            if (action === 'list_in_app') {
+                const session = authenticateRequest(req);
+                const householdId = (session && session.householdId) || req.query.householdId || 'H001';
+                const list = getHouseholdInAppNotifications(householdId, 40);
+                return res.status(200).json({
+                    success: true,
+                    householdId,
+                    data: list,
+                    notifications: list
                 });
             }
 
@@ -257,17 +408,27 @@ module.exports = async function handler(req, res) {
 
             const postAction = body?.action || action;
 
-            // 1. Subscribe Device
+            // 1. Subscribe Device (Associate device endpoint with householdId, userId, and username)
             if (postAction === 'subscribe') {
                 const subscription = body.subscription;
                 if (!subscription || !subscription.endpoint || !subscription.keys) {
                     return res.status(400).json({ success: false, error: "Invalid PushSubscription payload." });
                 }
 
+                const session = authenticateRequest(req);
+                const householdId = (session && session.householdId) || body.householdId || 'H001';
+                const userId = (session && session.userId) || body.userId || 'U001';
+                const username = (session && (session.username || session.name)) || body.username || 'user';
+                const name = (session && (session.name || session.username)) || body.name || username;
+
                 const subs = await readSubscriptions();
                 const existingIdx = subs.findIndex(s => s.endpoint === subscription.endpoint);
                 const subRecord = {
                     ...subscription,
+                    householdId: householdId,
+                    userId: userId,
+                    username: username.toLowerCase().trim(),
+                    name: name,
                     userAgent: req.headers['user-agent'] || 'Unknown Mobile/Browser',
                     updatedAt: new Date().toISOString()
                 };
@@ -280,25 +441,27 @@ module.exports = async function handler(req, res) {
 
                 await writeSubscriptions(subs);
 
-                // Send immediate confirmation push notification so user can see it works right away!
+                // Send immediate confirmation push notification so user verifies mobile connectivity!
                 try {
                     await webpush.sendNotification(
                         subscription,
                         JSON.stringify({
-                            title: '🎉 Mobile Push Notifications Active',
-                            body: 'Closed-app alerts enabled! You will now receive reminders for due bills even when the app is completely closed.',
+                            title: '🎉 Closed-App Push Active',
+                            body: `Alerts enabled for ${name}! You will receive live household updates from linked members even when the app is closed.`,
                             url: '/',
                             tag: 'welcome-push'
                         })
                     );
                 } catch (pushErr) {
-                    console.warn('Initial push confirmation warning:', pushErr.message);
+                    console.warn('Initial push confirmation notice:', pushErr.message);
                 }
 
                 return res.status(200).json({
                     success: true,
                     message: "Device successfully subscribed for closed-app mobile notifications!",
-                    activeSubscriptionsCount: subs.length
+                    activeSubscriptionsCount: subs.length,
+                    subscribedUser: username,
+                    householdId: householdId
                 });
             }
 
@@ -318,24 +481,69 @@ module.exports = async function handler(req, res) {
                 });
             }
 
-            // 3. Send Test Push to all subscribed devices
+            // 3. Send Test Push to all subscribed devices or targeted household
             if (postAction === 'test_push') {
-                const customTitle = body.title || '🔔 HomeExpenses Test Alert';
+                const session = authenticateRequest(req);
+                const customTitle = body.title || '🔔 Home Expence Test Alert';
                 const customBody = body.body || 'This is a test notification. It will arrive on your mobile phone even when this app is closed!';
                 const customUrl = body.url || '/';
 
-                const resResult = await sendPushToAll({
-                    title: customTitle,
-                    body: customBody,
-                    url: customUrl,
-                    tag: `test-${Date.now()}`
-                });
+                let resResult;
+                if (session && session.householdId) {
+                    // Send to current household devices
+                    const subs = await readSubscriptions();
+                    const hhSubs = subs.filter(s => !s.householdId || s.householdId === session.householdId);
+                    let delivered = 0;
+                    for (const s of hhSubs) {
+                        try {
+                            await webpush.sendNotification(s, JSON.stringify({
+                                title: customTitle,
+                                body: customBody,
+                                url: customUrl,
+                                tag: `test-${Date.now()}`
+                            }));
+                            delivered++;
+                        } catch (e) {}
+                    }
+                    resResult = { delivered, total: hhSubs.length };
+                } else {
+                    resResult = await sendPushToAll({
+                        title: customTitle,
+                        body: customBody,
+                        url: customUrl,
+                        tag: `test-${Date.now()}`
+                    });
+                }
 
                 return res.status(200).json({
                     success: true,
                     message: `Test notification dispatched to ${resResult.delivered} mobile device(s).`,
                     result: resResult
                 });
+            }
+
+            // 4. Dismiss in-app notifications
+            if (postAction === 'dismiss' || postAction === 'dismiss_all') {
+                const session = authenticateRequest(req);
+                const householdId = (session && session.householdId) || body.householdId || 'H001';
+                const userKey = (session && (session.userId || session.username)) || 'user';
+                const notifId = body.id;
+
+                const file = getHouseholdNotifsFile(householdId);
+                let list = [];
+                if (fs.existsSync(file)) {
+                    try { list = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) {}
+                }
+                if (Array.isArray(list)) {
+                    list.forEach(item => {
+                        if (!notifId || item.id === notifId) {
+                            if (!Array.isArray(item.readBy)) item.readBy = [];
+                            if (!item.readBy.includes(userKey)) item.readBy.push(userKey);
+                        }
+                    });
+                    fs.writeFileSync(file, JSON.stringify(list, null, 2), 'utf8');
+                }
+                return res.status(200).json({ success: true, message: 'Notifications marked as read.' });
             }
 
             return res.status(400).json({ success: false, error: "Unknown POST action." });
@@ -348,4 +556,10 @@ module.exports = async function handler(req, res) {
     }
 };
 
+module.exports.sendPushToAll = sendPushToAll;
+module.exports.sendPushToHouseholdMembers = sendPushToHouseholdMembers;
+module.exports.recordHouseholdInAppNotification = recordHouseholdInAppNotification;
+module.exports.getHouseholdInAppNotifications = getHouseholdInAppNotifications;
 module.exports.checkAndSendScheduledReminders = checkAndSendScheduledReminders;
+module.exports.readSubscriptions = readSubscriptions;
+module.exports.writeSubscriptions = writeSubscriptions;

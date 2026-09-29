@@ -580,6 +580,7 @@ module.exports = async function handler(req, res) {
     }
 };
 
+module.exports.generateSessionToken = generateSessionToken;
 module.exports.verifySessionToken = verifySessionToken;
 module.exports.authenticateRequest = authenticateRequest;
 module.exports.hashPassword = hashPassword;

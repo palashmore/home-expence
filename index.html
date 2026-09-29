@@ -23,7 +23,7 @@
     <!-- SheetJS (XLSX) for Excel Export & Import -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="styles.css?v=5.3.0">
+    <link rel="stylesheet" href="styles.css?v=5.4.0">
     <script>
         tailwind.config = {
             theme: {
@@ -222,61 +222,6 @@
                             <i class="fa-solid fa-bell text-amber-400 text-sm"></i>
                             <span id="notificationBadgeCount" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white font-black text-[10px] w-4 h-4 rounded-full flex items-center justify-center animate-bounce">0</span>
                         </button>
-                        
-                        <!-- Notification Center Dropdown Flyout -->
-                        <div id="notificationCenterDropdown" class="hidden absolute right-0 mt-2 w-80 sm:w-96 rounded-3xl shadow-2xl bg-white border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100">
-                            <div class="p-4 bg-slate-900 text-white flex justify-between items-center">
-                                <div class="flex items-center space-x-2">
-                                    <i class="fa-solid fa-bell text-amber-400 text-sm"></i>
-                                    <h4 class="text-xs font-black uppercase tracking-wider">Household Alerts &amp; Due Bills</h4>
-                                </div>
-                                <div class="flex items-center space-x-2">
-                                    <button onclick="requestPushNotificationPermission()" id="btnPushPermission" class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-500/30 text-indigo-300 hover:text-white border border-indigo-400/30 transition">
-                                        Enable Push
-                                    </button>
-                                    <button onclick="toggleNotificationCenter()" class="text-slate-400 hover:text-white text-xs">
-                                        <i class="fa-solid fa-xmark text-sm"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <!-- Filter Tabs -->
-                            <div class="flex border-b border-slate-100 bg-slate-50 text-[11px] font-bold text-slate-600">
-                                <button onclick="switchNotificationFilter('action')" id="notifTab-action" class="flex-1 py-2 text-center border-b-2 border-indigo-600 text-indigo-900 bg-white font-black">
-                                    Action (<span id="notifCountAction">0</span>)
-                                </button>
-                                <button onclick="switchNotificationFilter('upcoming')" id="notifTab-upcoming" class="flex-1 py-2 text-center border-b-2 border-transparent hover:text-slate-900">
-                                    Upcoming (<span id="notifCountUpcoming">0</span>)
-                                </button>
-                                <button onclick="switchNotificationFilter('all')" id="notifTab-all" class="flex-1 py-2 text-center border-b-2 border-transparent hover:text-slate-900">
-                                    All
-                                </button>
-                            </div>
-
-                            <!-- Notification Items List Container -->
-                            <div id="notificationItemsList" class="max-h-80 overflow-y-auto divide-y divide-slate-100 p-2 space-y-1">
-                                <div class="p-6 text-center text-slate-400 text-xs">
-                                    <i class="fa-solid fa-bell-slash text-2xl text-slate-300 block mb-1"></i>
-                                    No pending alerts or overdue bills.
-                                </div>
-                            </div>
-
-                            <!-- Footer -->
-                            <div class="p-2.5 bg-slate-50 text-center flex flex-wrap justify-between items-center px-4 gap-2">
-                                <div class="flex items-center space-x-2">
-                                    <button onclick="clearAllDismissedNotifications()" class="text-[11px] font-bold text-slate-500 hover:text-slate-800 transition">
-                                        Reset
-                                    </button>
-                                    <span class="text-slate-300">·</span>
-                                    <button onclick="sendTestClosedAppPush()" class="text-[11px] font-bold text-amber-600 hover:text-amber-800 transition flex items-center gap-1" title="Test receiving an alert with app closed">
-                                        <i class="fa-solid fa-paper-plane text-[10px]"></i> Test Push (Closed App)
-                                    </button>
-                                </div>
-                                <button onclick="dismissAllNotifications()" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 transition">
-                                    Mark All Read
-                                </button>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Live Theme Switcher (Desktop - 8 Luxury Options) -->
@@ -354,6 +299,74 @@
                         <span class="hidden md:inline">Sign Out</span>
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Universal Responsive Notification Center & Backdrop (Works 100% on Mobile & Desktop) -->
+        <div id="notificationCenterBackdrop" onclick="toggleNotificationCenter()" class="hidden fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-50 transition-opacity"></div>
+        <div id="notificationCenterDropdown" class="hidden fixed sm:absolute inset-x-2.5 sm:inset-auto top-14 sm:top-16 sm:right-6 w-auto sm:w-[400px] max-w-lg mx-auto sm:mx-0 rounded-3xl shadow-2xl bg-white border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100 transition-all duration-200 animate-in fade-in zoom-in-95">
+            <!-- Header -->
+            <div class="p-3.5 sm:p-4 bg-slate-900 text-white flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-bell text-amber-400 text-sm"></i>
+                    <h4 class="text-xs font-black uppercase tracking-wider">Household Alerts &amp; Due Bills</h4>
+                </div>
+                <div class="flex items-center space-x-1.5 sm:space-x-2">
+                    <button onclick="requestPushNotificationPermission()" id="btnPushPermission" class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-500/30 text-indigo-300 hover:text-white border border-indigo-400/30 transition">
+                        Enable Push
+                    </button>
+                    <button type="button" onclick="toggleNotificationCenter()" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition" aria-label="Close Alerts">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Real-time Closed-App Push Status & Quick Switch -->
+            <div id="pushStatusBar" class="p-2 sm:p-2.5 px-3.5 sm:px-4 bg-indigo-50/90 border-b border-indigo-100 flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span id="pushStatusDot" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+                    <span id="pushStatusText" class="font-bold text-slate-700 text-[11px] truncate">Mobile Closed-App Push: Checking...</span>
+                </div>
+                <button id="btnPushToggleInline" onclick="requestPushNotificationPermission()" class="text-[10px] font-black text-indigo-700 hover:text-indigo-900 bg-white px-2 py-0.5 rounded-md border border-indigo-200 shadow-2xs shrink-0 transition">
+                    Activate
+                </button>
+            </div>
+            
+            <!-- Filter Tabs -->
+            <div class="flex border-b border-slate-100 bg-slate-50 text-[11px] font-bold text-slate-600">
+                <button onclick="switchNotificationFilter('action')" id="notifTab-action" class="flex-1 py-2 text-center border-b-2 border-indigo-600 text-indigo-900 bg-white font-black">
+                    Action (<span id="notifCountAction">0</span>)
+                </button>
+                <button onclick="switchNotificationFilter('upcoming')" id="notifTab-upcoming" class="flex-1 py-2 text-center border-b-2 border-transparent hover:text-slate-900">
+                    Upcoming (<span id="notifCountUpcoming">0</span>)
+                </button>
+                <button onclick="switchNotificationFilter('all')" id="notifTab-all" class="flex-1 py-2 text-center border-b-2 border-transparent hover:text-slate-900">
+                    All
+                </button>
+            </div>
+
+            <!-- Notification Items List Container -->
+            <div id="notificationItemsList" class="max-h-[60vh] sm:max-h-80 overflow-y-auto divide-y divide-slate-100 p-2 space-y-1">
+                <div class="p-6 text-center text-slate-400 text-xs">
+                    <i class="fa-solid fa-bell-slash text-2xl text-slate-300 block mb-1"></i>
+                    No pending alerts or overdue bills.
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-2.5 bg-slate-50 text-center flex flex-wrap justify-between items-center px-4 gap-2">
+                <div class="flex items-center space-x-2">
+                    <button onclick="clearAllDismissedNotifications()" class="text-[11px] font-bold text-slate-500 hover:text-slate-800 transition">
+                        Reset
+                    </button>
+                    <span class="text-slate-300">·</span>
+                    <button onclick="sendTestClosedAppPush()" class="text-[11px] font-bold text-amber-600 hover:text-amber-800 transition flex items-center gap-1" title="Test receiving an alert with app closed">
+                        <i class="fa-solid fa-paper-plane text-[10px]"></i> Test Push (Closed App)
+                    </button>
+                </div>
+                <button onclick="dismissAllNotifications()" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 transition">
+                    Mark All Read
+                </button>
             </div>
         </div>
     </header>
@@ -3526,7 +3539,7 @@
     </div>
 
     <!-- Core Application Logic -->
-    <script src="tracker_app.js?v=5.3.0"></script>
-    <script src="advance_modules.js?v=5.3.0"></script>
+    <script src="tracker_app.js?v=5.4.0"></script>
+    <script src="advance_modules.js?v=5.4.0"></script>
 </body>
 </html>

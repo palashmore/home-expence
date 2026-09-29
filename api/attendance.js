@@ -2,6 +2,7 @@
 // Multi-Tenant Household-Scoped Domestic Staff Attendance Engine
 const { authenticateRequest } = require('./auth');
 const storage = require('./_storage');
+const notifications = require('./notifications');
 
 module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
@@ -62,6 +63,22 @@ module.exports = async function handler(req, res) {
                 };
 
                 await storage.saveHouseholdAttendance(householdId, attendance, actorUser);
+
+                // Closed-app Push Notification to linked household members
+                try {
+                    notifications.sendPushToHouseholdMembers({
+                        householdId: householdId,
+                        title: `👩‍🍳 ${actorUser} updated staff payroll/attendance`,
+                        body: `${staffName} attendance updated for ${monthKey}`,
+                        url: '/#tab-staff',
+                        tag: `attendance-${monthKey}`,
+                        excludeUserId: session.userId,
+                        excludeUsername: session.username,
+                        actor: { userId: session.userId, username: session.username, name: actorUser },
+                        type: 'STAFF_ATTENDANCE'
+                    }).catch(e => console.warn('[Push] Attendance dispatch warning:', e.message));
+                } catch (pushErr) {}
+
                 return res.status(200).json({
                     success: true,
                     message: `Attendance updated for ${staffName} (${monthKey})`,

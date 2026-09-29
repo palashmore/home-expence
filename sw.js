@@ -1,5 +1,5 @@
 // HomeExpenses Progressive Web App Service Worker
-const CACHE_NAME = 'homeexpenses-v5';
+const CACHE_NAME = 'homeexpenses-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -77,12 +77,15 @@ self.addEventListener('push', event => {
   const options = {
     body: data.body,
     icon: '/icon-192.png',
-    badge: '/icon.svg',
-    tag: data.tag || 'homeexpenses-alert',
+    badge: '/icon-192.png',
+    tag: data.tag || `home-expence-${Date.now()}`,
     renotify: true,
-    requireInteraction: true,
-    vibrate: [200, 100, 200, 100, 200],
-    data: { url: data.url || '/' }
+    requireInteraction: false,
+    vibrate: [250, 100, 250],
+    data: { url: data.url || '/' },
+    actions: [
+      { action: 'open', title: 'Open Home Expence' }
+    ]
   };
 
   event.waitUntil(self.registration.showNotification(data.title, options));

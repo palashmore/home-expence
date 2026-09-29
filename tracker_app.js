@@ -903,6 +903,7 @@ async function signIn(username, password) {
             if (window.renderAdminView) window.renderAdminView();
             if (window.loadAdminConsoleData) window.loadAdminConsoleData();
             showToast('success', `Signed In as ${result.user.name}`, `Active: ${result.user.householdName}`);
+            if (window.syncPushSubscriptionSilently) window.syncPushSubscriptionSilently();
         } else {
             if (errorEl) {
                 errorEl.textContent = result.error || "Invalid username or password. Please verify credentials.";
@@ -969,6 +970,7 @@ async function initAuthSession() {
                 if (window.loadMasterConfig) await window.loadMasterConfig();
                 if (window.renderAdminView) window.renderAdminView();
                 if (window.loadAdminConsoleData) window.loadAdminConsoleData();
+                if (window.syncPushSubscriptionSilently) window.syncPushSubscriptionSilently();
                 return;
             }
         } catch (e) {}
@@ -3855,6 +3857,7 @@ async function switchActiveHousehold(targetHId) {
             if (typeof showToast === 'function') {
                 showToast('info', 'Workspace Switched', `Active Household: ${result.user.householdName}`);
             }
+            if (window.syncPushSubscriptionSilently) window.syncPushSubscriptionSilently();
         } else {
             alert(`Unable to switch household: ${result.error || 'Access denied'}`);
         }

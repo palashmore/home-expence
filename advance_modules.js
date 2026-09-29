@@ -32,7 +32,14 @@
   function initPWA() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
+        .then(reg => {
+          console.log('[PWA] Service Worker registered:', reg.scope);
+          if ('Notification' in window && Notification.permission === 'granted') {
+            setTimeout(() => {
+              window.syncPushSubscriptionSilently && window.syncPushSubscriptionSilently();
+            }, 1000);
+          }
+        })
         .catch(err => console.warn('[PWA] SW register warning:', err));
     }
 
@@ -3752,13 +3759,17 @@
 
   window.toggleNotificationCenter = function () {
     const dropdown = document.getElementById('notificationCenterDropdown');
+    const backdrop = document.getElementById('notificationCenterBackdrop');
     if (!dropdown) return;
     const isHidden = dropdown.classList.contains('hidden');
     if (isHidden) {
       window.updateNotificationCenter();
+      window.checkPushSubscriptionStatus();
       dropdown.classList.remove('hidden');
+      if (backdrop) backdrop.classList.remove('hidden');
     } else {
       dropdown.classList.add('hidden');
+      if (backdrop) backdrop.classList.add('hidden');
     }
   };
 
@@ -3777,7 +3788,7 @@
     renderNotificationItemsList();
   };
 
-  window.updateNotificationCenter = function () {
+  window.updateNotificationCenter = async function () {
     const expenses = window.expenses || [];
     const config = window.masterConfig || {};
     const bills = config.recurringBills || RADAR_BILLS;
@@ -3794,6 +3805,51 @@
     });
 
     const notifs = [];
+
+    // 0. Fetch Live Household In-App Activity Notifications from Server
+    try {
+      const headers = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders() : {};
+      const res = await fetch('/api/notifications?action=list_in_app', { headers });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          const currentUsername = (window.currentUser && (window.currentUser.username || window.currentUser.name) || '').toLowerCase();
+          const currentUserId = (window.currentUser && (window.currentUser.userId || window.currentUser.id)) || '';
+
+          json.data.forEach(item => {
+            if (dismissed.includes(item.id)) return;
+            if (item.readBy && (item.readBy.includes(currentUserId) || item.readBy.includes(currentUsername))) return;
+
+            let icon = '💰';
+            let sev = 'high';
+            if (item.type === 'EXPENSE_UPDATE') { icon = '✏️'; sev = 'medium'; }
+            else if (item.type === 'EXPENSE_DELETE') { icon = '🗑️'; sev = 'critical'; }
+            else if (item.type === 'STAFF_ATTENDANCE') { icon = '👩‍🍳'; sev = 'high'; }
+            else if (item.type === 'CONFIG_UPDATE') { icon = '⚙️'; sev = 'medium'; }
+
+            notifs.push({
+              id: item.id,
+              type: 'action',
+              severity: sev,
+              title: item.title,
+              description: item.body,
+              icon: icon,
+              actionLabel: item.type === 'STAFF_ATTENDANCE' ? 'View Staff' : (item.type === 'CONFIG_UPDATE' ? 'View Settings' : 'View Expenses'),
+              onAction: () => {
+                if (item.type === 'STAFF_ATTENDANCE') {
+                  window.switchTab && window.switchTab('staff');
+                } else if (item.type === 'CONFIG_UPDATE') {
+                  window.switchTab && window.switchTab('settings');
+                } else {
+                  window.switchTab && window.switchTab('expenses');
+                }
+                window.toggleNotificationCenter();
+              }
+            });
+          });
+        }
+      }
+    } catch (e) {}
 
     // 1. Evaluate Recurring Bills
     bills.forEach(bill => {
@@ -4031,45 +4087,81 @@
 
   window.checkPushSubscriptionStatus = async function () {
     const btn = document.getElementById('btnPushPermission');
-    if (!btn) return;
+    const dot = document.getElementById('pushStatusDot');
+    const text = document.getElementById('pushStatusText');
+    const inlineBtn = document.getElementById('btnPushToggleInline');
 
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      btn.textContent = 'Push Unsupported';
-      btn.disabled = true;
+      if (btn) { btn.textContent = 'Push Unsupported'; btn.disabled = true; }
+      if (text) text.textContent = 'Push not supported on this browser';
+      if (dot) dot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
+      if (inlineBtn) inlineBtn.classList.add('hidden');
       return;
     }
 
     try {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
+
       if (sub && Notification.permission === 'granted') {
-        btn.textContent = 'Mobile Push Active ✓';
-        btn.className = 'text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/30 text-emerald-300 border border-emerald-400/30';
+        if (btn) {
+          btn.textContent = 'Mobile Push Active ✓';
+          btn.className = 'text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/30 text-emerald-300 border border-emerald-400/30';
+        }
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0';
+        if (text) text.textContent = 'Mobile Closed-App Push: Active ✓';
+        if (inlineBtn) {
+          inlineBtn.textContent = 'Active ✓';
+          inlineBtn.className = 'text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-200 shrink-0';
+        }
+      } else if (Notification.permission === 'granted') {
+        if (btn) btn.textContent = 'Syncing Push...';
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-500 shrink-0';
+        if (text) text.textContent = 'OS Allowed: Connecting...';
+        window.syncPushSubscriptionSilently && window.syncPushSubscriptionSilently();
+      } else if (Notification.permission === 'denied') {
+        if (btn) btn.textContent = 'Push Blocked';
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-rose-500 shrink-0';
+        if (text) text.textContent = 'Blocked in App Settings';
+        if (inlineBtn) inlineBtn.textContent = 'Allow in OS';
       } else {
-        btn.textContent = 'Enable Push (Closed-App)';
+        if (btn) btn.textContent = 'Enable Push (Closed-App)';
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
+        if (text) text.textContent = 'Mobile Closed-App Push: Off';
+        if (inlineBtn) {
+          inlineBtn.textContent = 'Activate';
+          inlineBtn.className = 'text-[10px] font-black text-indigo-700 hover:text-indigo-900 bg-white px-2 py-0.5 rounded-md border border-indigo-200 shadow-2xs shrink-0 transition';
+        }
       }
     } catch (e) {}
   };
 
-  window.requestPushNotificationPermission = async function () {
+  window.requestPushNotificationPermission = async function (silent = false) {
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-      alert('Background Web Push notifications are not supported in this browser.\n\nTip: On Android, use Chrome or install the PWA for background closed-app alerts.');
+      if (!silent) {
+        alert('Background Web Push notifications are not supported in this browser.\n\nTip: On Android, use Chrome or install the PWA for background closed-app alerts.');
+      }
       return;
     }
 
     const btn = document.getElementById('btnPushPermission');
 
     try {
-      const permission = await Notification.requestPermission();
+      let permission = Notification.permission;
+      if (permission !== 'granted') {
+        permission = await Notification.requestPermission();
+      }
+
       if (permission !== 'granted') {
         if (btn) btn.textContent = 'Push Blocked';
-        alert('Notification permission was denied. Please allow notifications in your mobile browser or Android App site settings.');
+        if (!silent) {
+          alert('Notification permission was not granted. Please allow notifications in your mobile browser or Android App site settings.');
+        }
+        window.checkPushSubscriptionStatus();
         return;
       }
 
-      if (btn) {
-        btn.textContent = 'Connecting Push...';
-      }
+      if (btn) btn.textContent = 'Connecting Push...';
 
       // 1. Fetch Server VAPID Public Key
       const keyRes = await fetch('/api/notifications?action=vapid_key');
@@ -4089,30 +4181,45 @@
         });
       }
 
-      // 3. Register Subscription with Backend
+      // 3. Register Subscription with Backend (Tagged with current logged in user & household)
+      const authHeaders = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders() : { 'Content-Type': 'application/json' };
+      const curUser = (typeof currentUser !== 'undefined' && currentUser) || (window.currentUser) || {};
+      const curHousehold = (typeof currentHouseholdId !== 'undefined' && currentHouseholdId) || window.currentHouseholdId || curUser.householdId || 'H001';
+
       const subRes = await fetch('/api/notifications', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           action: 'subscribe',
-          subscription: subscription.toJSON()
+          subscription: subscription.toJSON(),
+          householdId: curHousehold,
+          userId: curUser.userId || curUser.id || 'U001',
+          username: curUser.username || curUser.name || 'user',
+          name: curUser.name || curUser.username || 'User'
         })
       });
 
       const subResult = await subRes.json();
       if (subResult.success) {
-        if (btn) {
-          btn.textContent = 'Mobile Push Active ✓';
-          btn.className = 'text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/30 text-emerald-300 border border-emerald-400/30';
+        window.checkPushSubscriptionStatus();
+        if (!silent && window.showToast) {
+          window.showToast('success', 'Mobile Push Enabled', 'You will receive reminders even when this app is closed!');
         }
-        window.showToast && window.showToast('success', 'Mobile Push Enabled', 'You will receive reminders even when this app is closed!');
       } else {
         throw new Error(subResult.error || 'Failed to register subscription.');
       }
     } catch (err) {
-      console.error('Push registration error:', err);
-      if (btn) btn.textContent = 'Enable Push';
-      window.showToast && window.showToast('error', 'Push Setup Error', err.message || 'Could not enable background push.');
+      console.warn('Push registration error:', err.message);
+      window.checkPushSubscriptionStatus();
+      if (!silent && window.showToast) {
+        window.showToast('error', 'Push Setup Error', err.message || 'Could not enable background push.');
+      }
+    }
+  };
+
+  window.syncPushSubscriptionSilently = function () {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      window.requestPushNotificationPermission(true);
     }
   };
 

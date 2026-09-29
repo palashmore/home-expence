@@ -1,5 +1,89 @@
 [
   {
+    "id": "audit-1790673986282-3bv2a",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T09:26:26.282Z",
+    "action": "DELETE_EXPENSE",
+    "recordId": "exp-1790673986275-otua",
+    "actor": "Palash",
+    "diff": {
+      "deleted": true,
+      "amount": 250,
+      "category": "Groceries"
+    },
+    "snapshot": {
+      "id": "exp-1790673986275-otua",
+      "category": "Groceries",
+      "amount": 250
+    }
+  },
+  {
+    "id": "audit-1790673986276-izsyn",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T09:26:26.276Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1790673986275-otua",
+    "actor": "Palash",
+    "diff": {
+      "created": {
+        "amount": 250,
+        "category": "Groceries",
+        "paidBy": "Palash",
+        "date": "2026-09-29"
+      }
+    },
+    "snapshot": {
+      "category": "Groceries",
+      "amount": 250,
+      "paidBy": "Palash",
+      "date": "2026-09-29"
+    }
+  },
+  {
+    "id": "audit-1790673940976-xn0ol",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T09:25:40.976Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1790673940975-1evw",
+    "actor": "Palash",
+    "diff": {
+      "created": {
+        "amount": 250,
+        "category": "Groceries",
+        "paidBy": "Palash",
+        "date": "2026-09-29"
+      }
+    },
+    "snapshot": {
+      "category": "Groceries",
+      "amount": 250,
+      "paidBy": "Palash",
+      "date": "2026-09-29"
+    }
+  },
+  {
+    "id": "audit-1790673842045-34inh",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T09:24:02.045Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1790673842044-k82h",
+    "actor": "Palash",
+    "diff": {
+      "created": {
+        "amount": 250,
+        "category": "Groceries",
+        "paidBy": "Palash",
+        "date": "2026-09-29"
+      }
+    },
+    "snapshot": {
+      "category": "Groceries",
+      "amount": 250,
+      "paidBy": "Palash",
+      "date": "2026-09-29"
+    }
+  },
+  {
     "id": "audit-1790668627015-8rhtm",
     "householdId": "H001",
     "timestamp": "2026-09-29T07:57:07.015Z",

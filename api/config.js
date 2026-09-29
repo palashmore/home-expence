@@ -1,7 +1,6 @@
-// Configuration API Route (/api/config)
-// Multi-Tenant Household-Scoped Settings Engine
 const { authenticateRequest } = require('./auth');
 const storage = require('./_storage');
+const notifications = require('./notifications');
 
 module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
@@ -56,6 +55,21 @@ module.exports = async function handler(req, res) {
             };
 
             await storage.saveHouseholdConfig(householdId, updated, actorUser);
+
+            // Closed-app Push Notification to linked household members
+            try {
+                notifications.sendPushToHouseholdMembers({
+                    householdId: householdId,
+                    title: `⚙️ ${actorUser} updated household settings`,
+                    body: `Master household rules, budget limits, or categories modified`,
+                    url: '/#tab-settings',
+                    tag: `config-update-${Date.now()}`,
+                    excludeUserId: session.userId,
+                    excludeUsername: session.username,
+                    actor: { userId: session.userId, username: session.username, name: actorUser },
+                    type: 'CONFIG_UPDATE'
+                }).catch(e => console.warn('[Push] Config dispatch warning:', e.message));
+            } catch (pushErr) {}
 
             return res.status(200).json({
                 success: true,

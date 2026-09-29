@@ -781,6 +781,13 @@ function updateUserProfileUI() {
     if (pModalAvatar) pModalAvatar.textContent = initial;
     if (pModalHName) pModalHName.textContent = hName;
 
+    const mobActionAvatar = document.getElementById("mobileActionUserAvatar");
+    const mobActionName = document.getElementById("mobileActionUserName");
+    const mobActionRole = document.getElementById("mobileActionUserRole");
+    if (mobActionAvatar) mobActionAvatar.textContent = initial;
+    if (mobActionName) mobActionName.textContent = name;
+    if (mobActionRole) mobActionRole.textContent = role;
+
     // Restrict Section 0: Household & User Access Management STRICTLY to System Admin
     const adminCard = document.getElementById("adminTenantManagementCard");
     if (adminCard) {

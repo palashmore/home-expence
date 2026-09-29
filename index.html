@@ -75,29 +75,29 @@
             <div class="flex justify-between h-14 sm:h-16 items-center gap-3">
                 
                 <!-- Zone 1: Logo, Brand & Active Household (Left) -->
-                <div class="flex items-center gap-2.5 sm:gap-3 shrink min-w-0">
-                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-600 to-indigo-800 flex items-center justify-center text-white shadow-lg shadow-indigo-600/40 shrink-0 border border-indigo-400/20" title="Home Expence">
-                        <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <div class="flex items-center gap-2 sm:gap-3 shrink min-w-0">
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-600 to-indigo-800 flex items-center justify-center text-white shadow-lg shadow-indigo-600/40 shrink-0 border border-indigo-400/20" title="Home Expence">
+                        <svg class="w-4 h-4 sm:w-6 sm:h-6 text-white" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M16 3L3 14H7V27C7 27.55 7.45 28 8 28H24C24.55 28 25 27.55 25 27V14H29L16 3Z" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                             <path d="M12 11H20M12 14.5H19M12 11V23M12 14.5C14.5 14.5 17 14.5 17 17.5C17 20 14 20 12 20M15.5 20L19.5 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                     </div>
                     <div class="min-w-0">
-                        <div class="flex items-center gap-2">
-                            <span class="text-base sm:text-lg font-black text-white tracking-tight truncate leading-tight">Home Expence</span>
+                        <div class="flex items-center gap-1.5 sm:gap-2">
+                            <span class="text-sm sm:text-lg font-black text-white tracking-tight truncate leading-tight">Home Expence</span>
                             <!-- Active Household Pill (Desktop & Tablet) -->
                             <div id="hdrHouseholdBadge" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800/90 border border-indigo-500/30 text-[11px] font-bold text-indigo-200 shrink-0" title="Current Active Household">
                                 <i class="fa-solid fa-house-chimney text-[10px] text-indigo-400 shrink-0"></i>
                                 <span id="hdrHouseholdName" class="truncate max-w-[130px] md:max-w-[180px] lg:max-w-[220px]">Palash &amp; Pallavi Household</span>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 text-[10px] text-slate-400 font-medium mt-0.5">
+                        <div class="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-slate-400 font-medium">
                             <span class="inline-flex items-center gap-1 text-emerald-400 font-bold">
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                                 <span id="hdrStatusText">Live</span>
                             </span>
                             <span class="text-slate-600">·</span>
-                            <span id="hdrTxCount">0 Transactions</span>
+                            <span id="hdrTxCount" class="truncate">0 Tx</span>
                             <span class="hidden md:inline text-slate-600">·</span>
                             <span id="hdrLastUpdated" class="hidden md:inline">Just now</span>
                         </div>
@@ -115,18 +115,22 @@
                 <!-- Zone 3: Mobile Controls (< sm) -->
                 <div class="flex sm:hidden items-center space-x-1.5 shrink-0">
                     <!-- Mobile Account / Household Profile -->
-                    <button type="button" onclick="openUserProfileModal()" class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-xs border border-indigo-400/40 shadow-sm shrink-0" id="mobileUserBtn" title="Account Profile">
+                    <button type="button" onclick="openUserProfileModal()" class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-xs border border-indigo-400/40 shadow-sm shrink-0" id="mobileUserBtn" title="Account Profile & Sign Out">
                         <span id="mobileUserInitial">P</span>
                     </button>
                     
-                    <!-- Mobile Live Theme Selector -->
+                    <!-- Mobile Live Theme Selector (8 Luxury Options) -->
                     <div class="flex items-center space-x-1 bg-slate-800/90 text-slate-200 border border-slate-700/80 rounded-xl px-2 py-1.5 shadow-sm text-xs font-semibold">
                         <i class="fa-solid fa-palette text-amber-400 text-xs"></i>
                         <select id="mobileThemeSelector" onchange="changeTheme(this.value)" class="bg-transparent text-slate-200 text-xs font-black focus:outline-none cursor-pointer border-none p-0 pr-0.5">
-                            <option value="indigo" class="bg-slate-900 text-white">✨ Indigo</option>
-                            <option value="dark" class="bg-slate-900 text-white">🌙 Dark</option>
-                            <option value="emerald" class="bg-slate-900 text-white">🌿 Mint</option>
-                            <option value="rose" class="bg-slate-900 text-white">🌅 Rose</option>
+                            <option value="indigo" class="bg-slate-900 text-white">✨ Royal Indigo</option>
+                            <option value="dark" class="bg-slate-900 text-white">🌙 Obsidian Dark</option>
+                            <option value="emerald" class="bg-slate-900 text-white">🌿 Emerald Mint</option>
+                            <option value="rose" class="bg-slate-900 text-white">🌅 Sunset Rose</option>
+                            <option value="ocean" class="bg-slate-900 text-white">🌊 Ocean Blue</option>
+                            <option value="amber" class="bg-slate-900 text-white">👑 Golden Amber</option>
+                            <option value="purple" class="bg-slate-900 text-white">🔮 Amethyst Purple</option>
+                            <option value="slate" class="bg-slate-900 text-white">⚙️ Platinum Slate</option>
                         </select>
                     </div>
 
@@ -142,10 +146,9 @@
                         <span id="mobileOfflineQueueCount">0</span>
                     </button>
 
-                    <!-- Mobile Add Expense Button -->
-                    <button id="btnMobileQuickAdd" onclick="openExpenseModal()" class="bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white font-extrabold text-xs px-2.5 py-1.5 rounded-xl shadow-md active:scale-95 transition-all flex items-center space-x-1">
-                        <i class="fa-solid fa-plus text-xs"></i>
-                        <span>Add</span>
+                    <!-- Mobile Direct Quick Sign Out Button -->
+                    <button type="button" onclick="signOut()" class="w-8 h-8 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 hover:text-white border border-rose-500/40 shadow-sm transition flex items-center justify-center shrink-0" title="Sign Out" aria-label="Sign Out">
+                        <i class="fa-solid fa-right-from-bracket text-xs text-rose-400"></i>
                     </button>
 
                     <!-- Mobile More Actions Hub Dropdown (⋮) -->
@@ -154,13 +157,25 @@
                             <i class="fa-solid fa-ellipsis-vertical text-sm text-indigo-400"></i>
                         </button>
                         <div id="mobileActionDropdown" class="hidden absolute right-0 mt-2 w-64 rounded-2xl shadow-2xl bg-white border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100">
-                            <div class="p-2.5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
-                                <span class="text-xs font-extrabold flex items-center gap-1.5">
-                                    <i class="fa-solid fa-bolt text-amber-400"></i> Quick Command Menu
-                                </span>
-                                <span class="text-[10px] text-slate-400">Mobile Hub</span>
+                            <!-- User Account Header Banner with Instant Sign Out -->
+                            <div class="p-3 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center text-xs font-black shrink-0" id="mobileActionUserAvatar">P</div>
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-black truncate max-w-[110px]" id="mobileActionUserName">Palash</div>
+                                        <div class="text-[9px] font-extrabold text-indigo-300 uppercase truncate" id="mobileActionUserRole">Owner</div>
+                                    </div>
+                                </div>
+                                <button onclick="signOut(); toggleMobileActionMenu();" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-black rounded-lg shadow transition flex items-center gap-1 shrink-0" title="Sign Out">
+                                    <i class="fa-solid fa-right-from-bracket text-[10px]"></i>
+                                    <span>Sign Out</span>
+                                </button>
                             </div>
                             <div class="py-1">
+                                <button onclick="openUserProfileModal(); toggleMobileActionMenu();" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-indigo-50 hover:text-indigo-700 flex items-center justify-between">
+                                    <span class="flex items-center gap-2"><i class="fa-solid fa-id-badge text-indigo-600"></i> Account Profile & Household</span>
+                                    <span class="text-[10px] bg-indigo-100 text-indigo-800 font-black px-1.5 py-0.5 rounded">User</span>
+                                </button>
                                 <button onclick="installPwaApp(); toggleMobileActionMenu();" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-emerald-50 hover:text-emerald-700 flex items-center justify-between">
                                     <span class="flex items-center gap-2"><i class="fa-solid fa-mobile-screen text-emerald-600"></i> Download / Install App</span>
                                     <span class="text-[10px] bg-emerald-100 text-emerald-800 font-black px-1.5 py-0.5 rounded">PWA</span>
@@ -189,6 +204,10 @@
                                 <button onclick="switchTab('audit'); toggleMobileActionMenu();" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-amber-50 hover:text-amber-700 flex items-center justify-between">
                                     <span class="flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-amber-500"></i> View Audit Trail</span>
                                     <span class="text-[10px] bg-amber-100 text-amber-800 font-black px-1.5 py-0.5 rounded">Live</span>
+                                </button>
+                                <button onclick="signOut(); toggleMobileActionMenu();" class="w-full text-left px-4 py-2.5 text-xs font-black text-rose-600 hover:bg-rose-50 flex items-center justify-between border-t border-slate-100">
+                                    <span class="flex items-center gap-2"><i class="fa-solid fa-right-from-bracket text-rose-500"></i> Sign Out / Switch Account</span>
+                                    <span class="text-[10px] bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded">Logout</span>
                                 </button>
                             </div>
                         </div>
@@ -260,14 +279,18 @@
                         </div>
                     </div>
 
-                    <!-- Live Theme Switcher (Desktop) -->
+                    <!-- Live Theme Switcher (Desktop - 8 Luxury Options) -->
                     <div class="flex items-center space-x-1.5 bg-slate-800/90 text-slate-200 border border-slate-700/90 rounded-xl px-2.5 py-1.5 shadow-sm text-xs font-semibold">
                         <i class="fa-solid fa-palette text-amber-400 text-xs"></i>
                         <select id="themeSelector" onchange="changeTheme(this.value)" class="bg-transparent text-slate-200 text-xs font-bold focus:outline-none cursor-pointer border-none p-0">
-                            <option value="indigo" class="bg-slate-900 text-white">✨ Luxe Indigo</option>
-                            <option value="dark" class="bg-slate-900 text-white">🌙 Midnight Dark</option>
+                            <option value="indigo" class="bg-slate-900 text-white">✨ Royal Indigo</option>
+                            <option value="dark" class="bg-slate-900 text-white">🌙 Obsidian Dark</option>
                             <option value="emerald" class="bg-slate-900 text-white">🌿 Emerald Mint</option>
                             <option value="rose" class="bg-slate-900 text-white">🌅 Sunset Rose</option>
+                            <option value="ocean" class="bg-slate-900 text-white">🌊 Ocean Sapphire</option>
+                            <option value="amber" class="bg-slate-900 text-white">👑 Golden Amber</option>
+                            <option value="purple" class="bg-slate-900 text-white">🔮 Amethyst Purple</option>
+                            <option value="slate" class="bg-slate-900 text-white">⚙️ Platinum Slate</option>
                         </select>
                     </div>
 
@@ -323,6 +346,12 @@
                             <div class="text-[9px] font-extrabold text-indigo-300 uppercase" id="hdrUserRole">Owner</div>
                         </div>
                         <i class="fa-solid fa-chevron-down text-[8px] text-slate-400"></i>
+                    </button>
+
+                    <!-- Prominent Direct Sign Out Button (Desktop) -->
+                    <button type="button" onclick="signOut()" class="bg-rose-500/15 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 hover:border-rose-600 font-bold text-xs px-2.5 py-1.5 rounded-xl transition flex items-center gap-1.5 shrink-0 shadow-sm" title="Sign Out of Command Center">
+                        <i class="fa-solid fa-right-from-bracket text-xs text-rose-400"></i>
+                        <span class="hidden md:inline">Sign Out</span>
                     </button>
                 </div>
             </div>
@@ -3207,9 +3236,9 @@
                 </div>
 
                 <div class="space-y-2 pt-1">
-                    <button type="button" onclick="signOut(); closeUserProfileModal();" class="w-full py-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2">
+                    <button type="button" onclick="signOut(); closeUserProfileModal();" class="w-full py-3 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white rounded-xl font-black text-xs shadow-lg shadow-rose-600/30 active:scale-98 transition flex items-center justify-center gap-2">
                         <i class="fa-solid fa-right-from-bracket"></i>
-                        <span>Sign Out</span>
+                        <span>Sign Out of Account</span>
                     </button>
                 </div>
             </div>
@@ -3473,7 +3502,7 @@
     </div>
 
     <!-- Core Application Logic -->
-    <script src="tracker_app.js?v=5.1.0"></script>
-    <script src="advance_modules.js?v=5.1.0"></script>
+    <script src="tracker_app.js?v=5.2.0"></script>
+    <script src="advance_modules.js?v=5.2.0"></script>
 </body>
 </html>

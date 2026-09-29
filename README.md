@@ -1,6 +1,6 @@
-# HOMEEXPENSES · Luxury Household Finance & Staff Payroll Command Center
+# HOME EXPENCE · Household Financial & Staff Payroll Command Center
 
-A high-performance, modern, mobile-first PWA and web application designed for complete household financial tracking, domestic staff payroll management (with attendance & leave quotas), utility due date radar, 1-click Splitwise reimbursement, and Excel import/export persistence.
+A high-performance, modern, mobile-first PWA and web application designed for complete household financial tracking, multi-user role management, domestic staff payroll management (with attendance & leave quotas), utility due date radar, 1-click Splitwise reimbursement, and Excel import/export persistence.
 
 ---
 
@@ -10,26 +10,30 @@ A high-performance, modern, mobile-first PWA and web application designed for co
    - 100% responsive across all mobile screens (320px iPhone SE, 360px Samsung Galaxy A-series, tablets, desktop).
    - Horizontal swipeable top navigation + native bottom mobile navigation bar with 1-thumb center Quick Add (+) action.
    - PWA installable on iOS Safari ("Add to Home Screen") and Android Chrome ("Install App") for a full-screen, offline-capable mobile experience.
+   - Custom Home Expence Logo featuring an authentic house silhouette with an inner Indian Rupee symbol (₹).
 
-2. **Domestic Staff Attendance & Leave Payroll Suite**:
-   - Interactive calendar for **Chef (Nilima Nikose)** and **Maid (Madhuri)**.
-   - Configurable paid leave quotas (e.g. 4 free paid leaves for Chef, 2 for Maid) before salary deductions apply.
+2. **Multi-Household & Dynamic User Scoping**:
+   - Real-time scoped filters for family members, categories, payment methods, and personal expense tracking.
+   - Granular RBAC (System Administrator, Owner, Member) with isolated household ledgers.
+
+3. **Domestic Staff Attendance & Leave Payroll Suite**:
+   - Interactive calendar for staff (Chef, Maid, etc.).
+   - Configurable paid leave quotas before salary deductions apply.
    - 1-click WhatsApp payment voucher generation and payroll settlement.
 
-3. **Household Reimbursement & Splitwise Matrix**:
-   - Tracks payer and household allocation with 100% reimbursement model (Palash reimburses Pallavi).
+4. **Household Reimbursement & Splitwise Matrix**:
+   - Tracks payer and household allocation with automatic balance reconciliation.
    - 1-Click "Settle Up" action that logs reimbursement and instantly brings balance to ₹0.
 
-4. **Utility Due Date Radar & 15-Day Cash Runway**:
-   - Real-time countdown for upcoming recurring bills (MSCB Electricity, Maintenance, WiFi, DTH, Salaries).
+5. **Utility Due Date Radar & Cash Runway**:
+   - Real-time countdown for upcoming recurring bills (Electricity, Maintenance, WiFi, DTH, Salaries).
    - Color-coded status (Paid, Due Soon, Scheduled).
 
-5. **⚙️ Admin & Master Settings Tab**:
-   - Zero-friction configuration without passwords or auth barriers.
-   - Customize staff salaries, leave quotas, paydays, recurring bills, categories, and family members ("Paid By").
+6. **⚙️ Master Configuration & Admin Access**:
+   - Easily configure household categories, staff, recurring bills, monthly budgets, and user permissions.
 
-6. **Full Persistence & Microsoft Excel Integration**:
-   - Multi-sheet Excel export (Transactions, Monthly Matrix, Staff Ledger, Category Summary) and import.
+7. **Full Persistence & Microsoft Excel Integration**:
+   - Multi-sheet Excel export and import.
    - Dual-mode server persistence (Node.js REST API + `/tmp` serverless support on Vercel).
 
 ---
@@ -47,9 +51,9 @@ Then open `http://localhost:8000/` in your browser.
 ## ☁️ Deploying to Vercel
 
 1. **Connect GitHub**:
-   - Import `palashmore/homeexpenses` on [vercel.com](https://vercel.com).
+   - Import `palashmore/home-expence` on [vercel.com](https://vercel.com).
    - Framework Preset: **Other**.
    - Output Directory: `./`.
    - Deploy!
-2. **Or deploy via ZIP**:
-   - Upload `household-expense-tracker-vercel.zip` directly to Vercel.
+2. **Or deploy via Vercel CLI**:
+   - Run `npx vercel --prod` in the project root directory.

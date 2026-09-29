@@ -1,5 +1,19 @@
 [
   {
+    "id": "audit-1790668627015-8rhtm",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T07:57:07.015Z",
+    "action": {
+      "id": "AUD-1790668627015-DEL-H",
+      "action": "DELETE_HOUSEHOLD",
+      "actor": "admin",
+      "details": "Deleted household 'QA Test Household Automation (Updated)' (H003)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
     "id": "audit-1790627554798-7wzb1",
     "householdId": "H001",
     "timestamp": "2026-09-28T20:32:34.798Z",

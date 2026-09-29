@@ -1,5 +1,57 @@
 [
   {
+    "id": "notif_1790687475675_l38dr",
+    "householdId": "H001",
+    "title": "⚡ Test Live Alert",
+    "body": "Testing heads-up notification banner",
+    "url": "/#tab-expenses",
+    "tag": "test-1790687475674",
+    "actor": "System Test",
+    "type": "TEST_PUSH",
+    "amount": null,
+    "timestamp": "2026-09-29T13:11:15.675Z",
+    "readBy": []
+  },
+  {
+    "id": "notif_1790685663246_0becq",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "Grocery & Vegetables • ₹520 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1790685663209-77k4",
+    "actor": "Palash",
+    "type": "EXPENSE_DELETE",
+    "amount": 520,
+    "timestamp": "2026-09-29T12:41:03.246Z",
+    "readBy": []
+  },
+  {
+    "id": "notif_1790685663228_q18it",
+    "householdId": "H001",
+    "title": "✏️ Palash updated an expense",
+    "body": "Grocery & Vegetables • ₹520 • \"Updated note for zero-cache live sync\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-update-exp-1790685663209-77k4",
+    "actor": "Palash",
+    "type": "EXPENSE_UPDATE",
+    "amount": 520,
+    "timestamp": "2026-09-29T12:41:03.228Z",
+    "readBy": []
+  },
+  {
+    "id": "notif_1790685663214_v5r0c",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹475.25",
+    "body": "Grocery & Vegetables • Paid by Palash • \"Real-time multi-user zero-cache verification transaction\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1790685663209-77k4",
+    "actor": "Palash",
+    "type": "EXPENSE_CREATE",
+    "amount": 475.25,
+    "timestamp": "2026-09-29T12:41:03.214Z",
+    "readBy": []
+  },
+  {
     "id": "notif_1790685114482_bet47",
     "householdId": "H001",
     "title": "🗑️ Palash deleted an expense",

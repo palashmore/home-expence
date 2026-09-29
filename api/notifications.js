@@ -39,6 +39,16 @@ try {
     console.warn('VAPID initialization notice:', e.message);
 }
 
+// High-Priority Web Push Options (RFC 8030 compliant: Urgency: high guarantees heads-up banners on Android/Chrome)
+const HIGH_PRIORITY_PUSH_OPTIONS = {
+    TTL: 86400, // 24 hours
+    urgency: 'high',
+    headers: {
+        'Urgency': 'high',
+        'Topic': 'household_updates'
+    }
+};
+
 // Helper: Read subscriptions
 async function readSubscriptions() {
     try {
@@ -136,7 +146,7 @@ async function sendPushToAll(payload) {
 
     for (const sub of subs) {
         try {
-            await webpush.sendNotification(sub, stringified);
+            await webpush.sendNotification(sub, stringified, HIGH_PRIORITY_PUSH_OPTIONS);
             delivered++;
             remainingSubs.push(sub);
         } catch (err) {
@@ -201,7 +211,13 @@ async function sendPushToHouseholdMembers({ householdId, title, body, url, tag, 
         title,
         body,
         url: url || '/#tab-expenses',
-        tag: tag || `expense-${Date.now()}`
+        tag: tag || `expense-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        silent: false,
+        requireInteraction: true,
+        vibrate: [300, 100, 300, 100, 300],
+        timestamp: Date.now()
     });
 
     let delivered = 0;
@@ -209,7 +225,7 @@ async function sendPushToHouseholdMembers({ householdId, title, body, url, tag, 
 
     for (const sub of targetSubs) {
         try {
-            await webpush.sendNotification(sub, payload);
+            await webpush.sendNotification(sub, payload, HIGH_PRIORITY_PUSH_OPTIONS);
             delivered++;
             remainingEndpoints.add(sub.endpoint);
         } catch (err) {
@@ -449,8 +465,14 @@ module.exports = async function handler(req, res) {
                             title: '🎉 Closed-App Push Active',
                             body: `Alerts enabled for ${name}! You will receive live household updates from linked members even when the app is closed.`,
                             url: '/',
-                            tag: 'welcome-push'
-                        })
+                            tag: `welcome-push-${Date.now()}`,
+                            icon: '/icon-192.png',
+                            badge: '/icon-192.png',
+                            silent: false,
+                            requireInteraction: true,
+                            vibrate: [300, 100, 300, 100, 300]
+                        }),
+                        HIGH_PRIORITY_PUSH_OPTIONS
                     );
                 } catch (pushErr) {
                     console.warn('Initial push confirmation notice:', pushErr.message);
@@ -481,29 +503,53 @@ module.exports = async function handler(req, res) {
                 });
             }
 
-            // 3. Send Test Push to all subscribed devices or targeted household
+            // 3. Send Test Push to all subscribed devices or targeted household (Heads-Up Banner Guaranteed)
             if (postAction === 'test_push') {
                 const session = authenticateRequest(req);
-                const customTitle = body.title || '🔔 Home Expence Test Alert';
-                const customBody = body.body || 'This is a test notification. It will arrive on your mobile phone even when this app is closed!';
-                const customUrl = body.url || '/';
+                const householdId = (session && session.householdId) || body.householdId || 'H001';
+                const customTitle = body.title || '🔔 Home Expence: Live Alert';
+                const customBody = body.body || 'Heads-up notification banner! Live push delivered directly to your device.';
+                const customUrl = body.url || '/#tab-expenses';
+
+                // Record in-app notification so it appears inside the in-app drawer
+                recordHouseholdInAppNotification({
+                    householdId: householdId,
+                    title: customTitle,
+                    body: customBody,
+                    url: customUrl,
+                    tag: `test-${Date.now()}`,
+                    actor: (session && (session.name || session.username)) || 'System Test',
+                    type: 'TEST_PUSH'
+                });
+
+                const testPayload = JSON.stringify({
+                    title: customTitle,
+                    body: customBody,
+                    url: customUrl,
+                    tag: `test-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+                    icon: '/icon-192.png',
+                    badge: '/icon-192.png',
+                    silent: false,
+                    requireInteraction: true,
+                    vibrate: [400, 150, 400, 150, 400],
+                    timestamp: Date.now()
+                });
 
                 let resResult;
-                if (session && session.householdId) {
-                    // Send to current household devices
+                const targetHouseholdId = (session && session.householdId) || body.householdId;
+                if (targetHouseholdId) {
+                    // Send to current household devices (or all if unassigned)
                     const subs = await readSubscriptions();
-                    const hhSubs = subs.filter(s => !s.householdId || s.householdId === session.householdId);
+                    let hhSubs = subs.filter(s => !s.householdId || s.householdId === targetHouseholdId);
+                    if (hhSubs.length === 0) hhSubs = subs;
                     let delivered = 0;
                     for (const s of hhSubs) {
                         try {
-                            await webpush.sendNotification(s, JSON.stringify({
-                                title: customTitle,
-                                body: customBody,
-                                url: customUrl,
-                                tag: `test-${Date.now()}`
-                            }));
+                            await webpush.sendNotification(s, testPayload, HIGH_PRIORITY_PUSH_OPTIONS);
                             delivered++;
-                        } catch (e) {}
+                        } catch (e) {
+                            console.warn('Test push delivery error:', e.message);
+                        }
                     }
                     resResult = { delivered, total: hhSubs.length };
                 } else {
@@ -511,7 +557,13 @@ module.exports = async function handler(req, res) {
                         title: customTitle,
                         body: customBody,
                         url: customUrl,
-                        tag: `test-${Date.now()}`
+                        tag: `test-${Date.now()}`,
+                        icon: '/icon-192.png',
+                        badge: '/icon-192.png',
+                        silent: false,
+                        requireInteraction: true,
+                        vibrate: [400, 150, 400, 150, 400],
+                        timestamp: Date.now()
                     });
                 }
 

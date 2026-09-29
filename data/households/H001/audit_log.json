@@ -1,5 +1,73 @@
 [
   {
+    "id": "audit-1790685663242-x8xv7",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T12:41:03.242Z",
+    "action": "DELETE_EXPENSE",
+    "recordId": "exp-1790685663209-77k4",
+    "actor": "Palash",
+    "diff": {
+      "deleted": true,
+      "amount": 520,
+      "category": "Grocery & Vegetables"
+    },
+    "snapshot": {
+      "id": "exp-1790685663209-77k4",
+      "category": "Grocery & Vegetables",
+      "amount": 520
+    }
+  },
+  {
+    "id": "audit-1790685663223-brtzd",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T12:41:03.223Z",
+    "action": "UPDATE_EXPENSE",
+    "recordId": "exp-1790685663209-77k4",
+    "actor": "Palash",
+    "diff": {
+      "amount": {
+        "old": 475.25,
+        "new": 520
+      },
+      "paidTo": {
+        "old": "Nature Basket",
+        "new": "Nature Basket Superstore"
+      },
+      "notes": {
+        "old": "Real-time multi-user zero-cache verification transaction",
+        "new": "Updated note for zero-cache live sync"
+      }
+    },
+    "snapshot": {
+      "category": "Grocery & Vegetables",
+      "amount": 520,
+      "paidBy": "Palash",
+      "date": "2026-09-29"
+    }
+  },
+  {
+    "id": "audit-1790685663211-ms4vd",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T12:41:03.211Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1790685663209-77k4",
+    "actor": "Palash",
+    "diff": {
+      "created": {
+        "amount": 475.25,
+        "category": "Grocery & Vegetables",
+        "paidBy": "Palash",
+        "date": "2026-09-29"
+      }
+    },
+    "snapshot": {
+      "category": "Grocery & Vegetables",
+      "amount": 475.25,
+      "paidBy": "Palash",
+      "date": "2026-09-29"
+    }
+  },
+  {
     "id": "audit-1790685114479-6enur",
     "householdId": "H001",
     "timestamp": "2026-09-29T12:31:54.479Z",

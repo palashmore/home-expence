@@ -47,6 +47,9 @@
 </head>
 <body class="text-slate-800 font-sans min-h-screen flex flex-col antialiased">
 
+    <!-- In-App Floating Heads-Up Notification Banner Container (Real-Time In-App Alert Display) -->
+    <div id="inAppNotificationBannerContainer" class="fixed top-3 inset-x-2 sm:inset-x-auto sm:right-6 sm:top-5 z-[9999] pointer-events-none flex flex-col items-center sm:items-end space-y-2.5 max-w-md mx-auto sm:mx-0 w-full" aria-live="assertive"></div>
+
     <!-- Mobile PWA Quick Install Banner -->
     <div id="mobilePwaBanner" class="sm:hidden bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-900 text-white px-3 py-2 flex items-center justify-between border-b border-indigo-500/30 shadow-md">
         <div class="flex items-center space-x-2 min-w-0">
@@ -331,6 +334,14 @@
                     Activate
                 </button>
             </div>
+
+            <!-- Realme / Android Heads-Up Banner Settings Guidance -->
+            <div class="px-3.5 py-2 bg-amber-50/80 border-b border-amber-100 flex items-start gap-2 text-[11px] text-amber-950">
+                <i class="fa-solid fa-mobile-screen-button text-amber-600 mt-0.5 shrink-0 text-xs"></i>
+                <div class="leading-tight">
+                    <span class="font-extrabold text-amber-900">Mobile Heads-Up Banners:</span> To show alerts on top of your screen instead of "Silent", tap &amp; hold any alert ➔ <span class="font-bold underline text-amber-800">Allow Banners / Set as Alerting</span>.
+                </div>
+            </div>
             
             <!-- Filter Tabs -->
             <div class="flex border-b border-slate-100 bg-slate-50 text-[11px] font-bold text-slate-600">
@@ -355,9 +366,13 @@
 
             <!-- Footer -->
             <div class="p-2.5 bg-slate-50 text-center flex flex-wrap justify-between items-center px-4 gap-2">
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 flex-wrap gap-y-1">
                     <button onclick="clearAllDismissedNotifications()" class="text-[11px] font-bold text-slate-500 hover:text-slate-800 transition">
                         Reset
+                    </button>
+                    <span class="text-slate-300">·</span>
+                    <button onclick="triggerTestInAppBanner()" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center gap-1" title="Test in-app floating banner">
+                        <i class="fa-solid fa-bell text-[10px]"></i> Test Banner
                     </button>
                     <span class="text-slate-300">·</span>
                     <button onclick="sendTestClosedAppPush()" class="text-[11px] font-bold text-amber-600 hover:text-amber-800 transition flex items-center gap-1" title="Test receiving an alert with app closed">

@@ -428,12 +428,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     } catch (e) {}
 
-    // Service Worker Push Sync Listener (refreshes data immediately when background notification arrives)
+    // Service Worker Push Sync Listener (refreshes data immediately & triggers in-app banner)
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.addEventListener('message', (event) => {
             if (event.data && (event.data.type === 'SYNC_TRANSACTIONS' || event.data.type === 'TRANSACTIONS_UPDATED')) {
                 loadData(true);
                 if (window.loadMasterConfig) window.loadMasterConfig();
+                if (window.updateNotificationCenter) window.updateNotificationCenter();
+            }
+            if (event.data && (event.data.type === 'SHOW_IN_APP_BANNER' || event.data.type === 'PUSH_NOTIFICATION')) {
+                const payload = event.data.payload || event.data;
+                if (window.showInAppNotificationBanner) {
+                    window.showInAppNotificationBanner(payload);
+                }
             }
         });
     }

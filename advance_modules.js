@@ -3883,6 +3883,9 @@
     }
   }
 
+  const shownInAppBannerIds = new Set();
+  let initialNotificationSyncDone = false;
+
   window.toggleNotificationCenter = function () {
     const dropdown = document.getElementById('notificationCenterDropdown');
     const backdrop = document.getElementById('notificationCenterBackdrop');
@@ -3946,6 +3949,29 @@
             if (dismissed.includes(item.id)) return;
             if (item.readBy && (item.readBy.includes(currentUserId) || item.readBy.includes(currentUsername))) return;
 
+            // Trigger real-time floating in-app banner for incoming alerts
+            if (!initialNotificationSyncDone) {
+              shownInAppBannerIds.add(item.id);
+            } else if (!shownInAppBannerIds.has(item.id)) {
+              shownInAppBannerIds.add(item.id);
+              const notifTime = item.timestamp ? new Date(item.timestamp).getTime() : 0;
+              const age = Date.now() - notifTime;
+              const isOtherUser = (item.actor && item.actor.toLowerCase() !== currentUsername && item.actor.toLowerCase() !== 'you') || item.type === 'TEST_PUSH';
+              if (age < 60000 && isOtherUser) {
+                if (window.showInAppNotificationBanner) {
+                  window.showInAppNotificationBanner({
+                    id: item.id,
+                    title: item.title,
+                    body: item.body,
+                    url: item.url,
+                    type: item.type,
+                    actor: item.actor,
+                    amount: item.amount
+                  });
+                }
+              }
+            }
+
             let icon = '💰';
             let sev = 'high';
             if (item.type === 'EXPENSE_UPDATE') { icon = '✏️'; sev = 'medium'; }
@@ -3973,6 +3999,7 @@
               }
             });
           });
+          initialNotificationSyncDone = true;
         }
       }
     } catch (e) {}
@@ -4349,23 +4376,158 @@
     }
   };
 
+  // ========================================================
+  // IN-APP FLOATING HEADS-UP NOTIFICATION BANNER SYSTEM
+  // ========================================================
+  window.showInAppNotificationBanner = function ({ title, body, icon, url, type, actor, amount } = {}) {
+    let container = document.getElementById('inAppNotificationBannerContainer');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'inAppNotificationBannerContainer';
+      container.className = 'fixed top-3 inset-x-2 sm:inset-x-auto sm:right-6 sm:top-5 z-[9999] pointer-events-none flex flex-col items-center sm:items-end space-y-2.5 max-w-md mx-auto sm:mx-0 w-full';
+      document.body.appendChild(container);
+    }
+
+    // Play subtle haptic feedback on supported mobile devices
+    if (navigator.vibrate) {
+      try { navigator.vibrate([120, 60, 120]); } catch (e) {}
+    }
+
+    // Gentle unobtrusive audio chime using Web Audio API
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') ctx.resume();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime); // E5
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
+        gain.gain.setValueAtTime(0.09, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      }
+    } catch (e) {}
+
+    const banner = document.createElement('div');
+    banner.className = 'in-app-banner pointer-events-auto w-full max-w-sm rounded-2xl bg-slate-900/95 text-white border border-indigo-500/50 shadow-2xl backdrop-blur-md p-3.5 flex items-start gap-3 transform transition-all duration-300 ease-out translate-y-[-24px] opacity-0 cursor-pointer select-none hover:border-indigo-400 active:scale-[0.98] shadow-indigo-950/50';
+    banner.setAttribute('role', 'alert');
+
+    let displayIcon = '<i class="fa-solid fa-bell text-amber-400"></i>';
+    if (type === 'EXPENSE_ADD' || (body && body.toLowerCase().includes('added'))) {
+      displayIcon = '<i class="fa-solid fa-receipt text-emerald-400"></i>';
+    } else if (type === 'EXPENSE_UPDATE') {
+      displayIcon = '<i class="fa-solid fa-pen text-indigo-400"></i>';
+    } else if (type === 'STAFF_ATTENDANCE' || (body && body.toLowerCase().includes('staff'))) {
+      displayIcon = '<i class="fa-solid fa-user-check text-purple-400"></i>';
+    } else if (type === 'CONFIG_UPDATE') {
+      displayIcon = '<i class="fa-solid fa-gear text-cyan-400"></i>';
+    }
+
+    const safeTitle = (title || 'Home Expence Alert').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const safeBody = (body || 'New household activity received.').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    banner.innerHTML = `
+      <div class="w-10 h-10 rounded-xl bg-slate-800/90 border border-slate-700/80 flex items-center justify-center shrink-0 text-base shadow-sm">
+        ${displayIcon}
+      </div>
+      <div class="flex-1 min-w-0 pt-0.5">
+        <div class="flex items-center justify-between gap-1 mb-0.5">
+          <span class="text-[10px] font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+            Home Expence • Live
+          </span>
+          <span class="text-[10px] font-bold text-slate-400">Now</span>
+        </div>
+        <div class="text-xs font-black text-white leading-tight truncate">${safeTitle}</div>
+        <div class="text-[11px] font-medium text-slate-300 leading-snug line-clamp-2 mt-0.5">${safeBody}</div>
+        <div class="mt-2.5 flex items-center gap-2">
+          <button class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black shadow transition" onclick="event.stopPropagation(); this.closest('.in-app-banner').click();">
+            View Update
+          </button>
+          <button class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] font-bold transition" onclick="event.stopPropagation(); this.closest('.in-app-banner').dismissBanner();">
+            Dismiss
+          </button>
+        </div>
+      </div>
+      <button class="text-slate-400 hover:text-white transition p-1 -mr-1 -mt-1 text-xs shrink-0" onclick="event.stopPropagation(); this.closest('.in-app-banner').dismissBanner();" title="Close">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    `;
+
+    const dismiss = () => {
+      banner.style.transform = 'translateY(-24px)';
+      banner.style.opacity = '0';
+      setTimeout(() => banner.remove(), 300);
+    };
+    banner.dismissBanner = dismiss;
+
+    banner.onclick = () => {
+      dismiss();
+      if (url) {
+        if (url.includes('#tab-expenses')) {
+          window.switchTab && window.switchTab('expenses');
+        } else if (url.includes('#tab-staff')) {
+          window.switchTab && window.switchTab('staff');
+        } else if (url.includes('#tab-settings')) {
+          window.switchTab && window.switchTab('settings');
+        } else {
+          window.toggleNotificationCenter && window.toggleNotificationCenter();
+        }
+      } else {
+        window.toggleNotificationCenter && window.toggleNotificationCenter();
+      }
+    };
+
+    container.appendChild(banner);
+
+    // Slide-down animation
+    requestAnimationFrame(() => {
+      banner.style.transform = 'translateY(0)';
+      banner.style.opacity = '1';
+    });
+
+    // Auto dismiss after 6.5 seconds
+    const timer = setTimeout(dismiss, 6500);
+    banner.addEventListener('mouseenter', () => clearTimeout(timer));
+  };
+
+  window.triggerTestInAppBanner = function () {
+    window.showInAppNotificationBanner({
+      title: '🔔 Home Expence: Live In-App Alert',
+      body: 'In-app heads-up notification banner is active and working smoothly in real-time!',
+      url: '/#tab-expenses',
+      type: 'TEST_BANNER',
+      actor: 'System'
+    });
+  };
+
   window.sendTestClosedAppPush = async function () {
     try {
       window.showToast && window.showToast('info', 'Sending Test Alert', 'Close this app or lock your phone now! A push alert will arrive in 4 seconds...');
       setTimeout(async () => {
+        const authHeaders = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders() : { 'Content-Type': 'application/json' };
+        const curUser = (typeof currentUser !== 'undefined' && currentUser) || (window.currentUser) || {};
+        const curHousehold = (typeof currentHouseholdId !== 'undefined' && currentHouseholdId) || window.currentHouseholdId || curUser.householdId || 'H001';
         const res = await fetch('/api/notifications', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders,
           body: JSON.stringify({
             action: 'test_push',
-            title: '⚡ HomeExpenses: Test Alert (Closed-App)',
-            body: 'It works! You received this notification even with the app closed or phone locked.',
-            url: '/'
+            householdId: curHousehold,
+            title: '⚡ Home Expence: Live Alert',
+            body: 'Heads-up notification banner! Live push delivered directly to your device.',
+            url: '/#tab-expenses'
           })
         });
         const data = await res.json();
         if (data.success) {
           console.log('Test push dispatched:', data.message);
+          if (window.updateNotificationCenter) window.updateNotificationCenter();
         }
       }, 4000);
     } catch (e) {

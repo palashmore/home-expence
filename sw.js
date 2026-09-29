@@ -1,5 +1,5 @@
 // HomeExpenses Progressive Web App Service Worker
-const CACHE_NAME = 'homeexpenses-v8';
+const CACHE_NAME = 'homeexpenses-v9';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -57,13 +57,13 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// 3. Push and System Notification Handling (Closed-App Mobile Alerts)
+// 3. Push and System Notification Handling (Closed-App Mobile Alerts & Heads-Up Banners)
 self.addEventListener('push', event => {
   let data = {
-    title: 'HomeExpenses Reminder',
+    title: '🔔 Home Expence Alert',
     body: 'You have a pending household reminder.',
     url: '/',
-    tag: 'homeexpenses-alert'
+    tag: `home-expence-${Date.now()}`
   };
   try {
     if (event.data) {
@@ -74,14 +74,17 @@ self.addEventListener('push', event => {
     if (event.data) data.body = event.data.text();
   }
 
+  const alertTag = data.tag || `home-expence-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
   const options = {
     body: data.body,
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    tag: data.tag || `home-expence-${Date.now()}`,
+    icon: data.icon || '/icon-192.png',
+    badge: data.badge || '/icon-192.png',
+    tag: alertTag,
     renotify: true,
-    requireInteraction: false,
-    vibrate: [250, 100, 250],
+    requireInteraction: true, // Forces heads-up banner on mobile Android
+    silent: false, // Disables silent channel routing
+    vibrate: data.vibrate || [300, 100, 300, 100, 300],
     data: { url: data.url || '/' },
     actions: [
       { action: 'open', title: 'Open Home Expence' }
@@ -90,10 +93,11 @@ self.addEventListener('push', event => {
 
   const promiseChain = self.registration.showNotification(data.title, options)
     .then(() => {
-      // Also notify all open browser clients to refresh transactions without cache
+      // Notify all open browser clients to refresh transactions without cache AND show in-app banner
       return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
         for (let client of windowClients) {
           client.postMessage({ type: 'SYNC_TRANSACTIONS', payload: data });
+          client.postMessage({ type: 'SHOW_IN_APP_BANNER', payload: data });
         }
       });
     });

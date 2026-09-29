@@ -23,6 +23,12 @@ module.exports = async function handler(req, res) {
         // GET: Fetch config for authenticated household
         if (req.method === 'GET') {
             const config = await storage.getHouseholdConfig(householdId);
+            if (config && session && session.name) {
+                if (!Array.isArray(config.familyMembers)) config.familyMembers = [];
+                if (!config.familyMembers.includes(session.name)) {
+                    config.familyMembers.unshift(session.name);
+                }
+            }
             return res.status(200).json({
                 success: true,
                 householdId: householdId,

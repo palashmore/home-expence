@@ -20,7 +20,13 @@ let CATEGORIES = _win.CATEGORIES || [
     "Shopping & Miscellaneous"
 ];
 
-let FAMILY_MEMBERS = _win.FAMILY_MEMBERS || ["Palash", "Pallavi"];
+let currentSessionUser = null;
+try {
+    const storedUser = (typeof localStorage !== 'undefined') ? localStorage.getItem("household_session_user") : null;
+    if (storedUser) currentSessionUser = JSON.parse(storedUser);
+} catch (e) {}
+
+let FAMILY_MEMBERS = _win.FAMILY_MEMBERS || (currentSessionUser?.name ? [currentSessionUser.name] : ["Palash", "Pallavi"]);
 if (typeof window !== 'undefined') {
     window.FAMILY_MEMBERS = FAMILY_MEMBERS;
     window.CATEGORIES = CATEGORIES;
@@ -45,12 +51,7 @@ function getCurrentPeriod() {
 
 // Global Application State
 let expenses = [];
-let authToken = localStorage.getItem("household_auth_token") || "";
-let currentSessionUser = null;
-try {
-    const storedUser = localStorage.getItem("household_session_user");
-    if (storedUser) currentSessionUser = JSON.parse(storedUser);
-} catch (e) {}
+let authToken = (typeof localStorage !== 'undefined' ? localStorage.getItem("household_auth_token") : "") || "";
 let currentSelectedReceiptBase64 = null;
 let trendGranularity = "monthly"; // "monthly" or "quarterly"
 let pendingDeleteExpenseId = null;
@@ -69,13 +70,23 @@ function isPersonalExpense(item) {
 window.isPersonalExpense = isPersonalExpense;
 
 function getPersonalPayer(item) {
-    if (!item) return 'Palash';
+    const members = (window.masterConfig && window.masterConfig.familyMembers) || window.FAMILY_MEMBERS || ['Household Member'];
+    const defaultMember = (currentSessionUser && currentSessionUser.name) || members[0] || 'Household Member';
+    if (!item) return defaultMember;
+
+    const paidBy = (item.paidBy || '').trim();
     const split = (item.splitBetween || '').toLowerCase();
-    if (split.includes('pallavi')) return 'Pallavi';
-    if (split.includes('palash')) return 'Palash';
-    if (item.paidBy && item.paidBy.toLowerCase().includes('pallavi')) return 'Pallavi';
-    if (item.paidBy && item.paidBy.toLowerCase().includes('palash')) return 'Palash';
-    return item.paidBy || 'Palash';
+
+    for (const m of members) {
+        if (paidBy.toLowerCase() === m.toLowerCase()) return m;
+    }
+    for (const m of members) {
+        if (split.includes(m.toLowerCase())) return m;
+    }
+    for (const m of members) {
+        if (paidBy.toLowerCase().includes(m.toLowerCase())) return m;
+    }
+    return paidBy || defaultMember;
 }
 window.getPersonalPayer = getPersonalPayer;
 
@@ -655,10 +666,10 @@ window.renderAllViews = renderAllViews;
 function inferPaidBy(item) {
     if (item.paidBy) return item.paidBy;
     const text = ((item.notes || '') + ' ' + (item.description || '')).toLowerCase();
-    if (text.includes("pallavi")) return "Pallavi";
-    if (text.includes("palash")) return "Palash";
-    if (text.includes("mom")) return "Mom";
-    if (text.includes("dad")) return "Dad";
+    const members = (window.masterConfig && window.masterConfig.familyMembers) || window.FAMILY_MEMBERS || [];
+    for (const m of members) {
+        if (m && text.includes(m.toLowerCase())) return m;
+    }
     return "Not Specified";
 }
 
@@ -1361,8 +1372,6 @@ function renderDashboard(filtered) {
     const totalPersonalSpent = personalExpenseItems.reduce((acc, i) => acc + Number(i.amount), 0);
     const totalCombinedSpent = totalHouseholdSpent + totalPersonalSpent;
 
-    const palashPersonal = personalExpenseItems.filter(i => getPersonalPayer(i) === 'Palash').reduce((acc, i) => acc + Number(i.amount), 0);
-    const pallaviPersonal = personalExpenseItems.filter(i => getPersonalPayer(i) === 'Pallavi').reduce((acc, i) => acc + Number(i.amount), 0);
 
     const isCombinedMode = dashboardFilters.scope === 'combined';
     // Active view items: Household Only by default, or Combined if chosen
@@ -2031,6 +2040,8 @@ function renderHouseholdSpendingMatrix(filteredData) {
         members = [...window.masterConfig.familyMembers];
     } else if (window.FAMILY_MEMBERS && Array.isArray(window.FAMILY_MEMBERS)) {
         members = [...window.FAMILY_MEMBERS];
+    } else if (currentSessionUser && currentSessionUser.name) {
+        members = [currentSessionUser.name];
     } else {
         members = ["Palash", "Pallavi"];
     }
@@ -2550,7 +2561,7 @@ function openExpenseModal(editId = null) {
         // Split Between
         const splitSelect = document.getElementById("inputSplitBetween");
         if (splitSelect) {
-            splitSelect.value = item.splitBetween || "Household Expense (Palash Reimburses Pallavi 100%)";
+            splitSelect.value = item.splitBetween || (splitSelect.options.length > 0 ? splitSelect.options[0].value : "");
         }
 
         document.getElementById("inputPaidTo").value = item.paidTo || item.vendor || "";
@@ -2580,11 +2591,24 @@ function openExpenseModal(editId = null) {
         document.getElementById("inputCategory").value = "Grocery & Vegetables";
         
         const paidBySelect = document.getElementById("inputPaidBy");
-        if (paidBySelect) paidBySelect.value = "Palash";
+        if (paidBySelect) {
+            const preferredUser = (currentSessionUser && currentSessionUser.name) || (window.FAMILY_MEMBERS && window.FAMILY_MEMBERS[0]);
+            let found = false;
+            for (let i = 0; i < paidBySelect.options.length; i++) {
+                if (paidBySelect.options[i].value.toLowerCase() === (preferredUser || '').toLowerCase()) {
+                    paidBySelect.selectedIndex = i;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found && paidBySelect.options.length > 0) {
+                paidBySelect.selectedIndex = 0;
+            }
+        }
         
         const splitSelect = document.getElementById("inputSplitBetween");
-        if (splitSelect) {
-            splitSelect.value = "Household Expense (Palash Reimburses Pallavi 100%)";
+        if (splitSelect && splitSelect.options.length > 0) {
+            splitSelect.selectedIndex = 0;
         }
         
         document.getElementById("inputPaymentMethod").value = "UPI / GPay / PhonePe";
@@ -2639,8 +2663,8 @@ async function saveExpense(e) {
     const paidBy = document.getElementById("inputPaidBy").value;
     const paidTo = document.getElementById("inputPaidTo").value.trim();
     const paymentMethod = document.getElementById("inputPaymentMethod").value;
-    const notes = document.getElementById("inputNotes").value.trim();
-    const splitBetween = document.getElementById("inputSplitBetween") ? document.getElementById("inputSplitBetween").value : "Household Expense (Palash Reimburses Pallavi 100%)";
+    const splitEl = document.getElementById("inputSplitBetween");
+    const splitBetween = splitEl ? splitEl.value : ((window.masterConfig && window.masterConfig.splitRules && window.masterConfig.splitRules[0]) || "Household Expense");
 
     // 1. Validation
     if (!date || isNaN(new Date(date).getTime())) {
@@ -3141,7 +3165,10 @@ function quickPayItem(catName, defaultAmount, defaultPaidTo) {
     document.getElementById("inputCategory").value = catName;
     document.getElementById("inputAmount").value = defaultAmount;
     document.getElementById("inputPaidTo").value = defaultPaidTo;
-    document.getElementById("inputPaidBy").value = "Palash";
+    const activeMember = (currentSessionUser && currentSessionUser.name) || (window.FAMILY_MEMBERS && window.FAMILY_MEMBERS[0]) || "Household Member";
+    if (document.getElementById("inputPaidBy")) {
+        document.getElementById("inputPaidBy").value = activeMember;
+    }
     document.getElementById("inputNotes").value = `Monthly payment for ${catName}`;
 }
 
@@ -3334,7 +3361,7 @@ function importFromExcel(event) {
 
             if (invalidPaidByValues.length > 0) {
                 const uniqueInvalid = Array.from(new Set(invalidPaidByValues));
-                const supportedMembers = (window.masterConfig && window.masterConfig.familyMembers) || window.FAMILY_MEMBERS || ['Palash', 'Pallavi'];
+                const supportedMembers = (window.masterConfig && window.masterConfig.familyMembers) || window.FAMILY_MEMBERS || ['Household Member'];
                 alert(`Notice: Non-standard Paid By values detected: [${uniqueInvalid.join(', ')}]. Supported: ${supportedMembers.join(', ')}. These will be imported as 'Not Specified'.`);
             }
 

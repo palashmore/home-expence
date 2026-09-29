@@ -52,14 +52,21 @@
   ],
   "recurringBills": [],
   "familyMembers": [
-    "User B",
+    "Sanjay",
     "Rohit K. Sharma",
     "Anita Verma"
   ],
   "monthlyBudgetLimit": 20000,
   "splitRules": [
-    "Personal Expense (User B)",
+    "Personal Expense (Sanjay)",
     "Household Expense"
   ],
-  "updatedAt": "2026-09-28T20:06:02.772Z"
+  "paymentMethods": [
+    "UPI / GPay / PhonePe",
+    "Credit Card",
+    "Debit Card",
+    "Net Banking",
+    "Cash"
+  ],
+  "updatedAt": "2026-09-29T10:37:00.000Z"
 }

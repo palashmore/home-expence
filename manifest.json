@@ -1,7 +1,7 @@
 {
-  "name": "HomeExpenses · Luxury Household Finance Command Center",
-  "short_name": "HomeExpenses",
-  "description": "Luxury Household Finance & Staff Payroll Command Center",
+  "name": "Home Expence · Household Financial Command Center",
+  "short_name": "Home Expence",
+  "description": "Household Financial Management & Domestic Staff Payroll Command Center",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

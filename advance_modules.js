@@ -353,18 +353,145 @@
 
   // ========================================================
   // 2. HOUSEHOLD REIMBURSEMENT & SPLITWISE SETTLEMENT MATRIX
-  // Financial Rule: Palash returns 100% of every rupee paid by Pallavi monthly as income flow.
-  // Pallavi NEVER owes Palash, and expenses are NOT 50/50.
+  // Dynamically adapts to household members (single-payer or multi-payer)
   // ========================================================
+
+  function getActiveFamilyMembers() {
+    let members = (window.masterConfig && window.masterConfig.familyMembers && Array.isArray(window.masterConfig.familyMembers)) 
+      ? [...window.masterConfig.familyMembers] 
+      : [];
+    if (window.currentSessionUser && window.currentSessionUser.name && !members.includes(window.currentSessionUser.name)) {
+      members.unshift(window.currentSessionUser.name);
+    }
+    if (!members.length) {
+      members = (window.FAMILY_MEMBERS && window.FAMILY_MEMBERS.length) ? [...window.FAMILY_MEMBERS] : ['Household Member'];
+    }
+    return members;
+  }
+  window.getActiveFamilyMembers = getActiveFamilyMembers;
 
   function renderSplitwiseMatrix(filtered) {
     const grid = document.getElementById('splitwiseCardsGrid');
     const settleContainer = document.getElementById('settleUpActionContainer');
+    const subtitleEl = document.getElementById('splitwiseSubtitle') || document.querySelector('#splitwiseCardsGrid')?.parentElement?.querySelector('p');
     if (!grid) return;
 
-    let pallaviPaid = 0;
-    let palashDirectPaid = 0;
-    let reimbursedByPalash = 0;
+    const members = getActiveFamilyMembers();
+
+    // SINGLE-MEMBER HOUSEHOLD HANDLING (e.g. Sanjay in H002 or individual homes)
+    if (members.length < 2) {
+      const singleMember = members[0] || 'Household Owner';
+      if (subtitleEl) {
+        subtitleEl.textContent = `Individual household expense ledger managed directly by ${singleMember}.`;
+      }
+
+      let directHouseholdSpend = 0;
+      let personalSpend = 0;
+
+      filtered.forEach(exp => {
+        const amt = parseFloat(exp.amount || 0);
+        if (isNaN(amt) || amt <= 0) return;
+        if (exp.category === 'Accepted Payments (Income)') return;
+        if (isPersonalExpense(exp)) {
+          personalSpend += amt;
+        } else {
+          directHouseholdSpend += amt;
+        }
+      });
+
+      currentNetSettleAmount = 0;
+      currentSettlePayer = singleMember;
+      currentSettleReceiver = singleMember;
+
+      grid.innerHTML = `
+        <!-- Card 1: Direct Household Outflows -->
+        <div class="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">Shared Household Outflow</span>
+              <span class="text-xs font-black text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded">${singleMember} Funded</span>
+            </div>
+            <div class="mt-2 space-y-1">
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-600 font-semibold">Verified Household Spend:</span>
+                <span class="font-black text-slate-900">₹${Math.round(directHouseholdSpend).toLocaleString('en-IN')}</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-1">
+                Bills, domestic staff, rent &amp; household upkeep.
+              </p>
+            </div>
+          </div>
+          <div class="mt-3 pt-2 border-t border-slate-200 flex justify-between text-xs">
+            <span class="font-bold text-slate-500">Directly Absorbed:</span>
+            <span class="font-black text-indigo-700">₹${Math.round(directHouseholdSpend).toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+
+        <!-- Card 2: Personal Expenses -->
+        <div class="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">Personal Purchases</span>
+              <span class="text-xs font-black text-purple-700 bg-purple-100 px-2 py-0.5 rounded">Discretionary</span>
+            </div>
+            <div class="mt-2 space-y-1">
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-600 font-semibold">Personal Discretionary Spend:</span>
+                <span class="font-black text-slate-900">₹${Math.round(personalSpend).toLocaleString('en-IN')}</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-1">
+                Independent purchases logged outside shared household budget.
+              </p>
+            </div>
+          </div>
+          <div class="mt-3 pt-2 border-t border-slate-200 flex justify-between text-xs">
+            <span class="font-bold text-slate-500">Self-Funded:</span>
+            <span class="font-black text-purple-700">100%</span>
+          </div>
+        </div>
+
+        <!-- Card 3: Single Payer Reconciliation Status -->
+        <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-extrabold uppercase tracking-wider text-emerald-800">Reconciliation Status</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800">Self-Funded</span>
+            </div>
+            <h4 class="text-xl font-black text-emerald-950 mt-2">✨ Direct Household</h4>
+            <div class="text-2xl font-black text-emerald-600 mt-0.5">₹0 Shared Due</div>
+            <p class="text-xs text-emerald-700 font-medium mt-1">All expenses directly funded by ${singleMember}. No splitwise reimbursement needed.</p>
+          </div>
+          <div class="mt-3 pt-2 border-t border-emerald-200 text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+            <i class="fa-solid fa-check-circle"></i>
+            <span>No pending balance to reimburse.</span>
+          </div>
+        </div>
+      `;
+
+      if (settleContainer) {
+        settleContainer.innerHTML = `
+          <button disabled class="px-4 py-2 bg-slate-100 text-slate-400 font-extrabold text-xs rounded-xl cursor-not-allowed flex items-center space-x-1.5 shadow-none">
+            <i class="fa-solid fa-circle-check text-emerald-500"></i>
+            <span>Self-Funded (${singleMember})</span>
+          </button>
+        `;
+      }
+      return;
+    }
+
+    // MULTI-MEMBER / 2-MEMBER HOUSEHOLD RECONCILIATION
+    const payer1 = members[0];
+    const payer2 = members[1];
+    const p1Low = payer1.toLowerCase();
+    const p2Low = payer2.toLowerCase();
+
+    if (subtitleEl) {
+      subtitleEl.textContent = `Automatic balance reconciliation between ${payer1} & ${payer2} for shared household expenses.`;
+    }
+
+    let p2Paid = 0;
+    let p1DirectPaid = 0;
+    let reimbursedByP1 = 0;
 
     filtered.forEach(exp => {
       const amt = parseFloat(exp.amount || 0);
@@ -376,33 +503,30 @@
       const cat = (exp.category || '').toLowerCase();
       const notes = (exp.notes || exp.description || '').toLowerCase();
 
-      // Check if this is a settlement/reimbursement transfer from Palash to Pallavi
+      // Check if this is a settlement/reimbursement transfer from payer1 to payer2
       const isSettlement = cat.includes('settlement') || cat.includes('reimbursement') ||
-        (paidBy.includes('palash') && (paidTo.includes('pallavi') || notes.includes('reimburse') || notes.includes('settle')));
+        (paidBy.includes(p1Low) && (paidTo.includes(p2Low) || notes.includes('reimburse') || notes.includes('settle')));
 
       if (isSettlement) {
-        if (paidBy.includes('palash')) {
-          reimbursedByPalash += amt;
+        if (paidBy.includes(p1Low)) {
+          reimbursedByP1 += amt;
         }
       } else if (!isPersonalExpense(exp)) {
-        if (paidBy.includes('pallavi')) {
-          // Household expense paid out of Pallavi's pocket -> Palash returns 100%
-          pallaviPaid += amt;
-        } else if (paidBy.includes('palash')) {
-          // Direct household spend funded by Palash
-          palashDirectPaid += amt;
+        if (paidBy.includes(p2Low)) {
+          p2Paid += amt;
+        } else if (paidBy.includes(p1Low)) {
+          p1DirectPaid += amt;
         }
       }
     });
 
-    // Net Reimbursement Balance: Palash owes Pallavi 100% of Pallavi's household spend minus any settlements already paid
-    const netDueToPallavi = Math.max(0, Math.round(pallaviPaid - reimbursedByPalash));
-    currentNetSettleAmount = netDueToPallavi;
-    currentSettlePayer = 'Palash';
-    currentSettleReceiver = 'Pallavi';
+    const netDueToP2 = Math.max(0, Math.round(p2Paid - reimbursedByP1));
+    currentNetSettleAmount = netDueToP2;
+    currentSettlePayer = payer1;
+    currentSettleReceiver = payer2;
 
     let verdictCard = '';
-    if (netDueToPallavi <= 0) {
+    if (netDueToP2 <= 0) {
       verdictCard = `
         <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex flex-col justify-between">
           <div>
@@ -412,11 +536,11 @@
             </div>
             <h4 class="text-xl font-black text-emerald-950 mt-2">✨ All Reimbursed &amp; Settled Up</h4>
             <div class="text-2xl font-black text-emerald-600 mt-0.5">₹0 Due</div>
-            <p class="text-xs text-emerald-700 font-medium mt-1">Palash has reimbursed all payments made by Pallavi for this period.</p>
+            <p class="text-xs text-emerald-700 font-medium mt-1">${payer1} has reimbursed all payments made by ${payer2} for this period.</p>
           </div>
           <div class="mt-3 pt-2 border-t border-emerald-200 text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
             <i class="fa-solid fa-check-circle"></i>
-            <span>No pending balance to return to Pallavi.</span>
+            <span>No pending balance to return to ${payer2}.</span>
           </div>
         </div>
       `;
@@ -426,66 +550,66 @@
           <div>
             <div class="flex items-center justify-between">
               <span class="text-[11px] font-extrabold uppercase tracking-wider text-indigo-900">Reimbursement Balance Due</span>
-              <span class="px-2 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-900 border border-indigo-200">Income Flow to Pallavi</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-900 border border-indigo-200">Income Flow to ${payer2}</span>
             </div>
-            <h4 class="text-base font-bold text-slate-700 mt-2">Palash owes Pallavi</h4>
-            <div class="text-3xl font-black text-indigo-600 mt-0.5">₹${netDueToPallavi.toLocaleString('en-IN')}</div>
+            <h4 class="text-base font-bold text-slate-700 mt-2">${payer1} owes ${payer2}</h4>
+            <div class="text-3xl font-black text-indigo-600 mt-0.5">₹${netDueToP2.toLocaleString('en-IN')}</div>
             <p class="text-xs text-indigo-950 font-medium mt-1">
-              Every rupee paid by Pallavi is returned monthly by Palash as income flow.
+              Every rupee paid by ${payer2} is returned monthly by ${payer1} as income flow.
             </p>
           </div>
           <div class="mt-3 pt-2 border-t border-indigo-200 flex justify-between items-center text-xs">
             <span class="font-bold text-slate-600">Pending Return:</span>
-            <span class="font-black text-indigo-700">₹${netDueToPallavi.toLocaleString('en-IN')}</span>
+            <span class="font-black text-indigo-700">₹${netDueToP2.toLocaleString('en-IN')}</span>
           </div>
         </div>
       `;
     }
 
     grid.innerHTML = `
-      <!-- Card 1: Pallavi Household Expenses -->
+      <!-- Card 1: Payer 2 Household Expenses -->
       <div class="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 flex flex-col justify-between">
         <div>
           <div class="flex items-center justify-between">
-            <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">Pallavi Household Spend</span>
-            <span class="text-xs font-black text-pink-700 bg-pink-100 px-2 py-0.5 rounded">Pallavi Paid</span>
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">${payer2} Household Spend</span>
+            <span class="text-xs font-black text-pink-700 bg-pink-100 px-2 py-0.5 rounded">${payer2} Paid</span>
           </div>
           <div class="mt-2 space-y-1">
             <div class="flex justify-between text-xs">
-              <span class="text-slate-600 font-semibold">Total Paid by Pallavi:</span>
-              <span class="font-black text-slate-900">₹${Math.round(pallaviPaid).toLocaleString('en-IN')}</span>
+              <span class="text-slate-600 font-semibold">Total Paid by ${payer2}:</span>
+              <span class="font-black text-slate-900">₹${Math.round(p2Paid).toLocaleString('en-IN')}</span>
             </div>
             <p class="text-[11px] text-slate-500 mt-1">
-              Blinkit, groceries &amp; household purchases funded out of pocket.
+              Groceries, supplies &amp; household purchases funded out of pocket.
             </p>
           </div>
         </div>
         <div class="mt-3 pt-2 border-t border-slate-200 flex justify-between text-xs">
           <span class="font-bold text-slate-500">To be Returned 100%:</span>
-          <span class="font-black text-pink-700">₹${Math.round(pallaviPaid).toLocaleString('en-IN')}</span>
+          <span class="font-black text-pink-700">₹${Math.round(p2Paid).toLocaleString('en-IN')}</span>
         </div>
       </div>
 
-      <!-- Card 2: Palash Direct Expenses & Reimbursements -->
+      <!-- Card 2: Payer 1 Direct Expenses & Reimbursements -->
       <div class="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 flex flex-col justify-between">
         <div>
           <div class="flex items-center justify-between">
-            <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">Palash Direct Outflows</span>
-            <span class="text-xs font-black text-violet-700 bg-violet-100 px-2 py-0.5 rounded">Palash Funded</span>
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">${payer1} Direct Outflows</span>
+            <span class="text-xs font-black text-violet-700 bg-violet-100 px-2 py-0.5 rounded">${payer1} Funded</span>
           </div>
           <div class="mt-2 space-y-1">
             <div class="flex justify-between text-xs">
               <span class="text-slate-600 font-semibold">Direct Spend (Bills/Staff/Rent):</span>
-              <span class="font-black text-slate-900">₹${Math.round(palashDirectPaid).toLocaleString('en-IN')}</span>
+              <span class="font-black text-slate-900">₹${Math.round(p1DirectPaid).toLocaleString('en-IN')}</span>
             </div>
             <div class="flex justify-between text-xs">
-              <span class="text-slate-600 font-semibold">Reimbursed to Pallavi so far:</span>
-              <span class="font-bold text-emerald-600">₹${Math.round(reimbursedByPalash).toLocaleString('en-IN')}</span>
+              <span class="text-slate-600 font-semibold">Reimbursed to ${payer2} so far:</span>
+              <span class="font-bold text-emerald-600">₹${Math.round(reimbursedByP1).toLocaleString('en-IN')}</span>
             </div>
           </div>
         </div>
         <div class="mt-3 pt-2 border-t border-slate-200 flex justify-between text-xs">
-          <span class="font-bold text-slate-500">Pallavi owes Palash:</span>
+          <span class="font-bold text-slate-500">${payer2} owes ${payer1}:</span>
           <span class="font-black text-slate-400">₹0 (Never owes)</span>
         </div>
       </div>
@@ -496,7 +620,7 @@
 
     // Settle Up button in header
     if (settleContainer) {
-      if (netDueToPallavi <= 0) {
+      if (netDueToP2 <= 0) {
         settleContainer.innerHTML = `
           <button disabled class="px-4 py-2 bg-slate-200 text-slate-400 font-extrabold text-xs rounded-xl cursor-not-allowed flex items-center space-x-1.5 shadow-none">
             <i class="fa-solid fa-circle-check text-emerald-500"></i>
@@ -507,7 +631,7 @@
         settleContainer.innerHTML = `
           <button onclick="openSettleUpModal()" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center space-x-1.5 active:scale-95">
             <i class="fa-solid fa-handshake"></i>
-            <span>1-Click Settle Up (Return ₹${netDueToPallavi.toLocaleString('en-IN')})</span>
+            <span>1-Click Settle Up (Return ₹${netDueToP2.toLocaleString('en-IN')})</span>
           </button>
         `;
       }
@@ -526,10 +650,10 @@
     const notesEl = document.getElementById('settleUpNotes');
 
     if (amtEl) amtEl.textContent = `₹${currentNetSettleAmount.toLocaleString('en-IN')}`;
-    if (descEl) descEl.textContent = `Total pending reimbursement to Pallavi is ₹${currentNetSettleAmount.toLocaleString('en-IN')}. You can return the full amount or pay in multiple partial installments.`;
+    if (descEl) descEl.textContent = `Total pending reimbursement to ${currentSettleReceiver || 'recipient'} is ₹${currentNetSettleAmount.toLocaleString('en-IN')}. You can return the full amount or pay in multiple partial installments.`;
     if (inputAmt) inputAmt.value = currentNetSettleAmount;
     if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
-    if (payerEl) payerEl.value = 'Palash';
+    if (payerEl && currentSettlePayer) payerEl.value = currentSettlePayer;
     if (notesEl) notesEl.value = '';
 
     window.renderSettleQuickChips(currentNetSettleAmount);
@@ -596,8 +720,8 @@
 
   window.executeSettleUpTransaction = async function () {
     const date = document.getElementById('settleUpDate')?.value || new Date().toISOString().split('T')[0];
-    const payer = document.getElementById('settleUpPaidBy')?.value || 'Palash';
-    const receiver = 'Pallavi';
+    const payer = document.getElementById('settleUpPaidBy')?.value || currentSettlePayer || 'Household Payer';
+    const receiver = currentSettleReceiver || (window.FAMILY_MEMBERS && window.FAMILY_MEMBERS.find(m => m !== payer)) || 'Family Member';
     const method = document.getElementById('settleUpPaymentMethod')?.value || 'UPI / GPay / PhonePe';
     const customNotes = document.getElementById('settleUpNotes')?.value?.trim();
     const inputAmt = parseFloat(document.getElementById('settleUpAmountInput')?.value);
@@ -625,7 +749,7 @@
       paymentMethod: method,
       notes: finalNotes,
       description: finalNotes,
-      splitBetween: 'Household Expense (Palash Reimburses Pallavi 100%)',
+      splitBetween: (window.masterConfig?.splitRules && window.masterConfig.splitRules[0]) || 'Household Expense',
       receipt: null
     };
 
@@ -1405,66 +1529,102 @@
     }
 
     // 2. Family Members ("Paid By") Dropdowns (Always include "Not Specified")
-    if (config.familyMembers && Array.isArray(config.familyMembers)) {
-      window.FAMILY_MEMBERS = config.familyMembers;
+    const members = (typeof getActiveFamilyMembers === 'function') 
+      ? getActiveFamilyMembers() 
+      : ((config.familyMembers && Array.isArray(config.familyMembers)) ? config.familyMembers : ['Household Member']);
 
-      const inputPaidBy = document.getElementById('inputPaidBy');
-      if (inputPaidBy) {
-        const currentVal = inputPaidBy.value;
-        const memberOptions = config.familyMembers.map(m => 
-          `<option value="${m}">${m}</option>`
-        ).join('');
-        inputPaidBy.innerHTML = memberOptions + `<option value="Not Specified">Not Specified</option>`;
-        if (currentVal) {
-          inputPaidBy.value = currentVal;
-        }
-      }
+    window.FAMILY_MEMBERS = members;
 
-      const filterPaidBy = document.getElementById('filterPaidBy');
-      if (filterPaidBy) {
-        const currentVal = filterPaidBy.value;
-        const memberOptions = config.familyMembers.map(m => 
-          `<option value="${m}">👤 ${m}</option>`
-        ).join('');
-        filterPaidBy.innerHTML = `<option value="all">Paid By: All</option>` + memberOptions + `<option value="Not Specified">❓ Not Specified</option>`;
-        if (currentVal) {
-          filterPaidBy.value = currentVal;
-        }
-      }
-
-      // 2b. Dynamic Quick Filter Member Chips
-      const chipsContainer = document.getElementById('quickFilterMemberChips');
-      if (chipsContainer) {
-        chipsContainer.innerHTML = config.familyMembers.map((m, idx) => {
-          const isPalash = m.toLowerCase().includes('palash');
-          const icon = isPalash ? '👤' : (m.toLowerCase().includes('pallavi') ? '🌸' : '🧑');
-          const colorClasses = isPalash 
-            ? 'bg-violet-50 hover:bg-violet-100 text-violet-700 border-violet-200' 
-            : 'bg-pink-50 hover:bg-pink-100 text-pink-700 border-pink-200';
-          return `<button onclick="quickFilterPaidBy('${m}')" class="quick-chip px-2.5 py-1 rounded-lg font-bold ${colorClasses} border transition shadow-xs text-xs">${icon} ${m}</button>`;
-        }).join('');
-      }
-
-      // 2c. Dynamic Settle Up Paid By
-      const settlePaidBy = document.getElementById('settleUpPaidBy');
-      if (settlePaidBy) {
-        settlePaidBy.innerHTML = config.familyMembers.map(m => 
-          `<option value="${m}">${m}</option>`
-        ).join('');
+    const inputPaidBy = document.getElementById('inputPaidBy');
+    if (inputPaidBy) {
+      const currentVal = inputPaidBy.value;
+      const memberOptions = members.map(m => 
+        `<option value="${m}">${m}</option>`
+      ).join('');
+      inputPaidBy.innerHTML = memberOptions + `<option value="Not Specified">Not Specified</option>`;
+      if (currentVal && (members.includes(currentVal) || currentVal === 'Not Specified')) {
+        inputPaidBy.value = currentVal;
+      } else {
+        inputPaidBy.value = (window.currentSessionUser && window.currentSessionUser.name) || members[0] || 'Not Specified';
       }
     }
 
-    // 2d. Split / Allocation Rules Dropdown
-    if (config.splitRules && Array.isArray(config.splitRules)) {
-      const inputSplit = document.getElementById('inputSplitBetween');
-      if (inputSplit) {
-        const currentVal = inputSplit.value;
-        inputSplit.innerHTML = config.splitRules.map(r => 
-          `<option value="${r}">${r}</option>`
-        ).join('');
-        if (currentVal && config.splitRules.includes(currentVal)) {
-          inputSplit.value = currentVal;
-        }
+    const filterPaidBy = document.getElementById('filterPaidBy');
+    if (filterPaidBy) {
+      const currentVal = filterPaidBy.value;
+      const memberOptions = members.map(m => 
+        `<option value="${m}">👤 ${m}</option>`
+      ).join('');
+      filterPaidBy.innerHTML = `<option value="all">Paid By: All</option>` + memberOptions + `<option value="Not Specified">❓ Not Specified</option>`;
+      if (currentVal && (currentVal === 'all' || members.includes(currentVal) || currentVal === 'Not Specified')) {
+        filterPaidBy.value = currentVal;
+      } else {
+        filterPaidBy.value = 'all';
+        if (typeof dashboardFilters !== 'undefined') dashboardFilters.paidBy = 'all';
+      }
+    }
+
+    // 2b. Dynamic Quick Filter Member Chips
+    const chipsContainer = document.getElementById('quickFilterMemberChips');
+    if (chipsContainer) {
+      const chipColors = [
+        'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200',
+        'bg-pink-50 hover:bg-pink-100 text-pink-700 border-pink-200',
+        'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200',
+        'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200',
+        'bg-violet-50 hover:bg-violet-100 text-violet-700 border-violet-200',
+        'bg-cyan-50 hover:bg-cyan-100 text-cyan-700 border-cyan-200'
+      ];
+      chipsContainer.innerHTML = members.map((m, idx) => {
+        const isPalash = m.toLowerCase().includes('palash');
+        const isPallavi = m.toLowerCase().includes('pallavi');
+        const icon = isPalash ? '👤' : (isPallavi ? '🌸' : '🧑');
+        const colorClass = chipColors[idx % chipColors.length];
+        const isSelected = (typeof dashboardFilters !== 'undefined' && dashboardFilters.paidBy === m);
+        const activeClass = isSelected ? 'ring-2 ring-indigo-500 font-black' : '';
+        return `<button onclick="quickFilterPaidBy('${m}')" class="quick-chip px-2.5 py-1 rounded-lg font-bold ${colorClass} ${activeClass} border transition shadow-xs text-xs">${icon} ${m}</button>`;
+      }).join('');
+    }
+
+    // 2c. Dynamic Settle Up Paid By
+    const settlePaidBy = document.getElementById('settleUpPaidBy');
+    if (settlePaidBy) {
+      if (members.length >= 2) {
+        settlePaidBy.innerHTML = `
+          <option value="${members[0]}" selected>${members[0]} (Reimburses to ${members[1]})</option>
+          <option value="${members[1]}">${members[1]} (Reimburses to ${members[0]})</option>
+        `;
+      } else {
+        settlePaidBy.innerHTML = members.map(m => `<option value="${m}">${m}</option>`).join('');
+      }
+    }
+
+    // 2d. Dynamic In-App Audit Actor Filter
+    const auditActor = document.getElementById('inAppAuditActorFilter');
+    if (auditActor) {
+      const curActor = auditActor.value;
+      const opts = members.map(m => `<option value="${m}">👤 ${m}</option>`).join('');
+      auditActor.innerHTML = `<option value="ALL">👥 All Actors</option>${opts}<option value="System">⚡ System Sync</option>`;
+      if (curActor && (curActor === 'ALL' || curActor === 'System' || members.includes(curActor))) {
+        auditActor.value = curActor;
+      }
+    }
+
+    // 2e. Split / Allocation Rules Dropdown
+    const inputSplit = document.getElementById('inputSplitBetween');
+    if (inputSplit) {
+      const currentVal = inputSplit.value;
+      let rules = (config.splitRules && Array.isArray(config.splitRules) && config.splitRules.length) 
+        ? [...config.splitRules] 
+        : [];
+      if (!rules.length) {
+        rules = ['Household Expense', ...members.map(m => `Personal Expense (${m})`), 'Equal (50/50)'];
+      }
+      inputSplit.innerHTML = rules.map(r => `<option value="${r}">${r}</option>`).join('');
+      if (currentVal && rules.includes(currentVal)) {
+        inputSplit.value = currentVal;
+      } else {
+        inputSplit.value = rules[0] || 'Household Expense';
       }
     }
 
@@ -2385,17 +2545,32 @@
   window.isPersonalExpense = isPersonalExpense;
 
   function getPersonalPayer(item) {
-    if (!item) return 'Palash';
+    const members = (typeof getActiveFamilyMembers === 'function') ? getActiveFamilyMembers() : ['Household Member'];
+    const defaultMember = members[0] || 'Household Member';
+    if (!item) return defaultMember;
+
+    const paidBy = (item.paidBy || '').trim();
     const split = (item.splitBetween || '').toLowerCase();
-    if (split.includes('pallavi')) return 'Pallavi';
-    if (split.includes('palash')) return 'Palash';
-    if (item.paidBy && item.paidBy.toLowerCase().includes('pallavi')) return 'Pallavi';
-    if (item.paidBy && item.paidBy.toLowerCase().includes('palash')) return 'Palash';
-    return item.paidBy || 'Palash';
+
+    // 1. Direct match with active members
+    for (const m of members) {
+      if (paidBy.toLowerCase() === m.toLowerCase()) return m;
+    }
+    // 2. Mentioned in split rule
+    for (const m of members) {
+      if (split.includes(m.toLowerCase())) return m;
+    }
+    // 3. Partial match in paidBy
+    for (const m of members) {
+      if (paidBy.toLowerCase().includes(m.toLowerCase())) return m;
+    }
+
+    return paidBy || defaultMember;
   }
 
   window.syncPersonalFilterWithPaidBy = function (paidBy) {
-    if (paidBy === 'Palash' || paidBy === 'Pallavi') {
+    const members = (typeof getActiveFamilyMembers === 'function') ? getActiveFamilyMembers() : ['Household Member'];
+    if (paidBy && paidBy !== 'all' && members.includes(paidBy)) {
       currentPersonalFilter = paidBy;
     } else {
       currentPersonalFilter = 'all';
@@ -2405,17 +2580,36 @@
   };
 
   function updatePersonalFilterPillStyles() {
-    ['All', 'Palash', 'Pallavi'].forEach(p => {
-      const btn = document.getElementById('btnPersonalFilter' + p);
-      if (btn) {
-        const isActive = (p === 'All' && currentPersonalFilter === 'all') || (p === currentPersonalFilter);
-        if (isActive) {
-          btn.className = 'px-3 py-1.5 rounded-lg transition bg-purple-600 text-white shadow-sm font-black';
-        } else {
-          btn.className = 'px-3 py-1.5 rounded-lg transition text-slate-300 hover:text-white font-semibold';
-        }
-      }
+    const container = document.getElementById('personalFilterButtonGroup');
+    if (!container) return;
+    const members = (typeof getActiveFamilyMembers === 'function') ? getActiveFamilyMembers() : ['Household Member'];
+    
+    // Update active members pill in header if present
+    const pill = document.getElementById('personalMembersPill');
+    if (pill) {
+      pill.textContent = `💼 ${members.join(' & ')} Personal Spend`;
+    }
+
+    let html = `
+      <button onclick="setPersonalViewFilter('all')" id="btnPersonalFilterAll" class="px-3 py-1.5 rounded-lg transition ${currentPersonalFilter === 'all' ? 'bg-purple-600 text-white shadow-sm font-black' : 'text-slate-300 hover:text-white font-semibold'}">
+        👥 All Personal
+      </button>
+    `;
+
+    members.forEach(m => {
+      const isPalash = m.toLowerCase().includes('palash');
+      const isPallavi = m.toLowerCase().includes('pallavi');
+      const icon = isPalash ? '👤' : (isPallavi ? '🌸' : '🧑');
+      const isActive = (currentPersonalFilter === m);
+      const cls = isActive ? 'bg-purple-600 text-white shadow-sm font-black' : 'text-slate-300 hover:text-white font-semibold';
+      html += `
+        <button onclick="setPersonalViewFilter('${m}')" id="btnPersonalFilter_${m.replace(/\s+/g, '_')}" class="px-3 py-1.5 rounded-lg transition ${cls}">
+          ${icon} ${m} Only
+        </button>
+      `;
     });
+
+    container.innerHTML = html;
   }
 
   window.setPersonalViewFilter = function (person) {
@@ -2438,7 +2632,10 @@
   window.openPersonalExpenseModal = function () {
     if (window.openExpenseModal) {
       window.openExpenseModal();
-      const payer = currentPersonalFilter === 'Pallavi' ? 'Pallavi' : 'Palash';
+      const members = (typeof getActiveFamilyMembers === 'function') ? getActiveFamilyMembers() : ['Household Member'];
+      const payer = (currentPersonalFilter && currentPersonalFilter !== 'all') 
+        ? currentPersonalFilter 
+        : ((window.currentSessionUser && window.currentSessionUser.name) || members[0] || 'Household Member');
       const inputPaidBy = document.getElementById('inputPaidBy');
       const inputSplit = document.getElementById('inputSplitBetween');
       if (inputPaidBy) inputPaidBy.value = payer;
@@ -2502,17 +2699,28 @@
   }
 
   window.renderPersonalExpensesDashboard = function () {
+    updatePersonalFilterPillStyles();
+
     const periodExpenses = getExpensesForCurrentPeriod();
+    const members = (typeof getActiveFamilyMembers === 'function') ? getActiveFamilyMembers() : ['Household Member'];
+    const m1 = members[0] || 'Member 1';
+    const m2 = members.length > 1 ? members[1] : null;
 
     const personalItems = periodExpenses.filter(isPersonalExpense);
     const householdItems = periodExpenses.filter(e => !isPersonalExpense(e) && e.category !== 'Accepted Payments (Income)');
 
-    const palashItems = personalItems.filter(e => getPersonalPayer(e) === 'Palash');
-    const pallaviItems = personalItems.filter(e => getPersonalPayer(e) === 'Pallavi');
+    const m1Items = personalItems.filter(e => {
+      const p = getPersonalPayer(e);
+      return p.toLowerCase() === m1.toLowerCase();
+    });
+    const m2Items = m2 ? personalItems.filter(e => {
+      const p = getPersonalPayer(e);
+      return p.toLowerCase() === m2.toLowerCase();
+    }) : [];
 
-    const palashTotal = palashItems.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
-    const pallaviTotal = pallaviItems.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
-    const combinedTotal = palashTotal + pallaviTotal;
+    const m1Total = m1Items.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
+    const m2Total = m2Items.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
+    const combinedTotal = personalItems.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
     const householdTotal = householdItems.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
     const overallTotal = combinedTotal + householdTotal;
     const personalRatioPct = overallTotal > 0 ? Math.round((combinedTotal / overallTotal) * 100) : 0;
@@ -2524,60 +2732,73 @@
       const periodStr = (typeof dashboardFilters !== 'undefined' && dashboardFilters.month !== 'all') 
         ? `${dashboardFilters.month || cur.month} ${dashboardFilters.year || cur.year}` 
         : 'All Time';
-      const personStr = currentPersonalFilter === 'Pallavi' 
-        ? '🌸 Pallavi Only' 
-        : (currentPersonalFilter === 'Palash' ? '👤 Palash Only' : '👥 All Personal');
+      const personStr = currentPersonalFilter !== 'all' 
+        ? `👤 ${currentPersonalFilter} Only` 
+        : '👥 All Personal';
       const catStr = (typeof dashboardFilters !== 'undefined' && dashboardFilters.category && dashboardFilters.category !== 'all')
         ? ` • Category: ${dashboardFilters.category}`
         : '';
       filterContextText.textContent = `Period: ${periodStr} • Scope: ${personStr}${catStr}`;
     }
 
-    // 2. Update KPI Card 1: Palash Personal
-    const elPalashTotal = document.getElementById('statPersonalPalashTotal');
-    const elPalashCount = document.getElementById('statPersonalPalashCount');
-    const elPalashAvg = document.getElementById('statPersonalPalashAvg');
-    if (elPalashTotal) elPalashTotal.textContent = (window.formatINR ? window.formatINR(palashTotal) : '₹' + palashTotal.toLocaleString('en-IN'));
-    if (elPalashCount) elPalashCount.textContent = `${palashItems.length} records`;
-    if (elPalashAvg) elPalashAvg.textContent = `Avg: ₹${palashItems.length ? Math.round(palashTotal / palashItems.length).toLocaleString('en-IN') : '0'}`;
+    // 2. Update KPI Card 1: Member 1 Personal
+    const cardM1 = document.getElementById('cardPersonalPalash');
+    if (cardM1) {
+      const labelSpan = cardM1.querySelector('span');
+      if (labelSpan) labelSpan.textContent = `👤 ${m1} Personal`;
+    }
+    const elM1Total = document.getElementById('statPersonalPalashTotal');
+    const elM1Count = document.getElementById('statPersonalPalashCount');
+    const elM1Avg = document.getElementById('statPersonalPalashAvg');
+    if (elM1Total) elM1Total.textContent = (window.formatINR ? window.formatINR(m1Total) : '₹' + m1Total.toLocaleString('en-IN'));
+    if (elM1Count) elM1Count.textContent = `${m1Items.length} records`;
+    if (elM1Avg) elM1Avg.textContent = `Avg: ₹${m1Items.length ? Math.round(m1Total / m1Items.length).toLocaleString('en-IN') : '0'}`;
 
-    // 3. Update KPI Card 2: Pallavi Personal
-    const elPallaviTotal = document.getElementById('statPersonalPallaviTotal');
-    const elPallaviCount = document.getElementById('statPersonalPallaviCount');
-    const elPallaviAvg = document.getElementById('statPersonalPallaviAvg');
-    if (elPallaviTotal) elPallaviTotal.textContent = (window.formatINR ? window.formatINR(pallaviTotal) : '₹' + pallaviTotal.toLocaleString('en-IN'));
-    if (elPallaviCount) elPallaviCount.textContent = `${pallaviItems.length} records`;
-    if (elPallaviAvg) elPallaviAvg.textContent = `Avg: ₹${pallaviItems.length ? Math.round(pallaviTotal / pallaviItems.length).toLocaleString('en-IN') : '0'}`;
+    // 3. Update KPI Card 2: Member 2 Personal (or Household Shared if 1 member)
+    const cardM2 = document.getElementById('cardPersonalPallavi');
+    const elM2Total = document.getElementById('statPersonalPallaviTotal');
+    const elM2Count = document.getElementById('statPersonalPallaviCount');
+    const elM2Avg = document.getElementById('statPersonalPallaviAvg');
+    if (m2) {
+      if (cardM2) {
+        const labelSpan = cardM2.querySelector('span');
+        if (labelSpan) labelSpan.textContent = `🌸 ${m2} Personal`;
+      }
+      if (elM2Total) elM2Total.textContent = (window.formatINR ? window.formatINR(m2Total) : '₹' + m2Total.toLocaleString('en-IN'));
+      if (elM2Count) elM2Count.textContent = `${m2Items.length} records`;
+      if (elM2Avg) elM2Avg.textContent = `Avg: ₹${m2Items.length ? Math.round(m2Total / m2Items.length).toLocaleString('en-IN') : '0'}`;
+    } else {
+      if (cardM2) {
+        const labelSpan = cardM2.querySelector('span');
+        if (labelSpan) labelSpan.textContent = `🏠 Household Spend`;
+      }
+      if (elM2Total) elM2Total.textContent = (window.formatINR ? window.formatINR(householdTotal) : '₹' + householdTotal.toLocaleString('en-IN'));
+      if (elM2Count) elM2Count.textContent = `${householdItems.length} records`;
+      if (elM2Avg) elM2Avg.textContent = `Avg: ₹${householdItems.length ? Math.round(householdTotal / (householdItems.length || 1)).toLocaleString('en-IN') : '0'}`;
+    }
 
     // 4. Update KPI Card 3: Combined / Focused Personal Spend
     const elCombinedTotal = document.getElementById('statPersonalCombinedTotal');
     const elSplitRatio = document.getElementById('statPersonalSplitRatio');
     const elLabelCombined = document.getElementById('labelPersonalCombined');
-    const cardPalash = document.getElementById('cardPersonalPalash');
-    const cardPallavi = document.getElementById('cardPersonalPallavi');
 
     // Visual card highlighting depending on active filter
-    if (currentPersonalFilter === 'Pallavi') {
-      if (cardPallavi) cardPallavi.className = "glass-card p-4 sm:p-5 rounded-2xl border-2 border-pink-500 shadow-lg bg-pink-50/90 ring-4 ring-pink-200/60 transform scale-[1.02] flex flex-col justify-between transition-all duration-300";
-      if (cardPalash) cardPalash.className = "glass-card p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs bg-white/70 opacity-40 hover:opacity-80 flex flex-col justify-between transition-all duration-300";
-      if (elLabelCombined) elLabelCombined.innerHTML = '<span>🎯 Focused Spend (Pallavi)</span>';
-      if (elCombinedTotal) elCombinedTotal.textContent = (window.formatINR ? window.formatINR(pallaviTotal) : '₹' + pallaviTotal.toLocaleString('en-IN'));
-      if (elSplitRatio) elSplitRatio.textContent = '100% of active Pallavi view';
-    } else if (currentPersonalFilter === 'Palash') {
-      if (cardPalash) cardPalash.className = "glass-card p-4 sm:p-5 rounded-2xl border-2 border-indigo-500 shadow-lg bg-indigo-50/90 ring-4 ring-indigo-200/60 transform scale-[1.02] flex flex-col justify-between transition-all duration-300";
-      if (cardPallavi) cardPallavi.className = "glass-card p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs bg-white/70 opacity-40 hover:opacity-80 flex flex-col justify-between transition-all duration-300";
-      if (elLabelCombined) elLabelCombined.innerHTML = '<span>🎯 Focused Spend (Palash)</span>';
-      if (elCombinedTotal) elCombinedTotal.textContent = (window.formatINR ? window.formatINR(palashTotal) : '₹' + palashTotal.toLocaleString('en-IN'));
-      if (elSplitRatio) elSplitRatio.textContent = '100% of active Palash view';
+    if (currentPersonalFilter && currentPersonalFilter !== 'all') {
+      const activeTotal = (currentPersonalFilter.toLowerCase() === m1.toLowerCase()) ? m1Total : ((m2 && currentPersonalFilter.toLowerCase() === m2.toLowerCase()) ? m2Total : combinedTotal);
+      if (elLabelCombined) elLabelCombined.innerHTML = `<span>🎯 Focused Spend (${currentPersonalFilter})</span>`;
+      if (elCombinedTotal) elCombinedTotal.textContent = (window.formatINR ? window.formatINR(activeTotal) : '₹' + activeTotal.toLocaleString('en-IN'));
+      if (elSplitRatio) elSplitRatio.textContent = `100% of active ${currentPersonalFilter} view`;
     } else {
-      if (cardPalash) cardPalash.className = "glass-card p-4 sm:p-5 rounded-2xl border border-indigo-200/70 shadow-sm bg-gradient-to-br from-indigo-50/60 to-white flex flex-col justify-between transition-all duration-300";
-      if (cardPallavi) cardPallavi.className = "glass-card p-4 sm:p-5 rounded-2xl border border-pink-200/70 shadow-sm bg-gradient-to-br from-pink-50/60 to-white flex flex-col justify-between transition-all duration-300";
       if (elLabelCombined) elLabelCombined.innerHTML = '<span>💳 Combined Personal</span>';
       if (elCombinedTotal) elCombinedTotal.textContent = (window.formatINR ? window.formatINR(combinedTotal) : '₹' + combinedTotal.toLocaleString('en-IN'));
       if (elSplitRatio) {
-        const palashPct = combinedTotal > 0 ? Math.round((palashTotal / combinedTotal) * 100) : 0;
-        const pallaviPct = combinedTotal > 0 ? (100 - palashPct) : 0;
-        elSplitRatio.textContent = `Palash ${palashPct}% • Pallavi ${pallaviPct}%`;
+        if (m2) {
+          const m1Pct = combinedTotal > 0 ? Math.round((m1Total / combinedTotal) * 100) : 0;
+          const m2Pct = combinedTotal > 0 ? (100 - m1Pct) : 0;
+          elSplitRatio.textContent = `${m1} ${m1Pct}% • ${m2} ${m2Pct}%`;
+        } else {
+          elSplitRatio.textContent = `${m1} 100% of personal purchases`;
+        }
       }
     }
 
@@ -2592,20 +2813,16 @@
     let focusedTotal = combinedTotal;
     let activePersonName = 'Combined';
 
-    if (currentPersonalFilter === 'Pallavi') {
-      focusedItems = pallaviItems;
-      focusedTotal = pallaviTotal;
-      activePersonName = 'Pallavi';
-    } else if (currentPersonalFilter === 'Palash') {
-      focusedItems = palashItems;
-      focusedTotal = palashTotal;
-      activePersonName = 'Palash';
+    if (currentPersonalFilter && currentPersonalFilter !== 'all') {
+      focusedItems = personalItems.filter(i => getPersonalPayer(i).toLowerCase() === currentPersonalFilter.toLowerCase());
+      focusedTotal = focusedItems.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
+      activePersonName = currentPersonalFilter;
     }
 
     // 7. Render Category Donut Chart & Breakdown List
     renderPersonalCategoryDonut(focusedItems, focusedTotal, activePersonName);
 
-    // 8. Render Palash vs Pallavi Comparison Matrix
+    // 8. Render Dynamic Comparison Matrix
     renderPersonalComparisonMatrix(personalItems, currentPersonalFilter);
 
     // 9. Render Personal Log Table
@@ -2620,9 +2837,10 @@
     const badgeEl = document.getElementById('personalChartTotalBadge');
 
     if (titleEl) {
+      const icon = activePersonName.toLowerCase().includes('pallavi') ? '🌸 ' : '👤 ';
       titleEl.textContent = activePersonName === 'Combined' 
         ? 'Personal Category Breakdown (Combined)' 
-        : (activePersonName === 'Pallavi' ? '🌸 Pallavi\'s Category Breakdown' : '👤 Palash\'s Category Breakdown');
+        : `${icon}${activePersonName}'s Category Breakdown`;
     }
 
     if (badgeEl) {
@@ -2722,13 +2940,19 @@
     const compTitle = document.getElementById('personalComparisonTitle');
     if (!container) return;
 
+    const members = (typeof getActiveFamilyMembers === 'function') ? getActiveFamilyMembers() : ['Household Member'];
+    const m1 = members[0] || 'Member 1';
+    const m2 = members.length > 1 ? members[1] : null;
+
     if (compTitle) {
-      if (activeFilter === 'Pallavi') {
-        compTitle.textContent = 'Pallavi vs Palash Category Benchmark';
-      } else if (activeFilter === 'Palash') {
-        compTitle.textContent = 'Palash vs Pallavi Category Benchmark';
+      if (!m2) {
+        compTitle.textContent = `${m1} Personal Spend by Category`;
+      } else if (activeFilter === m2) {
+        compTitle.textContent = `${m2} vs ${m1} Category Benchmark`;
+      } else if (activeFilter === m1) {
+        compTitle.textContent = `${m1} vs ${m2} Category Benchmark`;
       } else {
-        compTitle.textContent = 'Palash vs Pallavi Category Comparison';
+        compTitle.textContent = `${m1} vs ${m2} Category Comparison`;
       }
     }
 
@@ -2741,7 +2965,10 @@
     personalItems.forEach(i => {
       const cat = i.category || 'Other';
       const payer = getPersonalPayer(i);
-      if (!catMap[cat]) catMap[cat] = { Palash: 0, Pallavi: 0, total: 0 };
+      if (!catMap[cat]) {
+        catMap[cat] = { total: 0 };
+        members.forEach(m => { catMap[cat][m] = 0; });
+      }
       catMap[cat][payer] = (catMap[cat][payer] || 0) + (Number(i.amount) || 0);
       catMap[cat].total += (Number(i.amount) || 0);
     });
@@ -2749,14 +2976,41 @@
     const entries = Object.entries(catMap).sort((a, b) => b[1].total - a[1].total);
 
     container.innerHTML = entries.map(([cat, data]) => {
-      const palashPct = data.total > 0 ? Math.round((data.Palash / data.total) * 100) : 0;
-      const pallaviPct = data.total > 0 ? (100 - palashPct) : 0;
+      if (!m2) {
+        // Single member household
+        const amount = data[m1] || data.total || 0;
+        return `
+          <div class="p-3 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-1.5 transition">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-black text-slate-900">${cat}</span>
+              <span class="font-extrabold text-slate-600 font-mono text-[11px]">${window.formatINR ? window.formatINR(data.total) : '₹' + data.total.toLocaleString('en-IN')}</span>
+            </div>
+            
+            <!-- Single Progress Bar -->
+            <div class="w-full h-2 bg-indigo-50 rounded-full overflow-hidden flex">
+              <div style="width: 100%" class="bg-indigo-600 h-full transition-all duration-300"></div>
+            </div>
 
-      const isPalashActive = activeFilter === 'Palash';
-      const isPallaviActive = activeFilter === 'Pallavi';
+            <div class="flex items-center justify-between text-[11px] font-semibold text-slate-500">
+              <span class="text-indigo-900 font-bold">👤 ${m1}: ₹${amount.toLocaleString('en-IN')} (100%)</span>
+              <span class="text-slate-400 font-medium">Self-Funded</span>
+            </div>
+          </div>
+        `;
+      }
+
+      // Two or more members
+      const m1Val = data[m1] || 0;
+      const m2Val = data[m2] || 0;
+      const m1Pct = data.total > 0 ? Math.round((m1Val / data.total) * 100) : 0;
+      const m2Pct = data.total > 0 ? (100 - m1Pct) : 0;
+
+      const isM1Active = activeFilter === m1;
+      const isM2Active = activeFilter === m2;
+      const m2Icon = m2.toLowerCase().includes('pallavi') ? '🌸' : '👤';
 
       return `
-        <div class="p-3 bg-white border ${isPallaviActive && data.Pallavi > 0 ? 'border-pink-300 ring-1 ring-pink-100' : (isPalashActive && data.Palash > 0 ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-slate-200/80')} rounded-2xl shadow-xs space-y-1.5 transition">
+        <div class="p-3 bg-white border ${isM2Active && m2Val > 0 ? 'border-pink-300 ring-1 ring-pink-100' : (isM1Active && m1Val > 0 ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-slate-200/80')} rounded-2xl shadow-xs space-y-1.5 transition">
           <div class="flex items-center justify-between text-xs">
             <span class="font-black text-slate-900">${cat}</span>
             <span class="font-extrabold text-slate-600 font-mono text-[11px]">${window.formatINR ? window.formatINR(data.total) : '₹' + data.total.toLocaleString('en-IN')}</span>
@@ -2764,13 +3018,13 @@
           
           <!-- Dual Progress Bar -->
           <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex">
-            <div style="width: ${palashPct}%" class="${isPalashActive ? 'bg-indigo-600' : 'bg-indigo-500'} h-full transition-all duration-300" title="Palash: ${palashPct}%"></div>
-            <div style="width: ${pallaviPct}%" class="${isPallaviActive ? 'bg-pink-600' : 'bg-pink-500'} h-full transition-all duration-300" title="Pallavi: ${pallaviPct}%"></div>
+            <div style="width: ${m1Pct}%" class="${isM1Active ? 'bg-indigo-600' : 'bg-indigo-500'} h-full transition-all duration-300" title="${m1}: ${m1Pct}%"></div>
+            <div style="width: ${m2Pct}%" class="${isM2Active ? 'bg-pink-600' : 'bg-pink-500'} h-full transition-all duration-300" title="${m2}: ${m2Pct}%"></div>
           </div>
 
           <div class="flex items-center justify-between text-[11px] font-semibold text-slate-500">
-            <span class="${isPalashActive ? 'text-indigo-900 font-black' : 'text-indigo-700 font-bold'}">👤 Palash: ₹${data.Palash.toLocaleString('en-IN')} (${palashPct}%)</span>
-            <span class="${isPallaviActive ? 'text-pink-900 font-black' : 'text-pink-700 font-bold'}">🌸 Pallavi: ₹${data.Pallavi.toLocaleString('en-IN')} (${pallaviPct}%)</span>
+            <span class="${isM1Active ? 'text-indigo-900 font-black' : 'text-indigo-700 font-bold'}">👤 ${m1}: ₹${m1Val.toLocaleString('en-IN')} (${m1Pct}%)</span>
+            <span class="${isM2Active ? 'text-pink-900 font-black' : 'text-pink-700 font-bold'}">${m2Icon} ${m2}: ₹${m2Val.toLocaleString('en-IN')} (${m2Pct}%)</span>
           </div>
         </div>
       `;
@@ -2782,6 +3036,7 @@
     const emptyState = document.getElementById('personalExpensesEmptyState');
     if (!tbody) return;
 
+    const members = (typeof getActiveFamilyMembers === 'function') ? getActiveFamilyMembers() : ['Household Member'];
     const search = (document.getElementById('searchPersonalExpenses')?.value || '').trim().toLowerCase();
 
     const filtered = items.filter(i => {
@@ -2803,10 +3058,10 @@
 
     tbody.innerHTML = filtered.map(item => {
       const payer = getPersonalPayer(item);
-      const isPalash = payer === 'Palash';
-      const badge = isPalash 
-        ? '<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">👤 Palash</span>'
-        : '<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-black bg-pink-50 text-pink-700 border border-pink-200">🌸 Pallavi</span>';
+      const isSecondMember = members.length > 1 && payer.toLowerCase() === (members[1] || '').toLowerCase();
+      const badge = isSecondMember
+        ? `<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-black bg-pink-50 text-pink-700 border border-pink-200">${payer.toLowerCase().includes('pallavi') ? '🌸' : '👤'} ${payer}</span>`
+        : `<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">👤 ${payer}</span>`;
 
       const d = item.date ? new Date(item.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 

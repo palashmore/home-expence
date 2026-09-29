@@ -132,7 +132,7 @@ module.exports = async function handler(req, res) {
                     title: notifTitle,
                     body: notifBody,
                     url: '/#tab-expenses',
-                    tag: `expense-${isEdit ? 'update' : 'new'}-${saved.id || Date.now()}`,
+                    tag: `expense-${isEdit ? 'update' : 'new'}-${saved.id || Date.now()}-${Date.now()}`,
                     excludeUserId: session.userId,
                     excludeUsername: session.username,
                     actor: {
@@ -192,7 +192,7 @@ module.exports = async function handler(req, res) {
                         title: `🗑️ ${actorName} deleted an expense`,
                         body: `${category} • ₹${formattedAmount} removed from ledger`,
                         url: '/#tab-expenses',
-                        tag: `expense-delete-${id}`,
+                        tag: `expense-delete-${id}-${Date.now()}`,
                         excludeUserId: session.userId,
                         excludeUsername: session.username,
                         actor: {

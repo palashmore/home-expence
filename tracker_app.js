@@ -2944,6 +2944,28 @@ async function saveExpense(e) {
             const secondaryText = `${formatINR(savedItem.amount)} · ${savedItem.category} · ${savedItem.paidBy}`;
             showToast("success", actionTitle, secondaryText);
 
+            // Immediate Mobile Notification Shade Alert (shows in phone notification bar like Snapchat/WhatsApp)
+            if ('Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(reg => {
+                    if (reg && reg.showNotification) {
+                        reg.showNotification(
+                            isEdit ? `✏️ Expense Updated: ${formatINR(savedItem.amount)}` : `💰 Expense Added: ${formatINR(savedItem.amount)}`,
+                            {
+                                body: `${savedItem.category} • Paid by ${savedItem.paidBy}${savedItem.note ? ` • "${savedItem.note}"` : ''}`,
+                                icon: '/icon-192.png',
+                                badge: '/icon-192.png',
+                                tag: `expense-${savedItem.id}-${Date.now()}`,
+                                renotify: true,
+                                requireInteraction: true,
+                                silent: false,
+                                vibrate: [300, 100, 300, 100, 300],
+                                data: { url: '/#tab-expenses' }
+                            }
+                        ).catch(e => console.warn('Local notify err:', e));
+                    }
+                }).catch(() => {});
+            }
+
             // 9. Silent Background Sync to Verify Server Parity & Broadcast
             loadData(true);
             if (window.loadMasterConfig) window.loadMasterConfig();
@@ -3180,6 +3202,7 @@ async function executeDeleteExpense(id) {
         const data = await res.json();
         if (res.ok && data.success) {
             // Remove from canonical state
+            const deletedItem = expenses.find(i => String(i.id).trim() === targetId);
             expenses = expenses.filter(i => String(i.id).trim() !== targetId);
             window.expenses = expenses;
             window.expensesData = expenses;
@@ -3190,6 +3213,29 @@ async function executeDeleteExpense(id) {
             closeTransactionDetailModal();
             triggerHaptic('delete');
             showToast("success", "Expense Deleted Successfully");
+
+            // Immediate Mobile Notification Shade Alert (shows in phone notification bar like Snapchat/WhatsApp)
+            if ('Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(reg => {
+                    if (reg && reg.showNotification) {
+                        reg.showNotification(
+                            '🗑️ Expense Deleted',
+                            {
+                                body: `${deletedItem?.category || 'Expense'} • ${formatINR(deletedItem?.amount || 0)} removed from ledger`,
+                                icon: '/icon-192.png',
+                                badge: '/icon-192.png',
+                                tag: `expense-delete-${targetId}-${Date.now()}`,
+                                renotify: true,
+                                requireInteraction: true,
+                                silent: false,
+                                vibrate: [300, 100, 300, 100, 300],
+                                data: { url: '/#tab-expenses' }
+                            }
+                        ).catch(e => console.warn('Local notify err:', e));
+                    }
+                }).catch(() => {});
+            }
+
             loadData(true);
             broadcastTransactionUpdate('DELETE');
         } else {

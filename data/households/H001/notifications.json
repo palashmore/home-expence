@@ -1,5 +1,18 @@
 [
   {
+    "id": "notif_1790699678453_n3s9g",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹475.25",
+    "body": "Grocery & Vegetables • Paid by Palash",
+    "url": "/#tab-expenses",
+    "tag": "notif-1790699678453",
+    "actor": "Palash",
+    "type": "EXPENSE_CREATE",
+    "amount": 475.25,
+    "timestamp": "2026-09-29T16:34:38.453Z",
+    "readBy": []
+  },
+  {
     "id": "notif_1790687475675_l38dr",
     "householdId": "H001",
     "title": "⚡ Test Live Alert",

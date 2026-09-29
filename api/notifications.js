@@ -164,7 +164,7 @@ async function sendPushToAll(payload) {
     return { delivered, removed: subs.length - remainingSubs.length, total: subs.length };
 }
 
-// Dispatch push notification to LINKED household members only, EXCLUDING the actor
+// Dispatch push notification to ALL linked household members (including actor confirmation)
 async function sendPushToHouseholdMembers({ householdId, title, body, url, tag, excludeUserId, excludeUsername, actor, type = 'activity', amount = null }) {
     // 1. Record In-App notification for the household
     recordHouseholdInAppNotification({
@@ -178,7 +178,7 @@ async function sendPushToHouseholdMembers({ householdId, title, body, url, tag, 
         amount
     });
 
-    // 2. Dispatch Closed-App Web Push Notification to other linked household members
+    // 2. Dispatch Closed-App Web Push Notification to ALL linked household members (including actor's devices)
     const subs = await readSubscriptions();
     if (!subs.length) {
         return { delivered: 0, total: 0, reason: 'no_subscriptions_stored' };
@@ -187,17 +187,9 @@ async function sendPushToHouseholdMembers({ householdId, title, body, url, tag, 
     const cleanExcludeUsername = (excludeUsername || '').toLowerCase().trim();
     const cleanExcludeUserId = (excludeUserId || '').trim();
 
-    // Target ONLY linked household members, EXCLUDING the actor who made the change
+    // Target ALL members who belong to this household (or legacy unassigned subscriptions if single household)
     const targetSubs = subs.filter(sub => {
-        // Must belong to this linked household (or legacy unassigned subscriptions if single household)
         if (sub.householdId && sub.householdId !== householdId) {
-            return false;
-        }
-        // Exclude the actor who triggered the action
-        if (cleanExcludeUsername && sub.username && sub.username.toLowerCase() === cleanExcludeUsername) {
-            return false;
-        }
-        if (cleanExcludeUserId && sub.userId && sub.userId === cleanExcludeUserId) {
             return false;
         }
         return true;
@@ -207,24 +199,46 @@ async function sendPushToHouseholdMembers({ householdId, title, body, url, tag, 
         return { delivered: 0, total: 0, reason: 'no_recipient_subscribers' };
     }
 
-    const payload = JSON.stringify({
-        title,
-        body,
-        url: url || '/#tab-expenses',
-        tag: tag || `expense-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        icon: '/icon-192.png',
-        badge: '/icon-192.png',
-        silent: false,
-        requireInteraction: true,
-        vibrate: [300, 100, 300, 100, 300],
-        timestamp: Date.now()
-    });
-
     let delivered = 0;
     const remainingEndpoints = new Set();
 
     for (const sub of targetSubs) {
         try {
+            const isActor = (cleanExcludeUsername && sub.username && sub.username.toLowerCase() === cleanExcludeUsername) ||
+                            (cleanExcludeUserId && sub.userId && sub.userId === cleanExcludeUserId);
+
+            // Personalize title for the actor vs other linked members
+            let personalTitle = title;
+            if (isActor) {
+                if (type === 'EXPENSE_CREATE') {
+                    personalTitle = amount ? `💰 Expense Added: ₹${Number(amount).toLocaleString('en-IN')}` : '💰 Expense Added';
+                } else if (type === 'EXPENSE_UPDATE') {
+                    personalTitle = amount ? `✏️ Expense Updated: ₹${Number(amount).toLocaleString('en-IN')}` : '✏️ Expense Updated';
+                } else if (type === 'EXPENSE_DELETE') {
+                    personalTitle = amount ? `🗑️ Expense Deleted: ₹${Number(amount).toLocaleString('en-IN')}` : '🗑️ Expense Deleted';
+                } else if (type === 'STAFF_ATTENDANCE') {
+                    personalTitle = '👩‍🍳 Staff Attendance Updated';
+                } else if (type === 'CONFIG_UPDATE') {
+                    personalTitle = '⚙️ Household Settings Updated';
+                }
+            }
+
+            // Generate unique alert tag so notifications stack in the notification shade like Snapchat & WhatsApp
+            const alertTag = tag || `expense-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+            const payload = JSON.stringify({
+                title: personalTitle,
+                body,
+                url: url || '/#tab-expenses',
+                tag: alertTag,
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
+                silent: false,
+                requireInteraction: true,
+                vibrate: [300, 100, 300, 100, 300],
+                timestamp: Date.now()
+            });
+
             await webpush.sendNotification(sub, payload, HIGH_PRIORITY_PUSH_OPTIONS);
             delivered++;
             remainingEndpoints.add(sub.endpoint);

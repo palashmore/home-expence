@@ -1,13 +1,18 @@
-// Centralized Storage Abstraction Layer for HOMEEXPENSES
-// Enforces Household Isolation, Concurrency Control, and Audit Logging
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const cloudSync = require('./_cloud_sync');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const HOUSEHOLDS_DIR = path.join(DATA_DIR, 'households');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const HOUSEHOLDS_FILE = path.join(DATA_DIR, 'households.json');
+
+// Writable overlay directory for serverless (Vercel / AWS Lambda) and cross-platform temp storage
+const TMP_BASE_DIR = path.join(os.tmpdir(), 'homeexpenses_data');
+const TMP_HOUSEHOLDS_DIR = path.join(TMP_BASE_DIR, 'households');
+const TMP_USERS_FILE = path.join(TMP_BASE_DIR, 'users.json');
+const TMP_HOUSEHOLDS_FILE = path.join(TMP_BASE_DIR, 'households.json');
 
 // In-Memory cache keyed by householdId
 const memoryStore = {
@@ -33,12 +38,23 @@ function getHouseholdDir(householdId) {
     if (!clean) {
         throw new Error('Security Error: Invalid or malformed household identifier.');
     }
+
+    // Always ensure TMP writable directory exists
+    const tmpDir = path.join(TMP_HOUSEHOLDS_DIR, clean);
+    try {
+        if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+        const tmpReceiptsDir = path.join(tmpDir, 'receipts');
+        if (!fs.existsSync(tmpReceiptsDir)) fs.mkdirSync(tmpReceiptsDir, { recursive: true });
+    } catch (e) {}
+
+    // Also attempt local filesystem directory
     const dir = path.join(HOUSEHOLDS_DIR, clean);
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+    try {
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         const receiptsDir = path.join(dir, 'receipts');
         if (!fs.existsSync(receiptsDir)) fs.mkdirSync(receiptsDir, { recursive: true });
-    }
+    } catch (e) {}
+
     return dir;
 }
 
@@ -47,8 +63,21 @@ function getHouseholdFilePath(householdId, filename) {
     return path.join(dir, filename);
 }
 
-// Safe JSON file read
+// Safe JSON file read with TMP overlay fallback priority
 function readJsonFile(filePath, fallback = null) {
+    // 1. Check TMP overlay first (contains recent updates in serverless environments)
+    try {
+        const relative = path.relative(DATA_DIR, filePath);
+        if (!relative.startsWith('..')) {
+            const tmpPath = path.join(TMP_BASE_DIR, relative);
+            if (fs.existsSync(tmpPath)) {
+                const raw = fs.readFileSync(tmpPath, 'utf8');
+                return JSON.parse(raw);
+            }
+        }
+    } catch (e) {}
+
+    // 2. Read from local filesystem
     try {
         if (fs.existsSync(filePath)) {
             const raw = fs.readFileSync(filePath, 'utf8');
@@ -60,17 +89,36 @@ function readJsonFile(filePath, fallback = null) {
     return fallback;
 }
 
-// Safe JSON file write with atomic fallback
+// Safe JSON file write with dual persistence (TMP overlay + local filesystem)
 function writeJsonFile(filePath, data) {
+    let success = false;
+    const content = JSON.stringify(data, null, 2);
+
+    // 1. Always write to TMP overlay (guaranteed writable on Vercel / serverless)
+    try {
+        const relative = path.relative(DATA_DIR, filePath);
+        if (!relative.startsWith('..')) {
+            const tmpPath = path.join(TMP_BASE_DIR, relative);
+            const tmpDir = path.dirname(tmpPath);
+            if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+            fs.writeFileSync(tmpPath, content, 'utf8');
+            success = true;
+        }
+    } catch (e) {
+        console.warn(`[Storage] Warning writing to tmp for ${filePath}:`, e.message);
+    }
+
+    // 2. Attempt write to primary filesystem (works on local server / Docker / VPS)
     try {
         const dir = path.dirname(filePath);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-        return true;
+        fs.writeFileSync(filePath, content, 'utf8');
+        success = true;
     } catch (e) {
-        console.warn(`[Storage] Warning writing ${filePath}:`, e.message);
-        return false;
+        // Read-only filesystem in serverless environments (expected on Vercel)
     }
+
+    return success;
 }
 
 // ==========================================
@@ -551,13 +599,26 @@ async function getHouseholdExpenses(householdId, includeDeleted = false, forceFr
 
     // Always reload fresh from disk by default to guarantee zero-cache live sync across all users
     if (forceFresh || !memoryStore.expenses[cleanHId]) {
+        let records = null;
         const filePath = getHouseholdFilePath(cleanHId, 'expenses.json');
-        let records = readJsonFile(filePath, null);
+        records = readJsonFile(filePath, null);
 
         // Fallback for H001 legacy path if newly initialized
         if (!records && cleanHId === 'H001') {
             const legacyPath = path.join(DATA_DIR, 'expenses.json');
             records = readJsonFile(legacyPath, []);
+        }
+
+        // If H001, also sync with CloudSync (GitHub Gist)
+        if (cleanHId === 'H001') {
+            try {
+                const cloudRecords = await cloudSync.readJson('expenses.json');
+                if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+                    if (!records || cloudRecords.length >= records.length) {
+                        records = cloudRecords;
+                    }
+                }
+            } catch (e) {}
         }
 
         memoryStore.expenses[cleanHId] = Array.isArray(records) ? records : [];
@@ -674,9 +735,12 @@ async function saveHouseholdExpense(householdId, record, actorUser = 'System') {
     const filePath = getHouseholdFilePath(cleanHId, 'expenses.json');
     writeJsonFile(filePath, list);
 
-    // If H001, also mirror to data/expenses.json for legacy redundancy
+    // If H001, also mirror to data/expenses.json and CloudSync (Gist)
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'expenses.json'), list);
+        cloudSync.writeJson('expenses.json', list).catch(err => {
+            console.warn('[CloudSync] expenses write notice:', err.message);
+        });
     }
 
     // Audit Logging
@@ -719,6 +783,9 @@ async function deleteHouseholdExpense(householdId, id, actorUser = 'System') {
 
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'expenses.json'), list);
+        cloudSync.writeJson('expenses.json', list).catch(err => {
+            console.warn('[CloudSync] expenses delete notice:', err.message);
+        });
     }
 
     await logHouseholdAudit(
@@ -746,6 +813,21 @@ async function getHouseholdConfig(householdId, forceFresh = true) {
         if (!config && cleanHId === 'H001') {
             config = readJsonFile(path.join(DATA_DIR, 'config.json'), {});
         }
+
+        // If H001, also check CloudSync (GitHub Gist)
+        if (cleanHId === 'H001') {
+            try {
+                const cloudConfig = await cloudSync.readJson('config.json');
+                if (cloudConfig && typeof cloudConfig === 'object' && Array.isArray(cloudConfig.categories)) {
+                    if (config) {
+                        config = { ...config, ...cloudConfig };
+                    } else {
+                        config = cloudConfig;
+                    }
+                }
+            } catch (e) {}
+        }
+
         memoryStore.config[cleanHId] = config || {};
     }
     return memoryStore.config[cleanHId];
@@ -762,6 +844,9 @@ async function saveHouseholdConfig(householdId, newConfig, actorUser = 'System')
 
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'config.json'), newConfig);
+        cloudSync.writeJson('config.json', newConfig).catch(err => {
+            console.warn('[CloudSync] config write notice:', err.message);
+        });
     }
 
     await logHouseholdAudit(cleanHId, 'UPDATE_CONFIG', 'config', { updated: true }, newConfig, actorUser);
@@ -796,6 +881,7 @@ async function saveHouseholdAttendance(householdId, attendanceData, actorUser = 
 
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'staff_attendance.json'), attendanceData);
+        cloudSync.writeJson('staff_attendance.json', attendanceData).catch(() => {});
     }
     return attendanceData;
 }
@@ -846,6 +932,7 @@ async function logHouseholdAudit(householdId, action, recordId, diff = {}, snaps
 
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'audit_log.json'), memoryStore.audit[cleanHId]);
+        cloudSync.writeJson('audit_log.json', memoryStore.audit[cleanHId]).catch(() => {});
     }
 }
 

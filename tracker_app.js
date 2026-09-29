@@ -724,10 +724,25 @@ async function loadData(silent = false) {
 
         const result = await res.json();
         if (result.success && Array.isArray(result.data)) {
-            expenses = result.data.map(item => ({
+            const serverExpenses = result.data.map(item => ({
                 ...item,
                 paidBy: item.paidBy || inferPaidBy(item)
             }));
+
+            // Merge server records with any recently saved client-side records that may still be propagating
+            const serverIds = new Set(serverExpenses.map(i => String(i.id).trim()));
+            const recentClientRecords = expenses.filter(i => {
+                if (serverIds.has(String(i.id).trim())) return false;
+                if (i.clientUpdatedAt) {
+                    const age = Date.now() - new Date(i.clientUpdatedAt).getTime();
+                    return age < 120000;
+                }
+                return false;
+            });
+
+            expenses = [...recentClientRecords, ...serverExpenses];
+            expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+
             window.expenses = expenses;
             window.expensesData = expenses;
 
@@ -3911,6 +3926,11 @@ window.updateGlobalsFromConfig = function(config) {
     if (config.monthlyBudgetLimit !== undefined) {
         monthlyBudgetLimit = Number(config.monthlyBudgetLimit) || 50000;
         window.monthlyBudgetLimit = monthlyBudgetLimit;
+        const activeHId = (typeof getActiveHouseholdId === 'function') ? getActiveHouseholdId() : 'H001';
+        try {
+            localStorage.setItem(`household_budget_limit_${activeHId}`, String(monthlyBudgetLimit));
+            localStorage.setItem('household_monthly_budget_limit', String(monthlyBudgetLimit));
+        } catch (e) {}
     }
 };
 

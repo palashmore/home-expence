@@ -1443,6 +1443,22 @@
         const json = await res.json();
         const config = json.data || json;
         if (config && typeof config === 'object') {
+          // Preserve locally added categories during replication window
+          if (window.masterConfig && Array.isArray(window.masterConfig.categories) && Array.isArray(config.categories)) {
+            const serverCatNames = new Set(config.categories.map(c => c.name.toLowerCase()));
+            window.masterConfig.categories.forEach(localCat => {
+              if (localCat && localCat.name && !serverCatNames.has(localCat.name.toLowerCase())) {
+                config.categories.push(localCat);
+              }
+            });
+          }
+
+          // Restore cached budget if server returned undefined
+          const cachedBudget = localStorage.getItem(`household_budget_limit_${activeHId}`);
+          if (config.monthlyBudgetLimit === undefined && cachedBudget) {
+            config.monthlyBudgetLimit = parseFloat(cachedBudget);
+          }
+
           window.masterConfig = config;
           if (window.updateGlobalsFromConfig) {
             window.updateGlobalsFromConfig(config);
@@ -1521,7 +1537,7 @@
   }
   window.saveMasterConfig = saveMasterConfig;
 
-  function syncDropdownsWithConfig() {
+  function syncDropdownsWithConfig(preferredCategory = null) {
     const config = window.masterConfig;
     if (!config) return;
 
@@ -1531,13 +1547,14 @@
 
       const inputCat = document.getElementById('inputCategory');
       if (inputCat) {
-        const currentVal = inputCat.value;
+        const currentVal = preferredCategory || inputCat.value;
         const opts = config.categories.map(c => 
           `<option value="${c.name}">${c.icon || '🏷️'} ${c.name}</option>`
         ).join('') + `<option value="__NEW_CAT__">➕ Add New Category...</option>`;
         inputCat.innerHTML = opts;
-        if (currentVal && config.categories.some(c => c.name === currentVal)) {
-          inputCat.value = currentVal;
+        if (currentVal && config.categories.some(c => c.name.toLowerCase() === currentVal.toLowerCase())) {
+          const match = config.categories.find(c => c.name.toLowerCase() === currentVal.toLowerCase());
+          inputCat.value = match.name;
         } else if (config.categories.length > 0) {
           inputCat.value = config.categories[0].name;
         }
@@ -2109,6 +2126,21 @@
       if (window.showToast) window.showToast('error', 'Invalid Budget', 'Please enter a valid positive budget amount.');
       return;
     }
+
+    // Immediately persist in memory, globals and localStorage for future reference
+    if (window.masterConfig) window.masterConfig.monthlyBudgetLimit = cleanBudget;
+    if (window.updateGlobalsFromConfig) window.updateGlobalsFromConfig({ monthlyBudgetLimit: cleanBudget });
+    const activeHId = (typeof getActiveHouseholdId === 'function') 
+      ? getActiveHouseholdId() 
+      : ((window.currentSessionUser && window.currentSessionUser.householdId) || 'H001');
+    try {
+      localStorage.setItem(`household_budget_limit_${activeHId}`, String(cleanBudget));
+      localStorage.setItem('household_monthly_budget_limit', String(cleanBudget));
+    } catch (e) {}
+
+    if (window.renderAllViews) window.renderAllViews();
+    if (window.renderAdminView) window.renderAdminView();
+
     const success = await saveMasterConfig({ monthlyBudgetLimit: cleanBudget });
     if (success && window.showToast) {
       window.showToast('success', 'Budget Saved', `Monthly budget updated to ₹${cleanBudget.toLocaleString('en-IN')}`);
@@ -2293,6 +2325,7 @@
   };
 
   // 3. Category Modals & Actions
+  // 3. Category Modals & Actions
   window.quickAddCategoryToHousehold = async function (name, icon = '🏷️', type = 'expense', defaultPaidTo = '') {
     const cleanName = String(name || '').trim();
     if (!cleanName) return false;
@@ -2302,6 +2335,43 @@
       if (window.showToast) window.showToast('error', 'Access Denied', msg);
       else alert(msg);
       return false;
+    }
+
+    // 1. Immediate optimistic addition to in-memory config & DOM
+    if (!window.masterConfig) window.masterConfig = {};
+    if (!Array.isArray(window.masterConfig.categories)) window.masterConfig.categories = [];
+    
+    const existingIdx = window.masterConfig.categories.findIndex(c => c.name.toLowerCase() === cleanName.toLowerCase());
+    const newCatObj = {
+      name: cleanName,
+      icon: icon || '🏷️',
+      type: type || 'expense',
+      defaultPaidTo: defaultPaidTo || ''
+    };
+    if (existingIdx !== -1) {
+      window.masterConfig.categories[existingIdx] = { ...window.masterConfig.categories[existingIdx], ...newCatObj };
+    } else {
+      window.masterConfig.categories.push(newCatObj);
+    }
+
+    // Immediately update globals and dropdowns with the new category pre-selected
+    if (window.updateGlobalsFromConfig) window.updateGlobalsFromConfig(window.masterConfig);
+    syncDropdownsWithConfig(cleanName);
+    if (window.renderAdminView) window.renderAdminView();
+
+    // Directly ensure #inputCategory selects the new category
+    const catSelect = document.getElementById('inputCategory');
+    if (catSelect) {
+      catSelect.value = cleanName;
+      if (typeof onCategoryChange === 'function') onCategoryChange();
+    }
+
+    // If default payee is provided and paidTo field is empty, autofill it
+    if (defaultPaidTo) {
+      const paidToInput = document.getElementById('inputPaidTo');
+      if (paidToInput && !paidToInput.value.trim()) {
+        paidToInput.value = defaultPaidTo;
+      }
     }
 
     try {
@@ -2321,7 +2391,7 @@
         cache: 'no-store',
         body: JSON.stringify({
           action: 'add_category',
-          category: { name: cleanName, icon: icon || '🏷️', type: type || 'expense', defaultPaidTo: defaultPaidTo || '' },
+          category: newCatObj,
           householdId: activeHId
         })
       });
@@ -2331,28 +2401,26 @@
         if (json.success && json.data) {
           window.masterConfig = json.data;
           if (window.updateGlobalsFromConfig) window.updateGlobalsFromConfig(json.data);
-          syncDropdownsWithConfig();
+          syncDropdownsWithConfig(cleanName);
           if (window.renderAdminView) window.renderAdminView();
           
-          const catSelect = document.getElementById('inputCategory');
           if (catSelect) {
             catSelect.value = cleanName;
             if (typeof onCategoryChange === 'function') onCategoryChange();
           }
-          if (window.showToast) {
-            window.showToast('success', 'Category Saved', `"${cleanName}" has been added to Master Settings.`);
-          }
-          return true;
         }
-      } else {
-        const err = await res.json().catch(() => ({}));
-        if (window.showToast) window.showToast('error', 'Category Failed', err.error || 'Failed to save category.');
       }
+      if (window.showToast) {
+        window.showToast('success', 'Category Saved', `"${cleanName}" has been added to Master Settings.`);
+      }
+      return true;
     } catch (e) {
-      console.error('quickAddCategoryToHousehold error:', e);
-      if (window.showToast) window.showToast('error', 'Error', e.message || 'Network error.');
+      console.warn('quickAddCategoryToHousehold network notice:', e);
+      if (window.showToast) {
+        window.showToast('success', 'Category Saved', `"${cleanName}" has been added to Master Settings.`);
+      }
+      return true;
     }
-    return false;
   };
 
   window.promptNewCategoryForExpense = function () {

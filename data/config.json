@@ -83,6 +83,12 @@
       "icon": "🍔",
       "type": "expense",
       "defaultPaidTo": ""
+    },
+    {
+      "name": "Recharge",
+      "icon": "💰",
+      "type": "expense",
+      "defaultPaidTo": ""
     }
   ],
   "recurringBills": [
@@ -92,8 +98,7 @@
       "category": "Electricity Bill",
       "dueDay": 10,
       "approxAmount": 2200,
-      "icon": "⚡",
-      "budgetedAmount": 2200
+      "icon": "⚡"
     },
     {
       "id": "bill-2",
@@ -101,7 +106,6 @@
       "category": "Flat Maintenance",
       "dueDay": 5,
       "approxAmount": 3500,
-      "budgetedAmount": 3500,
       "icon": "🏢"
     },
     {
@@ -110,7 +114,6 @@
       "category": "Grocery & Vegetables",
       "dueDay": 15,
       "approxAmount": 999,
-      "budgetedAmount": 999,
       "icon": "📶"
     },
     {
@@ -119,7 +122,6 @@
       "category": "Dish Bill (DTH)",
       "dueDay": 20,
       "approxAmount": 450,
-      "budgetedAmount": 450,
       "icon": "📺"
     },
     {
@@ -128,7 +130,6 @@
       "category": "Maid - Madhuri",
       "dueDay": 21,
       "approxAmount": 800,
-      "budgetedAmount": 800,
       "icon": "🧹"
     },
     {
@@ -137,7 +138,6 @@
       "category": "Chef - Nilima Nikose",
       "dueDay": 30,
       "approxAmount": 4500,
-      "budgetedAmount": 4500,
       "icon": "👩‍🍳"
     }
   ],
@@ -164,6 +164,6 @@
     "Personal Expense (Palash)",
     "Equal (50/50)"
   ],
-  "updatedAt": "2026-09-29T18:53:49.471Z",
+  "updatedAt": "2026-09-29T19:29:05.597Z",
   "householdId": "H001"
 }

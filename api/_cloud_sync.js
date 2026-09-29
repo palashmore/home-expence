@@ -3,6 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const os = require('os');
+
 const GIST_ID = process.env.GIST_ID || 'e42cd546045cc0773af7798b25ed4065';
 
 function getAuthToken() {
@@ -10,7 +12,7 @@ function getAuthToken() {
 }
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
-const TMP_DIR = '/tmp';
+const TMP_DIR = path.join(os.tmpdir(), 'homeexpenses_data');
 
 // In-Memory cache with TTL to optimize read speed while keeping it fresh
 const cache = {
@@ -20,16 +22,17 @@ const cache = {
 const CACHE_TTL_MS = 3000; // 3 seconds TTL
 
 async function fetchFromGist() {
+  if (!GIST_ID) return null;
   const token = getAuthToken();
-  if (!token || !GIST_ID) return null;
   try {
-    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'User-Agent': 'HomeExpenses-CloudSync',
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    });
+    const headers = {
+      'User-Agent': 'HomeExpenses-CloudSync',
+      'Accept': 'application/vnd.github.v3+json'
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, { headers });
     if (!res.ok) {
       console.warn(`[CloudSync] Gist fetch returned status ${res.status}`);
       return null;

@@ -1,5 +1,1893 @@
 [
   {
+    "id": "audit-1790710145901-bkbgx",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:29:05.901Z",
+    "action": {
+      "id": "AUD-1790710145901-DEL-H",
+      "action": "DELETE_HOUSEHOLD",
+      "actor": "admin",
+      "details": "Deleted household 'Ashwini Villa' (H003)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1790710145642-m7qvz",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:29:05.642Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "staff": [
+        {
+          "id": "staff-1",
+          "name": "Chef - Nilima Nikose",
+          "shortName": "Nilima Nikose",
+          "role": "Chef / Cook",
+          "baseSalary": 4500,
+          "allowedPaidLeaves": 4,
+          "billingCycleDay": 30,
+          "cycleType": "calendar_month",
+          "active": true
+        },
+        {
+          "id": "staff-2",
+          "name": "Maid - Madhuri",
+          "shortName": "Madhuri",
+          "role": "Housemaid",
+          "baseSalary": 800,
+          "allowedPaidLeaves": 2,
+          "billingCycleDay": 21,
+          "cycleType": "custom_cycle",
+          "active": true
+        }
+      ],
+      "categories": [
+        {
+          "name": "Grocery & Vegetables",
+          "icon": "🛒",
+          "type": "expense",
+          "defaultPaidTo": "Blinkit"
+        },
+        {
+          "name": "Electricity Bill",
+          "icon": "⚡",
+          "type": "expense",
+          "defaultPaidTo": "MSCB / MSEDCL"
+        },
+        {
+          "name": "Flat Maintenance",
+          "icon": "🏢",
+          "type": "expense",
+          "defaultPaidTo": "Society Office"
+        },
+        {
+          "name": "Chef - Nilima Nikose",
+          "icon": "👩‍🍳",
+          "type": "expense",
+          "defaultPaidTo": "Nilima Nikose"
+        },
+        {
+          "name": "Maid - Madhuri",
+          "icon": "🧹",
+          "type": "expense",
+          "defaultPaidTo": "Madhuri"
+        },
+        {
+          "name": "Dish Bill (DTH)",
+          "icon": "📺",
+          "type": "expense",
+          "defaultPaidTo": "Tata Play"
+        },
+        {
+          "name": "Shopping & Miscellaneous",
+          "icon": "🛍️",
+          "type": "expense",
+          "defaultPaidTo": "Amazon"
+        },
+        {
+          "name": "Accepted Payments (Income)",
+          "icon": "💰",
+          "type": "income",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Settlement / Transfer",
+          "icon": "🤝",
+          "type": "transfer",
+          "defaultPaidTo": "Pallavi"
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🍔",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Recharge",
+          "icon": "💰",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "recurringBills": [
+        {
+          "id": "bill-1",
+          "name": "MSCB Electricity Bill",
+          "category": "Electricity Bill",
+          "dueDay": 10,
+          "approxAmount": 2200,
+          "icon": "⚡"
+        },
+        {
+          "id": "bill-2",
+          "name": "Society Flat Maintenance",
+          "category": "Flat Maintenance",
+          "dueDay": 5,
+          "approxAmount": 3500,
+          "icon": "🏢"
+        },
+        {
+          "id": "bill-3",
+          "name": "Airtel Broadband / Wifi",
+          "category": "Grocery & Vegetables",
+          "dueDay": 15,
+          "approxAmount": 999,
+          "icon": "📶"
+        },
+        {
+          "id": "bill-4",
+          "name": "Tata Play / Dish Bill",
+          "category": "Dish Bill (DTH)",
+          "dueDay": 20,
+          "approxAmount": 450,
+          "icon": "📺"
+        },
+        {
+          "id": "bill-5",
+          "name": "Maid - Madhuri Salary",
+          "category": "Maid - Madhuri",
+          "dueDay": 21,
+          "approxAmount": 800,
+          "icon": "🧹"
+        },
+        {
+          "id": "bill-6",
+          "name": "Chef - Nilima Salary",
+          "category": "Chef - Nilima Nikose",
+          "dueDay": 30,
+          "approxAmount": 4500,
+          "icon": "👩‍🍳"
+        }
+      ],
+      "familyMembers": [
+        "Palash",
+        "Pallavi"
+      ],
+      "paymentMethods": [
+        "UPI / GPay / PhonePe",
+        "Credit Card",
+        "Net Banking",
+        "Cash"
+      ],
+      "householdCycle": {
+        "type": "custom",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "5th of current month to 5th of next month"
+      },
+      "monthlyBudgetLimit": 20000,
+      "splitRules": [
+        "Household Expense (Palash Reimburses Pallavi 100%)",
+        "Personal Expense (Pallavi - Not Reimbursed)",
+        "Personal Expense (Palash)",
+        "Equal (50/50)"
+      ],
+      "updatedAt": "2026-09-29T19:29:05.597Z",
+      "householdId": "H001"
+    }
+  },
+  {
+    "id": "audit-1790710145420-2kvhf",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:29:05.420Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "staff": [
+        {
+          "id": "staff-1",
+          "name": "Chef - Nilima Nikose",
+          "shortName": "Nilima Nikose",
+          "role": "Chef / Cook",
+          "baseSalary": 4500,
+          "allowedPaidLeaves": 4,
+          "billingCycleDay": 30,
+          "cycleType": "calendar_month",
+          "active": true
+        },
+        {
+          "id": "staff-2",
+          "name": "Maid - Madhuri",
+          "shortName": "Madhuri",
+          "role": "Housemaid",
+          "baseSalary": 800,
+          "allowedPaidLeaves": 2,
+          "billingCycleDay": 21,
+          "cycleType": "custom_cycle",
+          "active": true
+        }
+      ],
+      "categories": [
+        {
+          "name": "Grocery & Vegetables",
+          "icon": "🛒",
+          "type": "expense",
+          "defaultPaidTo": "Blinkit"
+        },
+        {
+          "name": "Electricity Bill",
+          "icon": "⚡",
+          "type": "expense",
+          "defaultPaidTo": "MSCB / MSEDCL"
+        },
+        {
+          "name": "Flat Maintenance",
+          "icon": "🏢",
+          "type": "expense",
+          "defaultPaidTo": "Society Office"
+        },
+        {
+          "name": "Chef - Nilima Nikose",
+          "icon": "👩‍🍳",
+          "type": "expense",
+          "defaultPaidTo": "Nilima Nikose"
+        },
+        {
+          "name": "Maid - Madhuri",
+          "icon": "🧹",
+          "type": "expense",
+          "defaultPaidTo": "Madhuri"
+        },
+        {
+          "name": "Dish Bill (DTH)",
+          "icon": "📺",
+          "type": "expense",
+          "defaultPaidTo": "Tata Play"
+        },
+        {
+          "name": "Shopping & Miscellaneous",
+          "icon": "🛍️",
+          "type": "expense",
+          "defaultPaidTo": "Amazon"
+        },
+        {
+          "name": "Accepted Payments (Income)",
+          "icon": "💰",
+          "type": "income",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Settlement / Transfer",
+          "icon": "🤝",
+          "type": "transfer",
+          "defaultPaidTo": "Pallavi"
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🍔",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Recharge",
+          "icon": "💰",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "recurringBills": [
+        {
+          "id": "bill-1",
+          "name": "MSCB Electricity Bill",
+          "category": "Electricity Bill",
+          "dueDay": 10,
+          "approxAmount": 2200,
+          "icon": "⚡"
+        },
+        {
+          "id": "bill-2",
+          "name": "Society Flat Maintenance",
+          "category": "Flat Maintenance",
+          "dueDay": 5,
+          "approxAmount": 3500,
+          "icon": "🏢"
+        },
+        {
+          "id": "bill-3",
+          "name": "Airtel Broadband / Wifi",
+          "category": "Grocery & Vegetables",
+          "dueDay": 15,
+          "approxAmount": 999,
+          "icon": "📶"
+        },
+        {
+          "id": "bill-4",
+          "name": "Tata Play / Dish Bill",
+          "category": "Dish Bill (DTH)",
+          "dueDay": 20,
+          "approxAmount": 450,
+          "icon": "📺"
+        },
+        {
+          "id": "bill-5",
+          "name": "Maid - Madhuri Salary",
+          "category": "Maid - Madhuri",
+          "dueDay": 21,
+          "approxAmount": 800,
+          "icon": "🧹"
+        },
+        {
+          "id": "bill-6",
+          "name": "Chef - Nilima Salary",
+          "category": "Chef - Nilima Nikose",
+          "dueDay": 30,
+          "approxAmount": 4500,
+          "icon": "👩‍🍳"
+        }
+      ],
+      "familyMembers": [
+        "Palash",
+        "Pallavi"
+      ],
+      "paymentMethods": [
+        "UPI / GPay / PhonePe",
+        "Credit Card",
+        "Net Banking",
+        "Cash"
+      ],
+      "householdCycle": {
+        "type": "custom",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "5th of current month to 5th of next month"
+      },
+      "monthlyBudgetLimit": 55000,
+      "splitRules": [
+        "Household Expense (Palash Reimburses Pallavi 100%)",
+        "Personal Expense (Pallavi - Not Reimbursed)",
+        "Personal Expense (Palash)",
+        "Equal (50/50)"
+      ],
+      "updatedAt": "2026-09-29T19:29:05.413Z",
+      "householdId": "H001"
+    }
+  },
+  {
+    "id": "audit-1790710075472-gta4s",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:27:55.472Z",
+    "action": {
+      "id": "AUD-1790710075472-DEL-H",
+      "action": "DELETE_HOUSEHOLD",
+      "actor": "admin",
+      "details": "Deleted household 'Ashwini Villa' (H003)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1790710075211-00pm0",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:27:55.211Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "staff": [
+        {
+          "id": "staff-1",
+          "name": "Chef - Nilima Nikose",
+          "shortName": "Nilima Nikose",
+          "role": "Chef / Cook",
+          "baseSalary": 4500,
+          "allowedPaidLeaves": 4,
+          "billingCycleDay": 30,
+          "cycleType": "calendar_month",
+          "active": true
+        },
+        {
+          "id": "staff-2",
+          "name": "Maid - Madhuri",
+          "shortName": "Madhuri",
+          "role": "Housemaid",
+          "baseSalary": 800,
+          "allowedPaidLeaves": 2,
+          "billingCycleDay": 21,
+          "cycleType": "custom_cycle",
+          "active": true
+        }
+      ],
+      "categories": [
+        {
+          "name": "Grocery & Vegetables",
+          "icon": "🛒",
+          "type": "expense",
+          "defaultPaidTo": "Blinkit"
+        },
+        {
+          "name": "Electricity Bill",
+          "icon": "⚡",
+          "type": "expense",
+          "defaultPaidTo": "MSCB / MSEDCL"
+        },
+        {
+          "name": "Flat Maintenance",
+          "icon": "🏢",
+          "type": "expense",
+          "defaultPaidTo": "Society Office"
+        },
+        {
+          "name": "Chef - Nilima Nikose",
+          "icon": "👩‍🍳",
+          "type": "expense",
+          "defaultPaidTo": "Nilima Nikose"
+        },
+        {
+          "name": "Maid - Madhuri",
+          "icon": "🧹",
+          "type": "expense",
+          "defaultPaidTo": "Madhuri"
+        },
+        {
+          "name": "Dish Bill (DTH)",
+          "icon": "📺",
+          "type": "expense",
+          "defaultPaidTo": "Tata Play"
+        },
+        {
+          "name": "Shopping & Miscellaneous",
+          "icon": "🛍️",
+          "type": "expense",
+          "defaultPaidTo": "Amazon"
+        },
+        {
+          "name": "Accepted Payments (Income)",
+          "icon": "💰",
+          "type": "income",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Settlement / Transfer",
+          "icon": "🤝",
+          "type": "transfer",
+          "defaultPaidTo": "Pallavi"
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🍔",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Recharge",
+          "icon": "💰",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "recurringBills": [
+        {
+          "id": "bill-1",
+          "name": "MSCB Electricity Bill",
+          "category": "Electricity Bill",
+          "dueDay": 10,
+          "approxAmount": 2200,
+          "icon": "⚡"
+        },
+        {
+          "id": "bill-2",
+          "name": "Society Flat Maintenance",
+          "category": "Flat Maintenance",
+          "dueDay": 5,
+          "approxAmount": 3500,
+          "icon": "🏢"
+        },
+        {
+          "id": "bill-3",
+          "name": "Airtel Broadband / Wifi",
+          "category": "Grocery & Vegetables",
+          "dueDay": 15,
+          "approxAmount": 999,
+          "icon": "📶"
+        },
+        {
+          "id": "bill-4",
+          "name": "Tata Play / Dish Bill",
+          "category": "Dish Bill (DTH)",
+          "dueDay": 20,
+          "approxAmount": 450,
+          "icon": "📺"
+        },
+        {
+          "id": "bill-5",
+          "name": "Maid - Madhuri Salary",
+          "category": "Maid - Madhuri",
+          "dueDay": 21,
+          "approxAmount": 800,
+          "icon": "🧹"
+        },
+        {
+          "id": "bill-6",
+          "name": "Chef - Nilima Salary",
+          "category": "Chef - Nilima Nikose",
+          "dueDay": 30,
+          "approxAmount": 4500,
+          "icon": "👩‍🍳"
+        }
+      ],
+      "familyMembers": [
+        "Palash",
+        "Pallavi"
+      ],
+      "paymentMethods": [
+        "UPI / GPay / PhonePe",
+        "Credit Card",
+        "Net Banking",
+        "Cash"
+      ],
+      "householdCycle": {
+        "type": "custom",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "5th of current month to 5th of next month"
+      },
+      "monthlyBudgetLimit": 20000,
+      "splitRules": [
+        "Household Expense (Palash Reimburses Pallavi 100%)",
+        "Personal Expense (Pallavi - Not Reimbursed)",
+        "Personal Expense (Palash)",
+        "Equal (50/50)"
+      ],
+      "updatedAt": "2026-09-29T19:27:55.205Z",
+      "householdId": "H001"
+    }
+  },
+  {
+    "id": "audit-1790710074960-ev90o",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:27:54.960Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "staff": [
+        {
+          "id": "staff-1",
+          "name": "Chef - Nilima Nikose",
+          "shortName": "Nilima Nikose",
+          "role": "Chef / Cook",
+          "baseSalary": 4500,
+          "allowedPaidLeaves": 4,
+          "billingCycleDay": 30,
+          "cycleType": "calendar_month",
+          "active": true
+        },
+        {
+          "id": "staff-2",
+          "name": "Maid - Madhuri",
+          "shortName": "Madhuri",
+          "role": "Housemaid",
+          "baseSalary": 800,
+          "allowedPaidLeaves": 2,
+          "billingCycleDay": 21,
+          "cycleType": "custom_cycle",
+          "active": true
+        }
+      ],
+      "categories": [
+        {
+          "name": "Grocery & Vegetables",
+          "icon": "🛒",
+          "type": "expense",
+          "defaultPaidTo": "Blinkit"
+        },
+        {
+          "name": "Electricity Bill",
+          "icon": "⚡",
+          "type": "expense",
+          "defaultPaidTo": "MSCB / MSEDCL"
+        },
+        {
+          "name": "Flat Maintenance",
+          "icon": "🏢",
+          "type": "expense",
+          "defaultPaidTo": "Society Office"
+        },
+        {
+          "name": "Chef - Nilima Nikose",
+          "icon": "👩‍🍳",
+          "type": "expense",
+          "defaultPaidTo": "Nilima Nikose"
+        },
+        {
+          "name": "Maid - Madhuri",
+          "icon": "🧹",
+          "type": "expense",
+          "defaultPaidTo": "Madhuri"
+        },
+        {
+          "name": "Dish Bill (DTH)",
+          "icon": "📺",
+          "type": "expense",
+          "defaultPaidTo": "Tata Play"
+        },
+        {
+          "name": "Shopping & Miscellaneous",
+          "icon": "🛍️",
+          "type": "expense",
+          "defaultPaidTo": "Amazon"
+        },
+        {
+          "name": "Accepted Payments (Income)",
+          "icon": "💰",
+          "type": "income",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Settlement / Transfer",
+          "icon": "🤝",
+          "type": "transfer",
+          "defaultPaidTo": "Pallavi"
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🍔",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Recharge",
+          "icon": "💰",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "recurringBills": [
+        {
+          "id": "bill-1",
+          "name": "MSCB Electricity Bill",
+          "category": "Electricity Bill",
+          "dueDay": 10,
+          "approxAmount": 2200,
+          "icon": "⚡"
+        },
+        {
+          "id": "bill-2",
+          "name": "Society Flat Maintenance",
+          "category": "Flat Maintenance",
+          "dueDay": 5,
+          "approxAmount": 3500,
+          "icon": "🏢"
+        },
+        {
+          "id": "bill-3",
+          "name": "Airtel Broadband / Wifi",
+          "category": "Grocery & Vegetables",
+          "dueDay": 15,
+          "approxAmount": 999,
+          "icon": "📶"
+        },
+        {
+          "id": "bill-4",
+          "name": "Tata Play / Dish Bill",
+          "category": "Dish Bill (DTH)",
+          "dueDay": 20,
+          "approxAmount": 450,
+          "icon": "📺"
+        },
+        {
+          "id": "bill-5",
+          "name": "Maid - Madhuri Salary",
+          "category": "Maid - Madhuri",
+          "dueDay": 21,
+          "approxAmount": 800,
+          "icon": "🧹"
+        },
+        {
+          "id": "bill-6",
+          "name": "Chef - Nilima Salary",
+          "category": "Chef - Nilima Nikose",
+          "dueDay": 30,
+          "approxAmount": 4500,
+          "icon": "👩‍🍳"
+        }
+      ],
+      "familyMembers": [
+        "Palash",
+        "Pallavi"
+      ],
+      "paymentMethods": [
+        "UPI / GPay / PhonePe",
+        "Credit Card",
+        "Net Banking",
+        "Cash"
+      ],
+      "householdCycle": {
+        "type": "custom",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "5th of current month to 5th of next month"
+      },
+      "monthlyBudgetLimit": 55000,
+      "splitRules": [
+        "Household Expense (Palash Reimburses Pallavi 100%)",
+        "Personal Expense (Pallavi - Not Reimbursed)",
+        "Personal Expense (Palash)",
+        "Equal (50/50)"
+      ],
+      "updatedAt": "2026-09-29T19:27:54.953Z",
+      "householdId": "H001"
+    }
+  },
+  {
+    "id": "audit-1790710029124-mi5l3",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:27:09.124Z",
+    "action": "DELETE_EXPENSE",
+    "recordId": "exp-1790710028996-zbg8",
+    "actor": "Palash",
+    "diff": {
+      "deleted": true,
+      "amount": 400,
+      "category": "Grocery & Vegetables"
+    },
+    "snapshot": {
+      "id": "exp-1790710028996-zbg8",
+      "category": "Grocery & Vegetables",
+      "amount": 400
+    }
+  },
+  {
+    "id": "audit-1790710029045-r7451",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:27:09.045Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1790710028996-zbg8",
+    "actor": "Palash",
+    "diff": {
+      "created": {
+        "amount": 400,
+        "category": "Grocery & Vegetables",
+        "paidBy": "Palash",
+        "date": "2026-09-30"
+      }
+    },
+    "snapshot": {
+      "category": "Grocery & Vegetables",
+      "amount": 400,
+      "paidBy": "Palash",
+      "date": "2026-09-30"
+    }
+  },
+  {
+    "id": "audit-1790710028885-0lgjf",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:27:08.885Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "staff": [
+        {
+          "id": "staff-1",
+          "name": "Chef - Nilima Nikose",
+          "shortName": "Nilima Nikose",
+          "role": "Chef / Cook",
+          "baseSalary": 4500,
+          "allowedPaidLeaves": 4,
+          "billingCycleDay": 30,
+          "cycleType": "calendar_month",
+          "active": true
+        },
+        {
+          "id": "staff-2",
+          "name": "Maid - Madhuri",
+          "shortName": "Madhuri",
+          "role": "Housemaid",
+          "baseSalary": 800,
+          "allowedPaidLeaves": 2,
+          "billingCycleDay": 21,
+          "cycleType": "custom_cycle",
+          "active": true
+        }
+      ],
+      "categories": [
+        {
+          "name": "Grocery & Vegetables",
+          "icon": "🛒",
+          "type": "expense",
+          "defaultPaidTo": "Blinkit"
+        },
+        {
+          "name": "Electricity Bill",
+          "icon": "⚡",
+          "type": "expense",
+          "defaultPaidTo": "MSCB / MSEDCL"
+        },
+        {
+          "name": "Flat Maintenance",
+          "icon": "🏢",
+          "type": "expense",
+          "defaultPaidTo": "Society Office"
+        },
+        {
+          "name": "Chef - Nilima Nikose",
+          "icon": "👩‍🍳",
+          "type": "expense",
+          "defaultPaidTo": "Nilima Nikose"
+        },
+        {
+          "name": "Maid - Madhuri",
+          "icon": "🧹",
+          "type": "expense",
+          "defaultPaidTo": "Madhuri"
+        },
+        {
+          "name": "Dish Bill (DTH)",
+          "icon": "📺",
+          "type": "expense",
+          "defaultPaidTo": "Tata Play"
+        },
+        {
+          "name": "Shopping & Miscellaneous",
+          "icon": "🛍️",
+          "type": "expense",
+          "defaultPaidTo": "Amazon"
+        },
+        {
+          "name": "Accepted Payments (Income)",
+          "icon": "💰",
+          "type": "income",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Settlement / Transfer",
+          "icon": "🤝",
+          "type": "transfer",
+          "defaultPaidTo": "Pallavi"
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🍔",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Recharge",
+          "icon": "📱",
+          "type": "expense",
+          "defaultPaidTo": "Airtel"
+        }
+      ],
+      "recurringBills": [
+        {
+          "id": "bill-1",
+          "name": "MSCB Electricity Bill",
+          "category": "Electricity Bill",
+          "dueDay": 10,
+          "approxAmount": 2200,
+          "icon": "⚡"
+        },
+        {
+          "id": "bill-2",
+          "name": "Society Flat Maintenance",
+          "category": "Flat Maintenance",
+          "dueDay": 5,
+          "approxAmount": 3500,
+          "icon": "🏢"
+        },
+        {
+          "id": "bill-3",
+          "name": "Airtel Broadband / Wifi",
+          "category": "Grocery & Vegetables",
+          "dueDay": 15,
+          "approxAmount": 999,
+          "icon": "📶"
+        },
+        {
+          "id": "bill-4",
+          "name": "Tata Play / Dish Bill",
+          "category": "Dish Bill (DTH)",
+          "dueDay": 20,
+          "approxAmount": 450,
+          "icon": "📺"
+        },
+        {
+          "id": "bill-5",
+          "name": "Maid - Madhuri Salary",
+          "category": "Maid - Madhuri",
+          "dueDay": 21,
+          "approxAmount": 800,
+          "icon": "🧹"
+        },
+        {
+          "id": "bill-6",
+          "name": "Chef - Nilima Salary",
+          "category": "Chef - Nilima Nikose",
+          "dueDay": 30,
+          "approxAmount": 4500,
+          "icon": "👩‍🍳"
+        }
+      ],
+      "familyMembers": [
+        "Palash",
+        "Pallavi"
+      ],
+      "paymentMethods": [
+        "UPI / GPay / PhonePe",
+        "Credit Card",
+        "Net Banking",
+        "Cash"
+      ],
+      "householdCycle": {
+        "type": "custom",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "5th of current month to 5th of next month"
+      },
+      "monthlyBudgetLimit": 20000,
+      "splitRules": [
+        "Household Expense (Palash Reimburses Pallavi 100%)",
+        "Personal Expense (Pallavi - Not Reimbursed)",
+        "Personal Expense (Palash)",
+        "Equal (50/50)"
+      ],
+      "updatedAt": "2026-09-29T19:27:08.880Z",
+      "householdId": "H001"
+    }
+  },
+  {
+    "id": "audit-1790710028839-yg4gp",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:27:08.839Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "staff": [
+        {
+          "id": "staff-1",
+          "name": "Chef - Nilima Nikose",
+          "shortName": "Nilima Nikose",
+          "role": "Chef / Cook",
+          "baseSalary": 4500,
+          "allowedPaidLeaves": 4,
+          "billingCycleDay": 30,
+          "cycleType": "calendar_month",
+          "active": true
+        },
+        {
+          "id": "staff-2",
+          "name": "Maid - Madhuri",
+          "shortName": "Madhuri",
+          "role": "Housemaid",
+          "baseSalary": 800,
+          "allowedPaidLeaves": 2,
+          "billingCycleDay": 21,
+          "cycleType": "custom_cycle",
+          "active": true
+        }
+      ],
+      "categories": [
+        {
+          "name": "Grocery & Vegetables",
+          "icon": "🛒",
+          "type": "expense",
+          "defaultPaidTo": "Blinkit"
+        },
+        {
+          "name": "Electricity Bill",
+          "icon": "⚡",
+          "type": "expense",
+          "defaultPaidTo": "MSCB / MSEDCL"
+        },
+        {
+          "name": "Flat Maintenance",
+          "icon": "🏢",
+          "type": "expense",
+          "defaultPaidTo": "Society Office"
+        },
+        {
+          "name": "Chef - Nilima Nikose",
+          "icon": "👩‍🍳",
+          "type": "expense",
+          "defaultPaidTo": "Nilima Nikose"
+        },
+        {
+          "name": "Maid - Madhuri",
+          "icon": "🧹",
+          "type": "expense",
+          "defaultPaidTo": "Madhuri"
+        },
+        {
+          "name": "Dish Bill (DTH)",
+          "icon": "📺",
+          "type": "expense",
+          "defaultPaidTo": "Tata Play"
+        },
+        {
+          "name": "Shopping & Miscellaneous",
+          "icon": "🛍️",
+          "type": "expense",
+          "defaultPaidTo": "Amazon"
+        },
+        {
+          "name": "Accepted Payments (Income)",
+          "icon": "💰",
+          "type": "income",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Settlement / Transfer",
+          "icon": "🤝",
+          "type": "transfer",
+          "defaultPaidTo": "Pallavi"
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🍔",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Recharge",
+          "icon": "📱",
+          "type": "expense",
+          "defaultPaidTo": "Airtel"
+        }
+      ],
+      "recurringBills": [
+        {
+          "id": "bill-1",
+          "name": "MSCB Electricity Bill",
+          "category": "Electricity Bill",
+          "dueDay": 10,
+          "approxAmount": 2200,
+          "icon": "⚡"
+        },
+        {
+          "id": "bill-2",
+          "name": "Society Flat Maintenance",
+          "category": "Flat Maintenance",
+          "dueDay": 5,
+          "approxAmount": 3500,
+          "icon": "🏢"
+        },
+        {
+          "id": "bill-3",
+          "name": "Airtel Broadband / Wifi",
+          "category": "Grocery & Vegetables",
+          "dueDay": 15,
+          "approxAmount": 999,
+          "icon": "📶"
+        },
+        {
+          "id": "bill-4",
+          "name": "Tata Play / Dish Bill",
+          "category": "Dish Bill (DTH)",
+          "dueDay": 20,
+          "approxAmount": 450,
+          "icon": "📺"
+        },
+        {
+          "id": "bill-5",
+          "name": "Maid - Madhuri Salary",
+          "category": "Maid - Madhuri",
+          "dueDay": 21,
+          "approxAmount": 800,
+          "icon": "🧹"
+        },
+        {
+          "id": "bill-6",
+          "name": "Chef - Nilima Salary",
+          "category": "Chef - Nilima Nikose",
+          "dueDay": 30,
+          "approxAmount": 4500,
+          "icon": "👩‍🍳"
+        }
+      ],
+      "familyMembers": [
+        "Palash",
+        "Pallavi"
+      ],
+      "paymentMethods": [
+        "UPI / GPay / PhonePe",
+        "Credit Card",
+        "Net Banking",
+        "Cash"
+      ],
+      "householdCycle": {
+        "type": "custom",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "5th of current month to 5th of next month"
+      },
+      "monthlyBudgetLimit": 45000,
+      "splitRules": [
+        "Household Expense (Palash Reimburses Pallavi 100%)",
+        "Personal Expense (Pallavi - Not Reimbursed)",
+        "Personal Expense (Palash)",
+        "Equal (50/50)"
+      ],
+      "updatedAt": "2026-09-29T19:27:08.834Z",
+      "householdId": "H001"
+    }
+  },
+  {
+    "id": "audit-1790710028706-wiymz",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:27:08.706Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "staff": [
+        {
+          "id": "staff-1",
+          "name": "Chef - Nilima Nikose",
+          "shortName": "Nilima Nikose",
+          "role": "Chef / Cook",
+          "baseSalary": 4500,
+          "allowedPaidLeaves": 4,
+          "billingCycleDay": 30,
+          "cycleType": "calendar_month",
+          "active": true
+        },
+        {
+          "id": "staff-2",
+          "name": "Maid - Madhuri",
+          "shortName": "Madhuri",
+          "role": "Housemaid",
+          "baseSalary": 800,
+          "allowedPaidLeaves": 2,
+          "billingCycleDay": 21,
+          "cycleType": "custom_cycle",
+          "active": true
+        }
+      ],
+      "categories": [
+        {
+          "name": "Grocery & Vegetables",
+          "icon": "🛒",
+          "type": "expense",
+          "defaultPaidTo": "Blinkit"
+        },
+        {
+          "name": "Electricity Bill",
+          "icon": "⚡",
+          "type": "expense",
+          "defaultPaidTo": "MSCB / MSEDCL"
+        },
+        {
+          "name": "Flat Maintenance",
+          "icon": "🏢",
+          "type": "expense",
+          "defaultPaidTo": "Society Office"
+        },
+        {
+          "name": "Chef - Nilima Nikose",
+          "icon": "👩‍🍳",
+          "type": "expense",
+          "defaultPaidTo": "Nilima Nikose"
+        },
+        {
+          "name": "Maid - Madhuri",
+          "icon": "🧹",
+          "type": "expense",
+          "defaultPaidTo": "Madhuri"
+        },
+        {
+          "name": "Dish Bill (DTH)",
+          "icon": "📺",
+          "type": "expense",
+          "defaultPaidTo": "Tata Play"
+        },
+        {
+          "name": "Shopping & Miscellaneous",
+          "icon": "🛍️",
+          "type": "expense",
+          "defaultPaidTo": "Amazon"
+        },
+        {
+          "name": "Accepted Payments (Income)",
+          "icon": "💰",
+          "type": "income",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Settlement / Transfer",
+          "icon": "🤝",
+          "type": "transfer",
+          "defaultPaidTo": "Pallavi"
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🍔",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Recharge",
+          "icon": "📱",
+          "type": "expense",
+          "defaultPaidTo": "Airtel"
+        }
+      ],
+      "recurringBills": [
+        {
+          "id": "bill-1",
+          "name": "MSCB Electricity Bill",
+          "category": "Electricity Bill",
+          "dueDay": 10,
+          "approxAmount": 2200,
+          "icon": "⚡"
+        },
+        {
+          "id": "bill-2",
+          "name": "Society Flat Maintenance",
+          "category": "Flat Maintenance",
+          "dueDay": 5,
+          "approxAmount": 3500,
+          "icon": "🏢"
+        },
+        {
+          "id": "bill-3",
+          "name": "Airtel Broadband / Wifi",
+          "category": "Grocery & Vegetables",
+          "dueDay": 15,
+          "approxAmount": 999,
+          "icon": "📶"
+        },
+        {
+          "id": "bill-4",
+          "name": "Tata Play / Dish Bill",
+          "category": "Dish Bill (DTH)",
+          "dueDay": 20,
+          "approxAmount": 450,
+          "icon": "📺"
+        },
+        {
+          "id": "bill-5",
+          "name": "Maid - Madhuri Salary",
+          "category": "Maid - Madhuri",
+          "dueDay": 21,
+          "approxAmount": 800,
+          "icon": "🧹"
+        },
+        {
+          "id": "bill-6",
+          "name": "Chef - Nilima Salary",
+          "category": "Chef - Nilima Nikose",
+          "dueDay": 30,
+          "approxAmount": 4500,
+          "icon": "👩‍🍳"
+        }
+      ],
+      "familyMembers": [
+        "Palash",
+        "Pallavi"
+      ],
+      "paymentMethods": [
+        "UPI / GPay / PhonePe",
+        "Credit Card",
+        "Net Banking",
+        "Cash"
+      ],
+      "householdCycle": {
+        "type": "custom",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "5th of current month to 5th of next month"
+      },
+      "monthlyBudgetLimit": 20000,
+      "splitRules": [
+        "Household Expense (Palash Reimburses Pallavi 100%)",
+        "Personal Expense (Pallavi - Not Reimbursed)",
+        "Personal Expense (Palash)",
+        "Equal (50/50)"
+      ],
+      "updatedAt": "2026-09-29T19:27:08.701Z",
+      "householdId": "H001"
+    }
+  },
+  {
+    "id": "audit-1790710003593-l0lhy",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:26:43.593Z",
+    "action": {
+      "id": "AUD-1790710003593-DEL-H",
+      "action": "DELETE_HOUSEHOLD",
+      "actor": "admin",
+      "details": "Deleted household 'Ashwini Villa' (H003)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1790710003306-mdoaj",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:26:43.306Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "staff": [
+        {
+          "id": "staff-1",
+          "name": "Chef - Nilima Nikose",
+          "shortName": "Nilima Nikose",
+          "role": "Chef / Cook",
+          "baseSalary": 4500,
+          "allowedPaidLeaves": 4,
+          "billingCycleDay": 30,
+          "cycleType": "calendar_month",
+          "active": true
+        },
+        {
+          "id": "staff-2",
+          "name": "Maid - Madhuri",
+          "shortName": "Madhuri",
+          "role": "Housemaid",
+          "baseSalary": 800,
+          "allowedPaidLeaves": 2,
+          "billingCycleDay": 21,
+          "cycleType": "custom_cycle",
+          "active": true
+        }
+      ],
+      "categories": [
+        {
+          "name": "Grocery & Vegetables",
+          "icon": "🛒",
+          "type": "expense",
+          "defaultPaidTo": "Blinkit"
+        },
+        {
+          "name": "Electricity Bill",
+          "icon": "⚡",
+          "type": "expense",
+          "defaultPaidTo": "MSCB / MSEDCL"
+        },
+        {
+          "name": "Flat Maintenance",
+          "icon": "🏢",
+          "type": "expense",
+          "defaultPaidTo": "Society Office"
+        },
+        {
+          "name": "Chef - Nilima Nikose",
+          "icon": "👩‍🍳",
+          "type": "expense",
+          "defaultPaidTo": "Nilima Nikose"
+        },
+        {
+          "name": "Maid - Madhuri",
+          "icon": "🧹",
+          "type": "expense",
+          "defaultPaidTo": "Madhuri"
+        },
+        {
+          "name": "Dish Bill (DTH)",
+          "icon": "📺",
+          "type": "expense",
+          "defaultPaidTo": "Tata Play"
+        },
+        {
+          "name": "Shopping & Miscellaneous",
+          "icon": "🛍️",
+          "type": "expense",
+          "defaultPaidTo": "Amazon"
+        },
+        {
+          "name": "Accepted Payments (Income)",
+          "icon": "💰",
+          "type": "income",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Settlement / Transfer",
+          "icon": "🤝",
+          "type": "transfer",
+          "defaultPaidTo": "Pallavi"
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🍔",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Recharge",
+          "icon": "💰",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "recurringBills": [
+        {
+          "id": "bill-1",
+          "name": "MSCB Electricity Bill",
+          "category": "Electricity Bill",
+          "dueDay": 10,
+          "approxAmount": 2200,
+          "icon": "⚡"
+        },
+        {
+          "id": "bill-2",
+          "name": "Society Flat Maintenance",
+          "category": "Flat Maintenance",
+          "dueDay": 5,
+          "approxAmount": 3500,
+          "icon": "🏢"
+        },
+        {
+          "id": "bill-3",
+          "name": "Airtel Broadband / Wifi",
+          "category": "Grocery & Vegetables",
+          "dueDay": 15,
+          "approxAmount": 999,
+          "icon": "📶"
+        },
+        {
+          "id": "bill-4",
+          "name": "Tata Play / Dish Bill",
+          "category": "Dish Bill (DTH)",
+          "dueDay": 20,
+          "approxAmount": 450,
+          "icon": "📺"
+        },
+        {
+          "id": "bill-5",
+          "name": "Maid - Madhuri Salary",
+          "category": "Maid - Madhuri",
+          "dueDay": 21,
+          "approxAmount": 800,
+          "icon": "🧹"
+        },
+        {
+          "id": "bill-6",
+          "name": "Chef - Nilima Salary",
+          "category": "Chef - Nilima Nikose",
+          "dueDay": 30,
+          "approxAmount": 4500,
+          "icon": "👩‍🍳"
+        }
+      ],
+      "familyMembers": [
+        "Palash",
+        "Pallavi"
+      ],
+      "paymentMethods": [
+        "UPI / GPay / PhonePe",
+        "Credit Card",
+        "Net Banking",
+        "Cash"
+      ],
+      "householdCycle": {
+        "type": "custom",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "5th of current month to 5th of next month"
+      },
+      "monthlyBudgetLimit": 20000,
+      "splitRules": [
+        "Household Expense (Palash Reimburses Pallavi 100%)",
+        "Personal Expense (Pallavi - Not Reimbursed)",
+        "Personal Expense (Palash)",
+        "Equal (50/50)"
+      ],
+      "updatedAt": "2026-09-29T19:26:43.293Z",
+      "householdId": "H001"
+    }
+  },
+  {
+    "id": "audit-1790710003163-jc56u",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:26:43.163Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "staff": [
+        {
+          "id": "staff-1",
+          "name": "Chef - Nilima Nikose",
+          "shortName": "Nilima Nikose",
+          "role": "Chef / Cook",
+          "baseSalary": 4500,
+          "allowedPaidLeaves": 4,
+          "billingCycleDay": 30,
+          "cycleType": "calendar_month",
+          "active": true
+        },
+        {
+          "id": "staff-2",
+          "name": "Maid - Madhuri",
+          "shortName": "Madhuri",
+          "role": "Housemaid",
+          "baseSalary": 800,
+          "allowedPaidLeaves": 2,
+          "billingCycleDay": 21,
+          "cycleType": "custom_cycle",
+          "active": true
+        }
+      ],
+      "categories": [
+        {
+          "name": "Grocery & Vegetables",
+          "icon": "🛒",
+          "type": "expense",
+          "defaultPaidTo": "Blinkit"
+        },
+        {
+          "name": "Electricity Bill",
+          "icon": "⚡",
+          "type": "expense",
+          "defaultPaidTo": "MSCB / MSEDCL"
+        },
+        {
+          "name": "Flat Maintenance",
+          "icon": "🏢",
+          "type": "expense",
+          "defaultPaidTo": "Society Office"
+        },
+        {
+          "name": "Chef - Nilima Nikose",
+          "icon": "👩‍🍳",
+          "type": "expense",
+          "defaultPaidTo": "Nilima Nikose"
+        },
+        {
+          "name": "Maid - Madhuri",
+          "icon": "🧹",
+          "type": "expense",
+          "defaultPaidTo": "Madhuri"
+        },
+        {
+          "name": "Dish Bill (DTH)",
+          "icon": "📺",
+          "type": "expense",
+          "defaultPaidTo": "Tata Play"
+        },
+        {
+          "name": "Shopping & Miscellaneous",
+          "icon": "🛍️",
+          "type": "expense",
+          "defaultPaidTo": "Amazon"
+        },
+        {
+          "name": "Accepted Payments (Income)",
+          "icon": "💰",
+          "type": "income",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Settlement / Transfer",
+          "icon": "🤝",
+          "type": "transfer",
+          "defaultPaidTo": "Pallavi"
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🍔",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Recharge",
+          "icon": "💰",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "recurringBills": [
+        {
+          "id": "bill-1",
+          "name": "MSCB Electricity Bill",
+          "category": "Electricity Bill",
+          "dueDay": 10,
+          "approxAmount": 2200,
+          "icon": "⚡"
+        },
+        {
+          "id": "bill-2",
+          "name": "Society Flat Maintenance",
+          "category": "Flat Maintenance",
+          "dueDay": 5,
+          "approxAmount": 3500,
+          "icon": "🏢"
+        },
+        {
+          "id": "bill-3",
+          "name": "Airtel Broadband / Wifi",
+          "category": "Grocery & Vegetables",
+          "dueDay": 15,
+          "approxAmount": 999,
+          "icon": "📶"
+        },
+        {
+          "id": "bill-4",
+          "name": "Tata Play / Dish Bill",
+          "category": "Dish Bill (DTH)",
+          "dueDay": 20,
+          "approxAmount": 450,
+          "icon": "📺"
+        },
+        {
+          "id": "bill-5",
+          "name": "Maid - Madhuri Salary",
+          "category": "Maid - Madhuri",
+          "dueDay": 21,
+          "approxAmount": 800,
+          "icon": "🧹"
+        },
+        {
+          "id": "bill-6",
+          "name": "Chef - Nilima Salary",
+          "category": "Chef - Nilima Nikose",
+          "dueDay": 30,
+          "approxAmount": 4500,
+          "icon": "👩‍🍳"
+        }
+      ],
+      "familyMembers": [
+        "Palash",
+        "Pallavi"
+      ],
+      "paymentMethods": [
+        "UPI / GPay / PhonePe",
+        "Credit Card",
+        "Net Banking",
+        "Cash"
+      ],
+      "householdCycle": {
+        "type": "custom",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "5th of current month to 5th of next month"
+      },
+      "monthlyBudgetLimit": 55000,
+      "splitRules": [
+        "Household Expense (Palash Reimburses Pallavi 100%)",
+        "Personal Expense (Pallavi - Not Reimbursed)",
+        "Personal Expense (Palash)",
+        "Equal (50/50)"
+      ],
+      "updatedAt": "2026-09-29T19:26:43.156Z",
+      "householdId": "H001"
+    }
+  },
+  {
+    "id": "audit-1790709081892-0vr0r",
+    "householdId": "H001",
+    "timestamp": "2026-09-29T19:11:21.892Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "staff": [
+        {
+          "id": "staff-1",
+          "name": "Chef - Nilima Nikose",
+          "shortName": "Nilima Nikose",
+          "role": "Chef / Cook",
+          "baseSalary": 4500,
+          "allowedPaidLeaves": 4,
+          "billingCycleDay": 30,
+          "cycleType": "calendar_month",
+          "active": true
+        },
+        {
+          "id": "staff-2",
+          "name": "Maid - Madhuri",
+          "shortName": "Madhuri",
+          "role": "Housemaid",
+          "baseSalary": 800,
+          "allowedPaidLeaves": 2,
+          "billingCycleDay": 21,
+          "cycleType": "custom_cycle",
+          "active": true
+        }
+      ],
+      "categories": [
+        {
+          "name": "Grocery & Vegetables",
+          "icon": "🛒",
+          "type": "expense",
+          "defaultPaidTo": "Blinkit"
+        },
+        {
+          "name": "Electricity Bill",
+          "icon": "⚡",
+          "type": "expense",
+          "defaultPaidTo": "MSCB / MSEDCL"
+        },
+        {
+          "name": "Flat Maintenance",
+          "icon": "🏢",
+          "type": "expense",
+          "defaultPaidTo": "Society Office"
+        },
+        {
+          "name": "Chef - Nilima Nikose",
+          "icon": "👩‍🍳",
+          "type": "expense",
+          "defaultPaidTo": "Nilima Nikose"
+        },
+        {
+          "name": "Maid - Madhuri",
+          "icon": "🧹",
+          "type": "expense",
+          "defaultPaidTo": "Madhuri"
+        },
+        {
+          "name": "Dish Bill (DTH)",
+          "icon": "📺",
+          "type": "expense",
+          "defaultPaidTo": "Tata Play"
+        },
+        {
+          "name": "Shopping & Miscellaneous",
+          "icon": "🛍️",
+          "type": "expense",
+          "defaultPaidTo": "Amazon"
+        },
+        {
+          "name": "Accepted Payments (Income)",
+          "icon": "💰",
+          "type": "income",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Settlement / Transfer",
+          "icon": "🤝",
+          "type": "transfer",
+          "defaultPaidTo": "Pallavi"
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🍔",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Recharge",
+          "icon": "📱",
+          "type": "expense",
+          "defaultPaidTo": "Airtel"
+        }
+      ],
+      "recurringBills": [
+        {
+          "id": "bill-1",
+          "name": "MSCB Electricity Bill",
+          "category": "Electricity Bill",
+          "dueDay": 10,
+          "approxAmount": 2200,
+          "icon": "⚡",
+          "budgetedAmount": 2200
+        },
+        {
+          "id": "bill-2",
+          "name": "Society Flat Maintenance",
+          "category": "Flat Maintenance",
+          "dueDay": 5,
+          "approxAmount": 3500,
+          "budgetedAmount": 3500,
+          "icon": "🏢"
+        },
+        {
+          "id": "bill-3",
+          "name": "Airtel Broadband / Wifi",
+          "category": "Grocery & Vegetables",
+          "dueDay": 15,
+          "approxAmount": 999,
+          "budgetedAmount": 999,
+          "icon": "📶"
+        },
+        {
+          "id": "bill-4",
+          "name": "Tata Play / Dish Bill",
+          "category": "Dish Bill (DTH)",
+          "dueDay": 20,
+          "approxAmount": 450,
+          "budgetedAmount": 450,
+          "icon": "📺"
+        },
+        {
+          "id": "bill-5",
+          "name": "Maid - Madhuri Salary",
+          "category": "Maid - Madhuri",
+          "dueDay": 21,
+          "approxAmount": 800,
+          "budgetedAmount": 800,
+          "icon": "🧹"
+        },
+        {
+          "id": "bill-6",
+          "name": "Chef - Nilima Salary",
+          "category": "Chef - Nilima Nikose",
+          "dueDay": 30,
+          "approxAmount": 4500,
+          "budgetedAmount": 4500,
+          "icon": "👩‍🍳"
+        }
+      ],
+      "familyMembers": [
+        "Palash",
+        "Pallavi"
+      ],
+      "paymentMethods": [
+        "UPI / GPay / PhonePe",
+        "Credit Card",
+        "Net Banking",
+        "Cash"
+      ],
+      "householdCycle": {
+        "type": "custom",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "5th of current month to 5th of next month"
+      },
+      "monthlyBudgetLimit": 20000,
+      "splitRules": [
+        "Household Expense (Palash Reimburses Pallavi 100%)",
+        "Personal Expense (Pallavi - Not Reimbursed)",
+        "Personal Expense (Palash)",
+        "Equal (50/50)"
+      ],
+      "updatedAt": "2026-09-29T19:11:21.886Z",
+      "householdId": "H001"
+    }
+  },
+  {
     "id": "audit-1790708029731-pwisl",
     "householdId": "H001",
     "timestamp": "2026-09-29T18:53:49.731Z",

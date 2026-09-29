@@ -522,12 +522,12 @@ function calculateStaffBillingCycle(category, dateStr) {
     return 'Standard';
 }
 
-async function getHouseholdExpenses(householdId, includeDeleted = false) {
+async function getHouseholdExpenses(householdId, includeDeleted = false, forceFresh = true) {
     const cleanHId = sanitizeId(householdId);
     if (!cleanHId) throw new Error('Unauthorized: Valid Household ID required.');
 
-    // 1. Check in-memory store
-    if (!memoryStore.expenses[cleanHId]) {
+    // Always reload fresh from disk by default to guarantee zero-cache live sync across all users
+    if (forceFresh || !memoryStore.expenses[cleanHId]) {
         const filePath = getHouseholdFilePath(cleanHId, 'expenses.json');
         let records = readJsonFile(filePath, null);
 
@@ -545,8 +545,8 @@ async function getHouseholdExpenses(householdId, includeDeleted = false) {
     return [...activeList].sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
-async function getHouseholdExpenseById(householdId, id) {
-    const list = await getHouseholdExpenses(householdId, true);
+async function getHouseholdExpenseById(householdId, id, forceFresh = true) {
+    const list = await getHouseholdExpenses(householdId, true, forceFresh);
     const cleanId = String(id).trim();
     return list.find(i => String(i.id).trim() === cleanId) || null;
 }
@@ -748,11 +748,11 @@ async function saveHouseholdConfig(householdId, newConfig, actorUser = 'System')
 // ==========================================
 // HOUSEHOLD-SCOPED ATTENDANCE REPOSITORY
 // ==========================================
-async function getHouseholdAttendance(householdId) {
+async function getHouseholdAttendance(householdId, forceFresh = true) {
     const cleanHId = sanitizeId(householdId);
     if (!cleanHId) throw new Error('Unauthorized: Invalid Household context.');
 
-    if (!memoryStore.attendance[cleanHId]) {
+    if (forceFresh || !memoryStore.attendance[cleanHId]) {
         const filePath = getHouseholdFilePath(cleanHId, 'attendance.json');
         let attendance = readJsonFile(filePath, null);
         if (!attendance && cleanHId === 'H001') {
@@ -780,11 +780,11 @@ async function saveHouseholdAttendance(householdId, attendanceData, actorUser = 
 // ==========================================
 // HOUSEHOLD-SCOPED AUDIT LOG REPOSITORY
 // ==========================================
-async function getHouseholdAuditLogs(householdId, limit = 100) {
+async function getHouseholdAuditLogs(householdId, limit = 100, forceFresh = true) {
     const cleanHId = sanitizeId(householdId);
     if (!cleanHId) throw new Error('Unauthorized: Invalid Household context.');
 
-    if (!memoryStore.audit[cleanHId]) {
+    if (forceFresh || !memoryStore.audit[cleanHId]) {
         const filePath = getHouseholdFilePath(cleanHId, 'audit_log.json');
         let logs = readJsonFile(filePath, null);
         if (!logs && cleanHId === 'H001') {

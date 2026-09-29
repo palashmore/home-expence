@@ -1,5 +1,5 @@
 // HomeExpenses Progressive Web App Service Worker
-const CACHE_NAME = 'homeexpenses-v7';
+const CACHE_NAME = 'homeexpenses-v8';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -88,7 +88,17 @@ self.addEventListener('push', event => {
     ]
   };
 
-  event.waitUntil(self.registration.showNotification(data.title, options));
+  const promiseChain = self.registration.showNotification(data.title, options)
+    .then(() => {
+      // Also notify all open browser clients to refresh transactions without cache
+      return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+        for (let client of windowClients) {
+          client.postMessage({ type: 'SYNC_TRANSACTIONS', payload: data });
+        }
+      });
+    });
+
+  event.waitUntil(promiseChain);
 });
 
 self.addEventListener('notificationclick', event => {

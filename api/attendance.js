@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
 
     try {
         if (req.method === 'GET') {
-            const data = await storage.getHouseholdAttendance(householdId);
+            const data = await storage.getHouseholdAttendance(householdId, true);
             return res.status(200).json({
                 success: true,
                 householdId: householdId,

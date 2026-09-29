@@ -9,6 +9,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
 
     // 1. Mandatory Identity & Household Resolution
     const session = authenticateRequest(req);
@@ -23,18 +24,18 @@ module.exports = async function handler(req, res) {
     const actorUser = session.name || session.username || 'Authenticated User';
 
     try {
-        // GET: Fetch all expenses or single expense for the authenticated household
+        // GET: Fetch all expenses or single expense for the authenticated household (strictly force fresh from disk)
         if (req.method === 'GET') {
             const queryId = req.query ? req.query.id : null;
             if (queryId) {
-                const expense = await storage.getHouseholdExpenseById(householdId, queryId);
+                const expense = await storage.getHouseholdExpenseById(householdId, queryId, true);
                 if (!expense) {
                     return res.status(404).json({ success: false, error: "Transaction record not found." });
                 }
                 return res.status(200).json({ success: true, data: expense });
             }
 
-            const expenses = await storage.getHouseholdExpenses(householdId);
+            const expenses = await storage.getHouseholdExpenses(householdId, false, true);
             return res.status(200).json({
                 success: true,
                 householdId: householdId,

@@ -262,7 +262,11 @@ async function syncOfflineQueue() {
             if (item.action === 'CREATE') {
                 const res = await fetch("/api/expenses", {
                     method: "POST",
-                    headers: getAuthHeaders(),
+                    headers: getAuthHeaders({
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache'
+                    }),
+                    cache: 'no-store',
                     body: JSON.stringify(item.payload)
                 });
                 const data = await res.json();
@@ -289,7 +293,11 @@ async function syncOfflineQueue() {
             } else if (item.action === 'UPDATE') {
                 const res = await fetch("/api/expenses", {
                     method: "PUT",
-                    headers: getAuthHeaders(),
+                    headers: getAuthHeaders({
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache'
+                    }),
+                    cache: 'no-store',
                     body: JSON.stringify(item.payload)
                 });
                 const data = await res.json();
@@ -303,9 +311,13 @@ async function syncOfflineQueue() {
                 }
             } else if (item.action === 'DELETE') {
                 const targetId = encodeURIComponent(String(item.id).trim());
-                const res = await fetch(`/api/expenses?id=${targetId}`, {
+                const res = await fetch(`/api/expenses?id=${targetId}&_t=${Date.now()}`, {
                     method: "DELETE",
-                    headers: getAuthHeaders()
+                    headers: getAuthHeaders({
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache'
+                    }),
+                    cache: 'no-store'
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
@@ -339,6 +351,7 @@ async function syncOfflineQueue() {
         triggerHaptic('success');
         showToast("success", "Sync Complete", `${successfulSyncs} offline change${successfulSyncs > 1 ? 's' : ''} synchronized with server.`);
         loadData(true);
+        broadcastTransactionUpdate('SYNC');
     }
 }
 window.syncOfflineQueue = syncOfflineQueue;
@@ -402,7 +415,30 @@ document.addEventListener("DOMContentLoaded", () => {
     
     populateFilterMonthDropdown();
     
-    // Auto-sync listeners for multi-device concurrency
+    // Real-Time Cross-Tab / Cross-Window Sync Channel (0ms lag across tabs)
+    try {
+        if (typeof BroadcastChannel !== 'undefined') {
+            window.txBroadcastChannel = new BroadcastChannel('homeexpenses_tx_sync');
+            window.txBroadcastChannel.onmessage = (event) => {
+                if (event.data && (event.data.type === 'TRANSACTIONS_UPDATED' || event.data.type === 'CONFIG_UPDATED')) {
+                    loadData(true);
+                    if (window.loadMasterConfig) window.loadMasterConfig();
+                }
+            };
+        }
+    } catch (e) {}
+
+    // Service Worker Push Sync Listener (refreshes data immediately when background notification arrives)
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data && (event.data.type === 'SYNC_TRANSACTIONS' || event.data.type === 'TRANSACTIONS_UPDATED')) {
+                loadData(true);
+                if (window.loadMasterConfig) window.loadMasterConfig();
+            }
+        });
+    }
+
+    // Auto-sync listeners for multi-device concurrency (Fast 7s polling & instant visibility resume)
     document.addEventListener("visibilitychange", () => {
         if (!document.hidden) {
             loadData(true);
@@ -418,7 +454,7 @@ document.addEventListener("DOMContentLoaded", () => {
             loadData(true);
             if (window.loadMasterConfig) window.loadMasterConfig();
         }
-    }, 12000);
+    }, 7000);
 
     // Online/Offline status listeners & auto-sync
     window.addEventListener("online", () => {
@@ -623,6 +659,11 @@ function switchTab(tabId) {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {}
 
+    // Always trigger fresh zero-cache transaction sync when switching into transaction or dashboard views
+    if (['dashboard', 'expenses', 'matrix', 'personal', 'audit'].includes(tabId)) {
+        loadData(true);
+    }
+
     // When navigating between views, render all charts/tables
     renderAllViews();
 }
@@ -637,12 +678,30 @@ function getAuthHeaders(extra = {}) {
 }
 window.getAuthHeaders = getAuthHeaders;
 
+function broadcastTransactionUpdate(action = 'UPDATE') {
+    try {
+        if (window.txBroadcastChannel) {
+            window.txBroadcastChannel.postMessage({
+                type: 'TRANSACTIONS_UPDATED',
+                action: action,
+                householdId: (typeof getActiveHouseholdId === 'function') ? getActiveHouseholdId() : 'H001',
+                timestamp: Date.now()
+            });
+        }
+    } catch (e) {}
+}
+window.broadcastTransactionUpdate = broadcastTransactionUpdate;
+
 // ================= DATA LOADING & SYNC =================
 async function loadData(silent = false) {
     if (!silent) updateSyncBadge("Syncing...", "amber");
 
     try {
-        const res = await fetch(`/api/expenses?_t=${Date.now()}`, {
+        const activeHId = (typeof getActiveHouseholdId === 'function') 
+            ? getActiveHouseholdId() 
+            : ((currentSessionUser && currentSessionUser.householdId) || 'H001');
+
+        const res = await fetch(`/api/expenses?householdId=${encodeURIComponent(activeHId)}&_t=${Date.now()}`, {
             method: "GET",
             headers: {
                 ...getAuthHeaders(),
@@ -2878,9 +2937,10 @@ async function saveExpense(e) {
             const secondaryText = `${formatINR(savedItem.amount)} · ${savedItem.category} · ${savedItem.paidBy}`;
             showToast("success", actionTitle, secondaryText);
 
-            // 9. Silent Background Sync to Verify Server Parity
+            // 9. Silent Background Sync to Verify Server Parity & Broadcast
             loadData(true);
             if (window.loadMasterConfig) window.loadMasterConfig();
+            broadcastTransactionUpdate(isEdit ? 'UPDATE' : 'CREATE');
         } else {
             console.error("Save rejected by server:", data);
             triggerHaptic('error');
@@ -3102,9 +3162,13 @@ async function executeDeleteExpense(id) {
     }
 
     try {
-        const res = await fetch(`/api/expenses?id=${encodeURIComponent(targetId)}`, {
+        const res = await fetch(`/api/expenses?id=${encodeURIComponent(targetId)}&_t=${Date.now()}`, {
             method: "DELETE",
-            headers: getAuthHeaders()
+            headers: getAuthHeaders({
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            }),
+            cache: 'no-store'
         });
         const data = await res.json();
         if (res.ok && data.success) {
@@ -3120,6 +3184,7 @@ async function executeDeleteExpense(id) {
             triggerHaptic('delete');
             showToast("success", "Expense Deleted Successfully");
             loadData(true);
+            broadcastTransactionUpdate('DELETE');
         } else {
             triggerHaptic('error');
             showToast("error", "Unable to Delete Expense", data.error || "Record could not be removed.");

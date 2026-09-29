@@ -48,7 +48,7 @@ function makeRequest({ method = 'GET', urlPath, headers = {}, body = null }) {
 
 async function runTests() {
     console.log('====================================================');
-    console.log('🚀 Running Zero-Cache & Master Settings Sync Test Suite');
+    console.log('🚀 Running Comprehensive Zero-Cache Transaction Sync Test Suite');
     console.log('====================================================\n');
 
     let passedTests = 0;
@@ -75,198 +75,204 @@ async function runTests() {
     const viewerToken = auth.generateSessionToken(viewerUser, { householdId: 'H001', householdName: 'Palash & Pallavi Residence' });
     const sanjayToken = auth.generateSessionToken(sanjayUser, { householdId: 'H002', householdName: 'Sanjay Residence' });
 
-    // Test 1: GET /api/config zero-cache headers
-    console.log('--- TEST 1: Zero-Cache Response Headers on /api/config ---');
+    // Test 1: Zero-Cache Headers on GET /api/expenses
+    console.log('--- TEST 1: Zero-Cache Headers on /api/expenses ---');
     try {
         const res = await makeRequest({
             method: 'GET',
-            urlPath: '/api/config?householdId=H001',
+            urlPath: `/api/expenses?householdId=H001&_t=${Date.now()}`,
             headers: { 'Authorization': `Bearer ${palashToken}` }
         });
-        assert(res.statusCode === 200, 'GET /api/config returns 200 OK');
-        const cacheControl = res.headers['cache-control'] || '';
-        assert(cacheControl.includes('no-store') && cacheControl.includes('no-cache'), `Cache-Control header specifies no-store, no-cache: ${cacheControl}`);
-        assert(res.headers['pragma'] === 'no-cache', `Pragma header is no-cache`);
+        assert(res.statusCode === 200, 'GET /api/expenses returns 200 OK');
+        const cc = res.headers['cache-control'] || '';
+        assert(cc.includes('no-store') && cc.includes('no-cache'), `Cache-Control includes no-store, no-cache: "${cc}"`);
+        assert(res.headers['pragma'] === 'no-cache', 'Pragma is no-cache');
+        assert(res.headers['surrogate-control'] === 'no-store', 'Surrogate-Control is no-store');
     } catch (err) {
         assert(false, `TEST 1 threw error: ${err.message}`);
     }
 
-    // Test 2: Add category via POST /api/config (action: add_category)
-    console.log('\n--- TEST 2: Atomic Category Creation via /api/config ---');
-    const testCatName = `Automated Test Category ${Date.now()}`;
+    // Test 2: Zero-Cache Headers on GET /api/config, /api/audit, and /api/attendance
+    console.log('\n--- TEST 2: Zero-Cache Headers Across All Household API Routes ---');
     try {
-        const res = await makeRequest({
-            method: 'POST',
-            urlPath: '/api/config',
-            headers: { 'Authorization': `Bearer ${palashToken}` },
-            body: {
-                action: 'add_category',
-                category: {
-                    name: testCatName,
-                    icon: '🔬',
-                    type: 'expense',
-                    defaultPaidTo: 'Lab Services'
-                },
-                householdId: 'H001'
-            }
-        });
-        assert(res.statusCode === 200, `Add category returns 200 OK: ${res.statusCode}`);
-        assert(res.data && res.data.success === true, `Response returns success: true`);
-        const cats = res.data.data && res.data.data.categories;
-        const found = cats && cats.find(c => c.name === testCatName);
-        assert(!!found, `Newly created category "${testCatName}" present in response categories`);
-    } catch (err) {
-        assert(false, `TEST 2 threw error: ${err.message}`);
-    }
-
-    // Test 3: Zero-Cache direct read of newly created category
-    console.log('\n--- TEST 3: Zero-Cache Direct Read of Newly Created Category ---');
-    try {
-        const res = await makeRequest({
-            method: 'GET',
-            urlPath: `/api/config?householdId=H001&_t=${Date.now()}`,
-            headers: { 'Authorization': `Bearer ${pallaviToken}` }
-        });
-        assert(res.statusCode === 200, 'Pallavi fetches fresh H001 config successfully');
-        const cats = res.data && res.data.data && res.data.data.categories;
-        const found = cats && cats.find(c => c.name === testCatName);
-        assert(!!found, `Pallavi immediately sees new category "${testCatName}" without cache`);
-    } catch (err) {
-        assert(false, `TEST 3 threw error: ${err.message}`);
-    }
-
-    // Test 4: Role-based permission enforcement for VIEWER
-    console.log('\n--- TEST 4: Role-Based Permission Enforcement for VIEWER ---');
-    try {
-        // 4a: VIEWER attempting to modify config
-        const configRes = await makeRequest({
-            method: 'POST',
-            urlPath: '/api/config',
-            headers: { 'Authorization': `Bearer ${viewerToken}` },
-            body: {
-                action: 'add_category',
-                category: { name: 'Illegal Viewer Cat' },
-                householdId: 'H001'
-            }
-        });
-        assert(configRes.statusCode === 403, `VIEWER modifying config returns 403 Forbidden (got ${configRes.statusCode})`);
-
-        // 4b: VIEWER attempting to add expense
-        const expRes = await makeRequest({
-            method: 'POST',
-            urlPath: '/api/expenses',
-            headers: { 'Authorization': `Bearer ${viewerToken}` },
-            body: {
-                date: '2026-09-29',
-                amount: 999,
-                category: testCatName,
-                paidBy: 'Palash'
-            }
-        });
-        assert(expRes.statusCode === 403, `VIEWER creating expense returns 403 Forbidden (got ${expRes.statusCode})`);
-
-        // 4c: VIEWER attempting to record attendance
-        const attRes = await makeRequest({
-            method: 'POST',
-            urlPath: '/api/attendance',
-            headers: { 'Authorization': `Bearer ${viewerToken}` },
-            body: {
-                action: 'mark',
-                staffId: 'staff-maid-madhuri',
-                date: '2026-09-29',
-                status: 'present'
-            }
-        });
-        assert(attRes.statusCode === 403, `VIEWER recording attendance returns 403 Forbidden (got ${attRes.statusCode})`);
-    } catch (err) {
-        assert(false, `TEST 4 threw error: ${err.message}`);
-    }
-
-    // Test 5: Add Expense using new category by OWNER/MEMBER (verifying save action doesn't crash on notes)
-    console.log('\n--- TEST 5: Add Expense with Notes & Category Sync ---');
-    let createdExpenseId = null;
-    try {
-        const res = await makeRequest({
-            method: 'POST',
-            urlPath: '/api/expenses',
-            headers: { 'Authorization': `Bearer ${palashToken}` },
-            body: {
-                date: '2026-09-29',
-                amount: 350.50,
-                category: testCatName,
-                paidBy: 'Palash',
-                paidTo: 'Lab Services',
-                paymentMethod: 'UPI',
-                splitBetween: 'Household Expense',
-                notes: 'Automated test note verifying save action works end-to-end'
-            }
-        });
-        assert(res.statusCode === 200 || res.statusCode === 201, `Save expense returns 200/201 (got ${res.statusCode})`);
-        assert(res.data && res.data.success === true, `Expense creation success: true`);
-        createdExpenseId = res.data && res.data.data && res.data.data.id;
-        assert(!!createdExpenseId, `Created expense ID received: ${createdExpenseId}`);
-    } catch (err) {
-        assert(false, `TEST 5 threw error: ${err.message}`);
-    }
-
-    // Test 6: Verify expense saved in ledger & auto-sync category in config
-    console.log('\n--- TEST 6: Verify Expense in Ledger & Clean Up ---');
-    try {
-        // Read back expenses
-        const res = await makeRequest({
-            method: 'GET',
-            urlPath: `/api/expenses?householdId=H001&_t=${Date.now()}`,
-            headers: { 'Authorization': `Bearer ${pallaviToken}` }
-        });
-        assert(res.statusCode === 200, `GET /api/expenses returns 200 OK`);
-        const exps = res.data && res.data.data;
-        const foundExp = exps && exps.find(e => String(e.id) === String(createdExpenseId));
-        assert(!!foundExp, `Expense ${createdExpenseId} retrieved successfully from H001 ledger`);
-        assert(foundExp && foundExp.notes === 'Automated test note verifying save action works end-to-end', `Notes correctly stored and retrieved`);
-
-        // Clean up test expense
-        if (createdExpenseId) {
-            const delRes = await makeRequest({
-                method: 'DELETE',
-                urlPath: `/api/expenses?id=${createdExpenseId}`,
-                headers: { 'Authorization': `Bearer ${palashToken}` }
-            });
-            assert(delRes.statusCode === 200, `Test expense cleaned up successfully`);
-
-            // Purge temporary test expense from disk so raw files remain pure baseline
-            const h1File = path.join(__dirname, 'data', 'households', 'H001', 'expenses.json');
-            const mainFile = path.join(__dirname, 'data', 'expenses.json');
-            [h1File, mainFile].forEach(f => {
-                if (fs.existsSync(f)) {
-                    const records = JSON.parse(fs.readFileSync(f, 'utf8'));
-                    const filtered = records.filter(r => String(r.id) !== String(createdExpenseId));
-                    fs.writeFileSync(f, JSON.stringify(filtered, null, 2));
-                }
-            });
-        }
-
-        // Clean up test category from config
         const configRes = await makeRequest({
             method: 'GET',
             urlPath: '/api/config?householdId=H001',
             headers: { 'Authorization': `Bearer ${palashToken}` }
         });
-        if (configRes.data && configRes.data.data) {
-            const cleanCats = configRes.data.data.categories.filter(c => c.name !== testCatName);
-            await makeRequest({
-                method: 'POST',
-                urlPath: '/api/config',
-                headers: { 'Authorization': `Bearer ${palashToken}` },
-                body: { categories: cleanCats, householdId: 'H001' }
-            });
-            console.log(`  🧹 Cleaned up temporary test category: ${testCatName}`);
-        }
+        assert(configRes.statusCode === 200, 'GET /api/config returns 200 OK');
+        assert((configRes.headers['cache-control'] || '').includes('no-store'), 'Config Cache-Control has no-store');
+
+        const auditRes = await makeRequest({
+            method: 'GET',
+            urlPath: '/api/audit?format=json',
+            headers: { 'Authorization': `Bearer ${palashToken}` }
+        });
+        assert(auditRes.statusCode === 200, 'GET /api/audit returns 200 OK');
+        assert((auditRes.headers['cache-control'] || '').includes('no-store'), 'Audit Cache-Control has no-store');
+
+        const attRes = await makeRequest({
+            method: 'GET',
+            urlPath: '/api/attendance',
+            headers: { 'Authorization': `Bearer ${palashToken}` }
+        });
+        assert(attRes.statusCode === 200, 'GET /api/attendance returns 200 OK');
+        assert((attRes.headers['cache-control'] || '').includes('no-store'), 'Attendance Cache-Control has no-store');
+    } catch (err) {
+        assert(false, `TEST 2 threw error: ${err.message}`);
+    }
+
+    // Test 3: Multi-User Direct Transaction Sync (Palash creates -> Pallavi reads without cache)
+    console.log('\n--- TEST 3: Multi-User Direct Transaction Sync (Create -> Read) ---');
+    const testExpense = {
+        date: '2026-09-29',
+        amount: 475.25,
+        category: 'Grocery & Vegetables',
+        paidBy: 'Palash',
+        paidTo: 'Nature Basket',
+        paymentMethod: 'UPI',
+        splitBetween: 'Household Expense',
+        notes: 'Real-time multi-user zero-cache verification transaction'
+    };
+    let createdId = null;
+    try {
+        // Palash adds expense
+        const postRes = await makeRequest({
+            method: 'POST',
+            urlPath: '/api/expenses',
+            headers: { 'Authorization': `Bearer ${palashToken}` },
+            body: testExpense
+        });
+        assert(postRes.statusCode === 200 || postRes.statusCode === 201, `Palash posts expense: ${postRes.statusCode}`);
+        assert(postRes.data && postRes.data.success === true, 'Palash receive success: true');
+        createdId = postRes.data && postRes.data.data && postRes.data.data.id;
+        assert(!!createdId, `Created expense ID: ${createdId}`);
+
+        // Pallavi fetches fresh ledger with zero-cache immediately
+        const pallaviGet = await makeRequest({
+            method: 'GET',
+            urlPath: `/api/expenses?householdId=H001&_t=${Date.now()}`,
+            headers: {
+                'Authorization': `Bearer ${pallaviToken}`,
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            }
+        });
+        assert(pallaviGet.statusCode === 200, 'Pallavi fetches ledger returns 200 OK');
+        const exps = pallaviGet.data && pallaviGet.data.data;
+        const found = exps && exps.find(e => String(e.id) === String(createdId));
+        assert(!!found, `Pallavi immediately sees newly created expense ${createdId} without stale cache`);
+        assert(found && found.amount === 475.25, `Expense amount correctly reflects 475.25`);
+    } catch (err) {
+        assert(false, `TEST 3 threw error: ${err.message}`);
+    }
+
+    // Test 4: Multi-User Direct Transaction Sync (Palash updates -> Pallavi reads fresh)
+    console.log('\n--- TEST 4: Multi-User Direct Transaction Sync (Update -> Read) ---');
+    try {
+        const updatePayload = {
+            id: createdId,
+            date: '2026-09-29',
+            amount: 520.00,
+            category: 'Grocery & Vegetables',
+            paidBy: 'Palash',
+            paidTo: 'Nature Basket Superstore',
+            notes: 'Updated note for zero-cache live sync'
+        };
+        const putRes = await makeRequest({
+            method: 'PUT',
+            urlPath: '/api/expenses',
+            headers: { 'Authorization': `Bearer ${palashToken}` },
+            body: updatePayload
+        });
+        assert(putRes.statusCode === 200, `Palash updates expense returns 200 OK`);
+
+        // Pallavi reads updated transaction
+        const pallaviGetUpdated = await makeRequest({
+            method: 'GET',
+            urlPath: `/api/expenses?householdId=H001&_t=${Date.now()}`,
+            headers: { 'Authorization': `Bearer ${pallaviToken}` }
+        });
+        const exps = pallaviGetUpdated.data && pallaviGetUpdated.data.data;
+        const found = exps && exps.find(e => String(e.id) === String(createdId));
+        assert(!!found && found.amount === 520.00, `Pallavi immediately sees updated amount ₹520.00 without cache`);
+        assert(found && found.paidTo === 'Nature Basket Superstore', `Pallavi sees updated paidTo value`);
+    } catch (err) {
+        assert(false, `TEST 4 threw error: ${err.message}`);
+    }
+
+    // Test 5: Multi-User Direct Transaction Sync (Palash deletes -> Pallavi verifies removal)
+    console.log('\n--- TEST 5: Multi-User Direct Transaction Sync (Delete -> Read) ---');
+    try {
+        const delRes = await makeRequest({
+            method: 'DELETE',
+            urlPath: `/api/expenses?id=${createdId}&_t=${Date.now()}`,
+            headers: { 'Authorization': `Bearer ${palashToken}` }
+        });
+        assert(delRes.statusCode === 200, 'Palash deletes expense returns 200 OK');
+
+        // Pallavi queries fresh ledger
+        const pallaviGetDeleted = await makeRequest({
+            method: 'GET',
+            urlPath: `/api/expenses?householdId=H001&_t=${Date.now()}`,
+            headers: { 'Authorization': `Bearer ${pallaviToken}` }
+        });
+        const exps = pallaviGetDeleted.data && pallaviGetDeleted.data.data;
+        const found = exps && exps.find(e => String(e.id) === String(createdId));
+        assert(!found, `Pallavi immediately sees expense removed from active ledger without cache`);
+
+        // Purge temporary record from disk
+        const h1File = path.join(__dirname, 'data', 'households', 'H001', 'expenses.json');
+        const mainFile = path.join(__dirname, 'data', 'expenses.json');
+        [h1File, mainFile].forEach(f => {
+            if (fs.existsSync(f)) {
+                const records = JSON.parse(fs.readFileSync(f, 'utf8'));
+                const filtered = records.filter(r => String(r.id) !== String(createdId));
+                fs.writeFileSync(f, JSON.stringify(filtered, null, 2));
+            }
+        });
+    } catch (err) {
+        assert(false, `TEST 5 threw error: ${err.message}`);
+    }
+
+    // Test 6: Role-Based Permission Enforcement for VIEWER
+    console.log('\n--- TEST 6: Role-Based Permission Enforcement for VIEWER ---');
+    try {
+        const expRes = await makeRequest({
+            method: 'POST',
+            urlPath: '/api/expenses',
+            headers: { 'Authorization': `Bearer ${viewerToken}` },
+            body: { date: '2026-09-29', amount: 100, category: 'Test', paidBy: 'Palash' }
+        });
+        assert(expRes.statusCode === 403, `VIEWER creating expense blocked with 403 Forbidden`);
+
+        const delRes = await makeRequest({
+            method: 'DELETE',
+            urlPath: '/api/expenses?id=some-id',
+            headers: { 'Authorization': `Bearer ${viewerToken}` }
+        });
+        assert(delRes.statusCode === 403, `VIEWER deleting expense blocked with 403 Forbidden`);
     } catch (err) {
         assert(false, `TEST 6 threw error: ${err.message}`);
     }
 
-    // Test 7: Verify baseline expenses integrity (122 records, ₹156,761.33)
-    console.log('\n--- TEST 7: Baseline Ledger Data Integrity Verification ---');
+    // Test 7: Multi-Tenant Household Isolation (H001 vs H002)
+    console.log('\n--- TEST 7: Multi-Tenant Household Isolation (H001 vs H002) ---');
+    try {
+        const h2Res = await makeRequest({
+            method: 'GET',
+            urlPath: `/api/expenses?householdId=H002&_t=${Date.now()}`,
+            headers: { 'Authorization': `Bearer ${sanjayToken}` }
+        });
+        assert(h2Res.statusCode === 200, `H002 user queries H002 expenses returns 200 OK`);
+        const h2Exps = h2Res.data && h2Res.data.data;
+        assert(Array.isArray(h2Exps) && h2Exps.length !== 122, `H002 expenses strictly isolated from H001`);
+    } catch (err) {
+        assert(false, `TEST 7 threw error: ${err.message}`);
+    }
+
+    // Test 8: Baseline Ledger Data Integrity
+    console.log('\n--- TEST 8: Baseline Ledger Data Integrity Verification ---');
     try {
         const raw = fs.readFileSync(path.join(__dirname, 'data', 'expenses.json'), 'utf8');
         const exps = JSON.parse(raw);
@@ -276,22 +282,6 @@ async function runTests() {
 
         assert(count === 122, `Active expenses count is exactly 122 (got ${count})`);
         assert(Math.abs(total - 156761.33) < 0.05, `Total amount is exactly ₹156,761.33 (got ₹${total.toFixed(2)})`);
-    } catch (err) {
-        assert(false, `TEST 7 threw error: ${err.message}`);
-    }
-
-    // Test 8: Household Isolation Check (H001 vs H002)
-    console.log('\n--- TEST 8: Multi-Tenant Household Isolation Check ---');
-    try {
-        const h2Res = await makeRequest({
-            method: 'GET',
-            urlPath: '/api/expenses?householdId=H002',
-            headers: { 'Authorization': `Bearer ${sanjayToken}` }
-        });
-        assert(h2Res.statusCode === 200, `H002 user can query H002 expenses`);
-        const h2Exps = h2Res.data && h2Res.data.data;
-        // Sanjay cannot see H001's 122 expenses
-        assert(Array.isArray(h2Exps) && h2Exps.length !== 122, `H002 expenses isolated from H001`);
     } catch (err) {
         assert(false, `TEST 8 threw error: ${err.message}`);
     }

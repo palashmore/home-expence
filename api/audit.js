@@ -432,6 +432,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
 
   const session = authenticateRequest(req);
   if (!session || !session.householdId) {
@@ -444,7 +445,7 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const limit = req.query && req.query.limit ? parseInt(req.query.limit, 10) : 200;
-      const logs = await storage.getHouseholdAuditLogs(householdId, isNaN(limit) ? 200 : limit);
+      const logs = await storage.getHouseholdAuditLogs(householdId, isNaN(limit) ? 200 : limit, true);
 
       const acceptsHtml = req.headers && req.headers.accept && req.headers.accept.includes('text/html');
       const wantsJson = req.query && req.query.format === 'json';

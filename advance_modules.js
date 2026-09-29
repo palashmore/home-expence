@@ -862,33 +862,38 @@
         statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">Paid ₹${Math.round(evalRes.totalPaid).toLocaleString('en-IN')} ✅</span>`;
       } else if (evalRes && evalRes.status === 'PARTIALLY_PAID') {
         statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-teal-100 text-teal-800 border border-teal-300">Partial ₹${Math.round(evalRes.totalPaid).toLocaleString('en-IN')} 🟡</span>`;
-        runwaySum += evalRes.remaining;
+        const billAmt = Number(bill.approxAmount !== undefined && bill.approxAmount !== null ? bill.approxAmount : (bill.budgetedAmount || 0)) || 0;
+        runwaySum += Number(evalRes.remaining) || 0;
         runwayItems.push({ name: bill.name, amount: evalRes.remaining, status: 'Partially Paid' });
       } else if (evalRes && evalRes.status === 'OVERDUE') {
+        const billAmt = Number(bill.approxAmount !== undefined && bill.approxAmount !== null ? bill.approxAmount : (bill.budgetedAmount || 0)) || 0;
         statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 animate-pulse">Overdue by ${Math.abs(evalRes.daysDiff)}d 🚨</span>`;
-        runwaySum += bill.approxAmount;
-        runwayItems.push({ name: bill.name, amount: bill.approxAmount, status: 'Overdue' });
+        runwaySum += billAmt;
+        runwayItems.push({ name: bill.name, amount: billAmt, status: 'Overdue' });
       } else if (evalRes && (evalRes.status === 'DUE_TODAY' || (evalRes.daysDiff <= 5 && evalRes.daysDiff >= 0))) {
+        const billAmt = Number(bill.approxAmount !== undefined && bill.approxAmount !== null ? bill.approxAmount : (bill.budgetedAmount || 0)) || 0;
         const text = evalRes.daysDiff === 0 ? 'Due Today ⚠️' : `Due in ${evalRes.daysDiff}d ⚠️`;
         statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">${text}</span>`;
-        runwaySum += bill.approxAmount;
-        runwayItems.push({ name: bill.name, amount: bill.approxAmount, status: text });
+        runwaySum += billAmt;
+        runwayItems.push({ name: bill.name, amount: billAmt, status: text });
       } else {
+        const billAmt = Number(bill.approxAmount !== undefined && bill.approxAmount !== null ? bill.approxAmount : (bill.budgetedAmount || 0)) || 0;
         const daysDiff = evalRes ? evalRes.daysDiff : (bill.dueDay - currentDay);
         statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-700 border border-slate-300">Due ${bill.dueDay}th ⏱️</span>`;
         if (daysDiff <= 15 && daysDiff > 0) {
-          runwaySum += bill.approxAmount;
-          runwayItems.push({ name: bill.name, amount: bill.approxAmount, status: `Due in ${daysDiff}d` });
+          runwaySum += billAmt;
+          runwayItems.push({ name: bill.name, amount: billAmt, status: `Due in ${daysDiff}d` });
         }
       }
 
+      const displayBillAmt = Number(bill.approxAmount !== undefined && bill.approxAmount !== null ? bill.approxAmount : (bill.budgetedAmount || 0)) || 0;
       cardsHtml += `
         <div class="p-3 bg-slate-50/70 border border-slate-200 rounded-xl flex items-center justify-between hover:bg-slate-100/70 transition">
           <div class="flex items-center space-x-2.5">
             <span class="text-xl">${bill.icon}</span>
             <div>
               <div class="text-xs font-bold text-slate-900">${bill.name}</div>
-              <div class="text-[10px] text-slate-500 font-medium">Cycle: ${bill.dueDay}th of month (~₹${bill.approxAmount.toLocaleString('en-IN')})</div>
+              <div class="text-[10px] text-slate-500 font-medium">Cycle: ${bill.dueDay}th of month (~₹${displayBillAmt.toLocaleString('en-IN')})</div>
             </div>
           </div>
           <div>${statusBadge}</div>
@@ -1549,6 +1554,11 @@
         } else {
           filterCat.value = 'all';
         }
+        const mobileFilterCat = document.getElementById('mobileFilterCategory');
+        if (mobileFilterCat) {
+          mobileFilterCat.innerHTML = filterCat.innerHTML;
+          mobileFilterCat.value = filterCat.value;
+        }
       }
 
       const billCatSelect = document.getElementById('adminNewBillCategory');
@@ -1592,6 +1602,11 @@
       } else {
         filterPaidBy.value = 'all';
         if (typeof dashboardFilters !== 'undefined') dashboardFilters.paidBy = 'all';
+      }
+      const mobileFilterPaidBy = document.getElementById('mobileFilterPaidBy');
+      if (mobileFilterPaidBy) {
+        mobileFilterPaidBy.innerHTML = filterPaidBy.innerHTML;
+        mobileFilterPaidBy.value = filterPaidBy.value;
       }
     }
 
@@ -1754,7 +1769,9 @@
     // 2. Recurring Bills Table
     const billsTbody = document.getElementById('adminBillsTableBody');
     if (billsTbody && config.recurringBills) {
-      billsTbody.innerHTML = config.recurringBills.map((b) => `
+      billsTbody.innerHTML = config.recurringBills.map((b) => {
+        const billAmt = Number(b.approxAmount !== undefined && b.approxAmount !== null ? b.approxAmount : (b.budgetedAmount !== undefined ? b.budgetedAmount : 0)) || 0;
+        return `
         <tr class="hover:bg-slate-50 transition border-b border-slate-100" data-bill-id="${b.id}">
           <td class="py-2.5 px-3">
             <input type="text" class="bill-edit-icon bg-white border border-slate-200 rounded-lg px-1.5 py-1 text-xs w-10 text-center font-bold" value="${b.icon || '⚡'}">
@@ -1778,7 +1795,7 @@
           <td class="py-2.5 px-3">
             <div class="flex items-center">
               <span class="text-slate-400 mr-1 font-bold">₹</span>
-              <input type="number" step="50" min="0" class="bill-edit-amount bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-28 focus:border-indigo-500" value="${b.approxAmount}">
+              <input type="number" step="50" min="0" class="bill-edit-amount bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-28 focus:border-indigo-500" value="${billAmt}">
             </div>
           </td>
           <td class="py-2.5 px-3 text-right">
@@ -1787,7 +1804,8 @@
             </button>
           </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
     }
 
     // 3. Categories Grid
@@ -1937,14 +1955,16 @@
       const name = tr.querySelector('.bill-edit-name')?.value.trim() || 'Bill';
       const category = tr.querySelector('.bill-edit-cat')?.value || 'Electricity Bill';
       const dueDay = parseInt(tr.querySelector('.bill-edit-dueday')?.value, 10) || 10;
-      const approxAmount = parseFloat(tr.querySelector('.bill-edit-amount')?.value) || 0;
+      const rawAmt = tr.querySelector('.bill-edit-amount')?.value;
+      const approxAmount = Number(String(rawAmt || '0').replace(/[^0-9.]/g, '')) || 0;
 
       updatedBills.push({
         id,
         name,
         category,
         dueDay,
-        approxAmount,
+        approxAmount: approxAmount,
+        budgetedAmount: approxAmount,
         icon
       });
     });
@@ -2127,7 +2147,8 @@
     const category = document.getElementById('adminNewBillCategory')?.value || 'Electricity Bill';
     const icon = document.getElementById('adminNewBillIcon')?.value.trim() || '⚡';
     const dueDay = parseInt(document.getElementById('adminNewBillDueDay')?.value, 10) || 10;
-    const approxAmount = parseFloat(document.getElementById('adminNewBillAmount')?.value) || 0;
+    const rawAmt = document.getElementById('adminNewBillAmount')?.value;
+    const approxAmount = Number(String(rawAmt || '0').replace(/[^0-9.]/g, '')) || 0;
 
     if (!name) return;
 
@@ -2137,7 +2158,8 @@
       category,
       icon,
       dueDay,
-      approxAmount
+      approxAmount: approxAmount,
+      budgetedAmount: approxAmount
     };
 
     const currentBills = (window.masterConfig && window.masterConfig.recurringBills) ? [...window.masterConfig.recurringBills] : [];
@@ -3813,14 +3835,15 @@
    * Canonical statuses: DISABLED, SKIPPED, PAID, PARTIALLY_PAID, DUE_TODAY, OVERDUE, UPCOMING
    */
   window.getRecurringPaymentStatus = function (bill, periodExpenses, refDate = new Date()) {
+    const rawBillAmt = Number(bill.approxAmount !== undefined && bill.approxAmount !== null ? bill.approxAmount : (bill.budgetedAmount || 0)) || 0;
     if (bill.active === false) {
-      return { status: 'DISABLED', totalPaid: 0, targetAmount: bill.approxAmount, remaining: 0, daysDiff: 0, matchingExpenses: [] };
+      return { status: 'DISABLED', totalPaid: 0, targetAmount: rawBillAmt, remaining: 0, daysDiff: 0, matchingExpenses: [] };
     }
 
     const currentDay = refDate.getDate();
     const dueDay = Number(bill.dueDay) || 1;
     const daysDiff = dueDay - currentDay;
-    const targetAmount = Number(bill.approxAmount) || 0;
+    const targetAmount = rawBillAmt;
 
     // Match expenses
     const billCatLower = (bill.category || '').toLowerCase().trim();
@@ -4494,45 +4517,6 @@
     // Auto dismiss after 6.5 seconds
     const timer = setTimeout(dismiss, 6500);
     banner.addEventListener('mouseenter', () => clearTimeout(timer));
-  };
-
-  window.triggerTestInAppBanner = function () {
-    window.showInAppNotificationBanner({
-      title: '🔔 Home Expence: Live In-App Alert',
-      body: 'In-app heads-up notification banner is active and working smoothly in real-time!',
-      url: '/#tab-expenses',
-      type: 'TEST_BANNER',
-      actor: 'System'
-    });
-  };
-
-  window.sendTestClosedAppPush = async function () {
-    try {
-      window.showToast && window.showToast('info', 'Sending Test Alert', 'Close this app or lock your phone now! A push alert will arrive in 4 seconds...');
-      setTimeout(async () => {
-        const authHeaders = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders() : { 'Content-Type': 'application/json' };
-        const curUser = (typeof currentUser !== 'undefined' && currentUser) || (window.currentUser) || {};
-        const curHousehold = (typeof currentHouseholdId !== 'undefined' && currentHouseholdId) || window.currentHouseholdId || curUser.householdId || 'H001';
-        const res = await fetch('/api/notifications', {
-          method: 'POST',
-          headers: authHeaders,
-          body: JSON.stringify({
-            action: 'test_push',
-            householdId: curHousehold,
-            title: '⚡ Home Expence: Live Alert',
-            body: 'Heads-up notification banner! Live push delivered directly to your device.',
-            url: '/#tab-expenses'
-          })
-        });
-        const data = await res.json();
-        if (data.success) {
-          console.log('Test push dispatched:', data.message);
-          if (window.updateNotificationCenter) window.updateNotificationCenter();
-        }
-      }, 4000);
-    } catch (e) {
-      console.warn('Test push trigger error:', e);
-    }
   };
 
   window.initAdvanceModules = function () {

@@ -517,74 +517,11 @@ module.exports = async function handler(req, res) {
                 });
             }
 
-            // 3. Send Test Push to all subscribed devices or targeted household (Heads-Up Banner Guaranteed)
+            // 3. Test Push Route (Disabled in Production)
             if (postAction === 'test_push') {
-                const session = authenticateRequest(req);
-                const householdId = (session && session.householdId) || body.householdId || 'H001';
-                const customTitle = body.title || '🔔 Home Expence: Live Alert';
-                const customBody = body.body || 'Heads-up notification banner! Live push delivered directly to your device.';
-                const customUrl = body.url || '/#tab-expenses';
-
-                // Record in-app notification so it appears inside the in-app drawer
-                recordHouseholdInAppNotification({
-                    householdId: householdId,
-                    title: customTitle,
-                    body: customBody,
-                    url: customUrl,
-                    tag: `test-${Date.now()}`,
-                    actor: (session && (session.name || session.username)) || 'System Test',
-                    type: 'TEST_PUSH'
-                });
-
-                const testPayload = JSON.stringify({
-                    title: customTitle,
-                    body: customBody,
-                    url: customUrl,
-                    tag: `test-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-                    icon: '/icon-192.png',
-                    badge: '/icon-192.png',
-                    silent: false,
-                    requireInteraction: true,
-                    vibrate: [400, 150, 400, 150, 400],
-                    timestamp: Date.now()
-                });
-
-                let resResult;
-                const targetHouseholdId = (session && session.householdId) || body.householdId;
-                if (targetHouseholdId) {
-                    // Send to current household devices (or all if unassigned)
-                    const subs = await readSubscriptions();
-                    let hhSubs = subs.filter(s => !s.householdId || s.householdId === targetHouseholdId);
-                    if (hhSubs.length === 0) hhSubs = subs;
-                    let delivered = 0;
-                    for (const s of hhSubs) {
-                        try {
-                            await webpush.sendNotification(s, testPayload, HIGH_PRIORITY_PUSH_OPTIONS);
-                            delivered++;
-                        } catch (e) {
-                            console.warn('Test push delivery error:', e.message);
-                        }
-                    }
-                    resResult = { delivered, total: hhSubs.length };
-                } else {
-                    resResult = await sendPushToAll({
-                        title: customTitle,
-                        body: customBody,
-                        url: customUrl,
-                        tag: `test-${Date.now()}`,
-                        icon: '/icon-192.png',
-                        badge: '/icon-192.png',
-                        silent: false,
-                        requireInteraction: true,
-                        vibrate: [400, 150, 400, 150, 400],
-                        timestamp: Date.now()
-                    });
-                }
-
-                return res.status(200).json({
-                    success: true,
-                    message: `Test notification dispatched to ${resResult.delivered} mobile device(s).`,
-                    result: resResult
+                return res.status(403).json({
+                    success: false,
+                    error: "Test push notifications are disabled in production environment."
                 });
             }
 

@@ -122,6 +122,12 @@ function createHousehold(data, actor = 'System') {
         }
     });
     const nextId = 'H' + String(maxId + 1).padStart(3, '0');
+
+    let ownerName = data.ownerName;
+    if (!ownerName && data.ownerUserId) {
+        const u = getUserById(data.ownerUserId);
+        if (u) ownerName = u.name;
+    }
     
     const newHousehold = {
         householdId: nextId,
@@ -145,20 +151,20 @@ function createHousehold(data, actor = 'System') {
         cycleType: data.cycleType || "calendar",
         cycleStartDay: Number(data.cycleStartDay) || 1,
         cycleEndDay: Number(data.cycleEndDay) || 31,
-        familyMembers: data.ownerName ? [data.ownerName] : ["Family Member"],
+        familyMembers: ownerName ? [ownerName] : ["Family Member"],
         paymentModes: ["UPI", "Credit Card", "Debit Card", "Net Banking", "Cash"],
         splitRules: ["50/50 Split", "100% Personal", "Shared Household"],
         staffMembers: [],
         recurringBills: [],
-        expenseCategories: [
-            { "name": "Groceries", "icon": "fa-basket-shopping", "color": "emerald" },
-            { "name": "Utilities", "icon": "fa-bolt", "color": "amber" },
-            { "name": "Dining & Food", "icon": "fa-utensils", "color": "orange" },
-            { "name": "Domestic Staff", "icon": "fa-users-gear", "color": "purple" },
-            { "name": "Healthcare & Medical", "icon": "fa-notes-medical", "color": "rose" },
-            { "name": "Transportation & Fuel", "icon": "fa-car", "color": "blue" },
-            { "name": "Shopping & Lifestyle", "icon": "fa-bag-shopping", "color": "pink" },
-            { "name": "Home Maintenance", "icon": "fa-screwdriver-wrench", "color": "slate" }
+        categories: [
+            { "name": "Grocery & Vegetables", "icon": "🛒", "type": "expense", "defaultPaidTo": "Blinkit" },
+            { "name": "Electricity Bill", "icon": "⚡", "type": "expense", "defaultPaidTo": "MSCB / MSEDCL" },
+            { "name": "Flat Maintenance", "icon": "🏢", "type": "expense", "defaultPaidTo": "Society Office" },
+            { "name": "Wifi & Internet", "icon": "📶", "type": "expense", "defaultPaidTo": "Airtel" },
+            { "name": "Dish Bill (DTH)", "icon": "📺", "type": "expense", "defaultPaidTo": "Tata Play" },
+            { "name": "Shopping & Miscellaneous", "icon": "🛍️", "type": "expense", "defaultPaidTo": "Amazon" },
+            { "name": "Accepted Payments (Income)", "icon": "💰", "type": "income", "defaultPaidTo": "" },
+            { "name": "Settlement / Transfer", "icon": "🤝", "type": "transfer", "defaultPaidTo": "" }
         ],
         updatedAt: new Date().toISOString()
     };

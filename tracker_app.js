@@ -631,8 +631,9 @@ function switchTab(tabId) {
 
     if (tabId === 'admin' || tabId === 'settings') {
         const adminCard = document.getElementById("adminTenantManagementCard");
+        const canManage = currentSessionUser && (currentSessionUser.role === 'ADMIN' || currentSessionUser.role === 'OWNER');
         if (adminCard) {
-            if (currentSessionUser && currentSessionUser.role === 'ADMIN') {
+            if (canManage) {
                 adminCard.classList.remove("hidden");
             } else {
                 adminCard.classList.add("hidden");
@@ -645,7 +646,7 @@ function switchTab(tabId) {
         } else if (window.renderAdminView) {
             window.renderAdminView();
         }
-        if (tabId === 'admin' && currentSessionUser && currentSessionUser.role === 'ADMIN' && window.loadAdminConsoleData) {
+        if (tabId === 'admin' && canManage && window.loadAdminConsoleData) {
             window.loadAdminConsoleData();
         }
         if (tabId === 'settings') {
@@ -1078,6 +1079,12 @@ function populateFilterMonthDropdown() {
 
     monthSelect.innerHTML = html;
     monthSelect.value = dashboardFilters.month || cur.monthName;
+
+    const mobileMonthSelect = document.getElementById("mobileFilterMonth");
+    if (mobileMonthSelect) {
+        mobileMonthSelect.innerHTML = html;
+        mobileMonthSelect.value = dashboardFilters.month || cur.monthName;
+    }
 }
 
 function populateFilterYearDropdown() {
@@ -1105,7 +1112,187 @@ function populateFilterYearDropdown() {
 
     yearSelect.innerHTML = html;
     yearSelect.value = dashboardFilters.year || cur.yearStr;
+
+    const mobileYearSelect = document.getElementById("mobileFilterYear");
+    if (mobileYearSelect) {
+        mobileYearSelect.innerHTML = html;
+        mobileYearSelect.value = dashboardFilters.year || cur.yearStr;
+    }
 }
+
+// Category Icon Helper for visual recognition across desktop & mobile
+function getCategoryIcon(catName) {
+    if (!catName) return '<i class="fa-solid fa-receipt text-slate-500"></i>';
+    const c = String(catName).toLowerCase();
+    if (c.includes('grocery') || c.includes('vegetable')) return '<i class="fa-solid fa-basket-shopping text-emerald-600"></i>';
+    if (c.includes('electricity')) return '<i class="fa-solid fa-bolt text-amber-500"></i>';
+    if (c.includes('maintenance') || c.includes('flat')) return '<i class="fa-solid fa-building text-blue-600"></i>';
+    if (c.includes('maid') || c.includes('madhuri')) return '<i class="fa-solid fa-broom text-pink-500"></i>';
+    if (c.includes('chef') || c.includes('nilima') || c.includes('cook')) return '<i class="fa-solid fa-utensils text-orange-500"></i>';
+    if (c.includes('wifi') || c.includes('internet')) return '<i class="fa-solid fa-wifi text-cyan-600"></i>';
+    if (c.includes('dish') || c.includes('dth') || c.includes('tv')) return '<i class="fa-solid fa-tv text-purple-600"></i>';
+    if (c.includes('shopping') || c.includes('misc')) return '<i class="fa-solid fa-bag-shopping text-indigo-600"></i>';
+    if (c.includes('income') || c.includes('accepted')) return '<i class="fa-solid fa-arrow-down-left text-emerald-600"></i>';
+    if (c.includes('settlement') || c.includes('transfer')) return '<i class="fa-solid fa-arrow-right-arrow-left text-teal-600"></i>';
+    return '<i class="fa-solid fa-receipt text-indigo-500"></i>';
+}
+window.getCategoryIcon = getCategoryIcon;
+
+// Updates the compact filter summary pill on mobile screens
+function updateMobileFilterSummary() {
+    const summaryEl = document.getElementById("mobileActiveFilterSummary");
+    const badgeEl = document.getElementById("mobileActiveFilterBadge");
+    if (!summaryEl) return;
+
+    const cur = getCurrentPeriod();
+    let customFilterCount = 0;
+
+    let periodStr = "";
+    if (dashboardFilters.month === "all" && dashboardFilters.year === "all") {
+        periodStr = "All Time";
+        customFilterCount++;
+    } else if (dashboardFilters.month === "all") {
+        periodStr = `All Months ${dashboardFilters.year}`;
+        customFilterCount++;
+    } else if (dashboardFilters.year === "all") {
+        periodStr = `${dashboardFilters.month} (All Years)`;
+        customFilterCount++;
+    } else if (dashboardFilters.month === cur.monthName && dashboardFilters.year === cur.yearStr) {
+        periodStr = `${cur.monthName} ${cur.yearStr}`;
+    } else {
+        periodStr = `${dashboardFilters.month} ${dashboardFilters.year}`;
+        customFilterCount++;
+    }
+
+    let catStr = "All Categories";
+    if (dashboardFilters.category && dashboardFilters.category !== "all") {
+        catStr = dashboardFilters.category;
+        customFilterCount++;
+        if (catStr.length > 18) {
+            catStr = catStr.substring(0, 16) + "…";
+        }
+    }
+
+    let paidStr = "";
+    if (dashboardFilters.paidBy && dashboardFilters.paidBy !== "all") {
+        paidStr = ` • ${dashboardFilters.paidBy}`;
+        customFilterCount++;
+    }
+
+    if (dashboardFilters.paymentMethod && dashboardFilters.paymentMethod !== "all") {
+        customFilterCount++;
+    }
+    if (dashboardFilters.expenseType && dashboardFilters.expenseType !== "all") {
+        customFilterCount++;
+    }
+
+    summaryEl.textContent = `${periodStr} • ${catStr}${paidStr}`;
+
+    if (badgeEl) {
+        if (customFilterCount > 0) {
+            badgeEl.textContent = customFilterCount;
+            badgeEl.classList.remove("hidden");
+        } else {
+            badgeEl.classList.add("hidden");
+        }
+    }
+}
+window.updateMobileFilterSummary = updateMobileFilterSummary;
+
+// Mobile Filter Bottom Sheet Handlers
+function openMobileFilterSheet() {
+    const modal = document.getElementById("modalMobileFilter");
+    if (!modal) return;
+
+    const desktopMonth = document.getElementById("filterMonth");
+    const mobileMonth = document.getElementById("mobileFilterMonth");
+    if (desktopMonth && mobileMonth) mobileMonth.innerHTML = desktopMonth.innerHTML;
+
+    const desktopYear = document.getElementById("filterYear");
+    const mobileYear = document.getElementById("mobileFilterYear");
+    if (desktopYear && mobileYear) mobileYear.innerHTML = desktopYear.innerHTML;
+
+    const desktopCat = document.getElementById("filterCategory");
+    const mobileCat = document.getElementById("mobileFilterCategory");
+    if (desktopCat && mobileCat) mobileCat.innerHTML = desktopCat.innerHTML;
+
+    const desktopPaidBy = document.getElementById("filterPaidBy");
+    const mobilePaidBy = document.getElementById("mobileFilterPaidBy");
+    if (desktopPaidBy && mobilePaidBy) mobilePaidBy.innerHTML = desktopPaidBy.innerHTML;
+
+    if (mobileMonth) mobileMonth.value = dashboardFilters.month;
+    if (mobileYear) mobileYear.value = dashboardFilters.year;
+    if (mobileCat) mobileCat.value = dashboardFilters.category;
+    if (mobilePaidBy) mobilePaidBy.value = dashboardFilters.paidBy;
+
+    const mobileMethod = document.getElementById("mobileFilterPaymentMethod");
+    if (mobileMethod) mobileMethod.value = dashboardFilters.paymentMethod;
+
+    const mobileType = document.getElementById("mobileFilterExpenseType");
+    if (mobileType) mobileType.value = dashboardFilters.expenseType;
+
+    modal.classList.remove("hidden");
+    document.body.classList.add("overflow-hidden");
+}
+
+function closeMobileFilterSheet() {
+    const modal = document.getElementById("modalMobileFilter");
+    if (modal) modal.classList.add("hidden");
+    document.body.classList.remove("overflow-hidden");
+}
+
+function syncMobileFilterToDesktop(field) {
+    if (field === 'month') {
+        const el = document.getElementById("mobileFilterMonth");
+        if (el) dashboardFilters.month = el.value;
+    } else if (field === 'year') {
+        const el = document.getElementById("mobileFilterYear");
+        if (el) dashboardFilters.year = el.value;
+    } else if (field === 'category') {
+        const el = document.getElementById("mobileFilterCategory");
+        if (el) dashboardFilters.category = el.value;
+    } else if (field === 'paidBy') {
+        const el = document.getElementById("mobileFilterPaidBy");
+        if (el) dashboardFilters.paidBy = el.value;
+    } else if (field === 'paymentMethod') {
+        const el = document.getElementById("mobileFilterPaymentMethod");
+        if (el) dashboardFilters.paymentMethod = el.value;
+    } else if (field === 'expenseType') {
+        const el = document.getElementById("mobileFilterExpenseType");
+        if (el) dashboardFilters.expenseType = el.value;
+    }
+
+    updateMobileFilterSummary();
+}
+
+function applyMobileFiltersAndClose() {
+    triggerHaptic('medium');
+    const mm = document.getElementById("mobileFilterMonth");
+    const my = document.getElementById("mobileFilterYear");
+    const mc = document.getElementById("mobileFilterCategory");
+    const mp = document.getElementById("mobileFilterPaidBy");
+    const mmet = document.getElementById("mobileFilterPaymentMethod");
+    const mt = document.getElementById("mobileFilterExpenseType");
+
+    if (mm) dashboardFilters.month = mm.value;
+    if (my) dashboardFilters.year = my.value;
+    if (mc) dashboardFilters.category = mc.value;
+    if (mp) dashboardFilters.paidBy = mp.value;
+    if (mmet) dashboardFilters.paymentMethod = mmet.value;
+    if (mt) dashboardFilters.expenseType = mt.value;
+
+    syncFilterControlsToState();
+    if (window.syncPersonalFilterWithPaidBy) {
+        window.syncPersonalFilterWithPaidBy(dashboardFilters.paidBy);
+    }
+    renderAllViews();
+    closeMobileFilterSheet();
+}
+
+window.openMobileFilterSheet = openMobileFilterSheet;
+window.closeMobileFilterSheet = closeMobileFilterSheet;
+window.syncMobileFilterToDesktop = syncMobileFilterToDesktop;
+window.applyMobileFiltersAndClose = applyMobileFiltersAndClose;
 
 // Called on any dropdown filter change
 function onFilterChange() {
@@ -1128,6 +1315,7 @@ function onFilterChange() {
         window.syncPersonalFilterWithPaidBy(dashboardFilters.paidBy);
     }
 
+    updateMobileFilterSummary();
     renderAllViews();
 }
 
@@ -1179,8 +1367,24 @@ function syncFilterControlsToState() {
     if (t) t.value = dashboardFilters.expenseType;
     if (s) s.value = dashboardFilters.searchVal;
 
+    const mm = document.getElementById("mobileFilterMonth");
+    const my = document.getElementById("mobileFilterYear");
+    const mc = document.getElementById("mobileFilterCategory");
+    const mp = document.getElementById("mobileFilterPaidBy");
+    const mmet = document.getElementById("mobileFilterPaymentMethod");
+    const mt = document.getElementById("mobileFilterExpenseType");
+
+    if (mm) mm.value = dashboardFilters.month;
+    if (my) my.value = dashboardFilters.year;
+    if (mc) mc.value = dashboardFilters.category;
+    if (mp) mp.value = dashboardFilters.paidBy;
+    if (mmet) mmet.value = dashboardFilters.paymentMethod;
+    if (mt) mt.value = dashboardFilters.expenseType;
+
     const drawer = document.getElementById("customDateDrawer");
     if (drawer) drawer.classList.add("hidden");
+
+    updateMobileFilterSummary();
 }
 
 // Quick Filter Chips handlers
@@ -2415,12 +2619,14 @@ function renderRecentTransactionsTable(filteredData) {
 function renderExpenseTable(filteredData) {
     const tbody = document.getElementById("expenseTableBody");
     const emptyState = document.getElementById("emptyExpenseState");
+    const mobileCards = document.getElementById("mobileExpenseCardList");
     if (!tbody) return;
 
     const sorted = [...filteredData].sort((a, b) => new Date(b.date) - new Date(a.date));
 
     if (sorted.length === 0) {
         tbody.innerHTML = "";
+        if (mobileCards) mobileCards.innerHTML = "";
         if (emptyState) emptyState.classList.remove("hidden");
         return;
     }
@@ -2450,6 +2656,69 @@ function renderExpenseTable(filteredData) {
             </tr>
         `;
     }).join("");
+
+    // Mobile Card List Render (< md, min touch targets 44px, progressive disclosure)
+    if (mobileCards) {
+        mobileCards.innerHTML = sorted.map(item => {
+            const isIncome = item.category === "Accepted Payments (Income)";
+            const catIcon = getCategoryIcon(item.category);
+            const notes = (item.notes || item.description || '').trim();
+            const recipient = (item.paidTo || item.vendor || '').trim();
+
+            return `
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/90 hover:shadow-md transition space-y-3">
+                    <!-- Top Bar: Category & Date -->
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 text-base">
+                                ${catIcon}
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-black text-slate-900 truncate">${item.category}</h4>
+                                <p class="text-[11px] font-semibold text-slate-400">${formatDisplayDate(item.date)}</p>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <span class="text-base font-black ${isIncome ? 'text-emerald-600' : 'text-slate-900'}">${isIncome ? '+' : ''}${formatINR(item.amount)}</span>
+                        </div>
+                    </div>
+
+                    <!-- Details Bar: Notes & Vendor -->
+                    ${(notes || recipient) ? `
+                        <div class="bg-slate-50/80 rounded-xl p-2.5 text-xs text-slate-600 space-y-1 border border-slate-100">
+                            ${notes ? `<p class="line-clamp-2"><span class="font-bold text-slate-700">Note:</span> ${notes}</p>` : ''}
+                            ${recipient ? `<p><span class="font-bold text-slate-700">To:</span> ${recipient}</p>` : ''}
+                        </div>
+                    ` : ''}
+
+                    <!-- Chips & Meta Row -->
+                    <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 text-xs">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                <i class="fa-solid fa-user text-[9px] mr-1 text-indigo-400"></i> ${item.paidBy || 'Not Specified'}
+                            </span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600">
+                                ${item.paymentMethod || 'UPI'}
+                            </span>
+                        </div>
+
+                        <!-- Action Buttons (Touch targets >= 44px) -->
+                        <div class="flex items-center gap-1">
+                            <button type="button" onclick="openTransactionDetailModal('${item.id}')" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition" title="View details">
+                                <i class="fa-solid fa-eye text-sm"></i>
+                            </button>
+                            <button type="button" onclick="editExpense('${item.id}')" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition" title="Edit">
+                                <i class="fa-solid fa-pen text-sm"></i>
+                            </button>
+                            <button type="button" onclick="confirmDeleteExpense('${item.id}')" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition" title="Delete">
+                                <i class="fa-solid fa-trash text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
 }
 
 // ================= TAB 3: STAFF VIEW =================
@@ -3641,7 +3910,8 @@ let adminDirectoryData = { households: [], users: [], activeHouseholdId: '' };
 
 async function loadAdminConsoleData(showFeedback = false) {
     const card = document.getElementById("adminTenantManagementCard");
-    if (!authToken || !currentSessionUser || currentSessionUser.role !== 'ADMIN') {
+    const canManage = currentSessionUser && (currentSessionUser.role === 'ADMIN' || currentSessionUser.role === 'OWNER');
+    if (!authToken || !canManage) {
         if (card) card.classList.add("hidden");
         return;
     }
@@ -3663,7 +3933,7 @@ async function loadAdminConsoleData(showFeedback = false) {
             adminDirectoryData = data;
             renderAdminDirectoryUI();
             if (showFeedback && typeof showToast === 'function') {
-                showToast('success', 'Directory Refreshed', `Loaded ${data.households.length} households and ${data.users.length} users.`);
+                showToast('success', 'Directory Refreshed', `Loaded ${data.households.length} household(s) and ${data.users.length} user(s).`);
             }
         }
     } catch (err) {
@@ -3681,8 +3951,10 @@ function renderAdminDirectoryUI() {
     // 1. Role Badge & Active Household Display
     const roleBadge = document.getElementById("adminRoleBadge");
     if (roleBadge) {
-        roleBadge.textContent = "SYSTEM ADMINISTRATOR ONLY";
-        roleBadge.className = "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200";
+        roleBadge.textContent = userRole === 'ADMIN' ? "SYSTEM ADMINISTRATOR" : "HOUSEHOLD OWNER";
+        roleBadge.className = userRole === 'ADMIN'
+            ? "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200"
+            : "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200";
     }
 
     const activeDisplay = document.getElementById("adminActiveHouseholdDisplay");

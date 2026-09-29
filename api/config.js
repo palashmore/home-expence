@@ -144,6 +144,47 @@ module.exports = async function handler(req, res) {
                 body.categories = dedupedCats;
             }
 
+            // Normalization of recurring bills (approxAmount & budgetedAmount)
+            if (Array.isArray(body.recurringBills)) {
+                body.recurringBills = body.recurringBills.map((b, idx) => {
+                    if (!b || typeof b !== 'object') return null;
+                    const rawAmt = b.approxAmount !== undefined ? b.approxAmount : (b.budgetedAmount !== undefined ? b.budgetedAmount : b.amount);
+                    const cleanAmount = Number(String(rawAmt || '0').replace(/[^0-9.]/g, '')) || 0;
+                    return {
+                        id: b.id || `bill-${idx + 1}`,
+                        name: String(b.name || 'Recurring Bill').trim(),
+                        category: String(b.category || 'General').trim(),
+                        dueDay: parseInt(b.dueDay, 10) || 1,
+                        approxAmount: cleanAmount,
+                        budgetedAmount: cleanAmount,
+                        icon: b.icon || '⚡'
+                    };
+                }).filter(Boolean);
+            }
+
+            // Normalization of staff salary
+            if (Array.isArray(body.staff)) {
+                body.staff = body.staff.map((s, idx) => {
+                    if (!s || typeof s !== 'object') return null;
+                    const rawSal = s.baseSalary !== undefined ? s.baseSalary : s.salary;
+                    const cleanSalary = Number(String(rawSal || '0').replace(/[^0-9.]/g, '')) || 0;
+                    return {
+                        ...s,
+                        id: s.id || `staff-${idx + 1}`,
+                        name: String(s.name || '').trim(),
+                        baseSalary: cleanSalary,
+                        allowedPaidLeaves: parseInt(s.allowedPaidLeaves, 10) || 0,
+                        billingCycleDay: parseInt(s.billingCycleDay, 10) || 1,
+                        active: s.active !== false
+                    };
+                }).filter(Boolean);
+            }
+
+            // Normalization of monthly budget target
+            if (body.monthlyBudgetLimit !== undefined) {
+                body.monthlyBudgetLimit = Number(String(body.monthlyBudgetLimit).replace(/[^0-9.]/g, '')) || 50000;
+            }
+
             const updated = {
                 ...current,
                 ...body,

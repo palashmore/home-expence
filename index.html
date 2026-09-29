@@ -2685,7 +2685,12 @@
 
                     <!-- Expense Category -->
                     <div>
-                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Expense Category</label>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">Expense Category</label>
+                            <button type="button" onclick="if(window.promptNewCategoryForExpense) window.promptNewCategoryForExpense()" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition">
+                                <i class="fa-solid fa-plus-circle text-xs"></i> Add New Category
+                            </button>
+                        </div>
                         <select id="inputCategory" onchange="onCategoryChange()" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:border-indigo-500">
                             <option value="Electricity Bill">⚡ Electricity Bill</option>
                             <option value="Flat Maintenance">🏢 Flat Maintenance</option>
@@ -3539,7 +3544,7 @@
     </div>
 
     <!-- Core Application Logic -->
-    <script src="tracker_app.js?v=5.4.0"></script>
-    <script src="advance_modules.js?v=5.4.0"></script>
+    <script src="tracker_app.js?v=5.5.0"></script>
+    <script src="advance_modules.js?v=5.5.0"></script>
 </body>
 </html>

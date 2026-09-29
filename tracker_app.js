@@ -404,13 +404,20 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // Auto-sync listeners for multi-device concurrency
     document.addEventListener("visibilitychange", () => {
-        if (!document.hidden) loadData(true);
+        if (!document.hidden) {
+            loadData(true);
+            if (window.loadMasterConfig) window.loadMasterConfig();
+        }
     });
     window.addEventListener("focus", () => {
         loadData(true);
+        if (window.loadMasterConfig) window.loadMasterConfig();
     });
     setInterval(() => {
-        if (!document.hidden) loadData(true);
+        if (!document.hidden) {
+            loadData(true);
+            if (window.loadMasterConfig) window.loadMasterConfig();
+        }
     }, 12000);
 
     // Online/Offline status listeners & auto-sync
@@ -579,7 +586,7 @@ function switchTab(tabId) {
         }
     }
 
-    if (tabId === 'admin') {
+    if (tabId === 'admin' || tabId === 'settings') {
         const adminCard = document.getElementById("adminTenantManagementCard");
         if (adminCard) {
             if (currentSessionUser && currentSessionUser.role === 'ADMIN') {
@@ -595,8 +602,13 @@ function switchTab(tabId) {
         } else if (window.renderAdminView) {
             window.renderAdminView();
         }
-        if (currentSessionUser && currentSessionUser.role === 'ADMIN' && window.loadAdminConsoleData) {
+        if (tabId === 'admin' && currentSessionUser && currentSessionUser.role === 'ADMIN' && window.loadAdminConsoleData) {
             window.loadAdminConsoleData();
+        }
+        if (tabId === 'settings') {
+            if (window.loadBackupSnapshots) window.loadBackupSnapshots();
+            if (window.updateDataCenterMetrics) window.updateDataCenterMetrics();
+            if (window.triggerDataHealthScan) window.triggerDataHealthScan();
         }
     }
     if (tabId === 'audit' && window.renderAuditView) {
@@ -604,11 +616,6 @@ function switchTab(tabId) {
     }
     if (tabId === 'personal' && window.renderPersonalExpensesDashboard) {
         window.renderPersonalExpensesDashboard();
-    }
-    if (tabId === 'settings') {
-        if (window.loadBackupSnapshots) window.loadBackupSnapshots();
-        if (window.updateDataCenterMetrics) window.updateDataCenterMetrics();
-        if (window.triggerDataHealthScan) window.triggerDataHealthScan();
     }
 
     // Scroll to top when switching views on mobile/desktop
@@ -2542,6 +2549,11 @@ function openExpenseModal(editId = null) {
     if (!modal) return;
     if (window.clearAnomalyWarning) window.clearAnomalyWarning();
 
+    // Synchronize fresh categories and members from household Master Settings
+    if (typeof window.syncDropdownsWithConfig === 'function') {
+        window.syncDropdownsWithConfig();
+    }
+
     if (editId) {
         const targetId = String(editId).trim();
         const item = expenses.find(i => String(i.id).trim() === targetId);
@@ -2555,7 +2567,32 @@ function openExpenseModal(editId = null) {
         document.getElementById("expenseId").value = item.id;
         document.getElementById("inputDate").value = item.date || cur.isoDate;
         document.getElementById("inputAmount").value = item.amount;
-        document.getElementById("inputCategory").value = item.category || "Grocery & Vegetables";
+
+        // Controlled Category dropdown - guarantee option exists
+        const catSelect = document.getElementById("inputCategory");
+        const targetCategory = item.category || "Grocery & Vegetables";
+        if (catSelect) {
+            let hasOption = false;
+            for (let i = 0; i < catSelect.options.length; i++) {
+                if (catSelect.options[i].value === targetCategory) {
+                    hasOption = true;
+                    break;
+                }
+            }
+            if (!hasOption) {
+                const opt = document.createElement("option");
+                opt.value = targetCategory;
+                opt.textContent = `🏷️ ${targetCategory}`;
+                // Insert before __NEW_CAT__ if present
+                const newCatOpt = catSelect.querySelector('option[value="__NEW_CAT__"]');
+                if (newCatOpt) {
+                    catSelect.insertBefore(opt, newCatOpt);
+                } else {
+                    catSelect.appendChild(opt);
+                }
+            }
+            catSelect.value = targetCategory;
+        }
 
         // Controlled Paid By dropdown - preserve exact existing value
         const paidBySelect = document.getElementById("inputPaidBy");
@@ -2607,7 +2644,15 @@ function openExpenseModal(editId = null) {
         if (form) form.reset();
         document.getElementById("expenseId").value = "";
         document.getElementById("inputDate").value = cur.isoDate;
-        document.getElementById("inputCategory").value = "Grocery & Vegetables";
+        
+        const catSelect = document.getElementById("inputCategory");
+        if (catSelect && catSelect.options.length > 0) {
+            if (catSelect.options[0].value !== '__NEW_CAT__') {
+                catSelect.selectedIndex = 0;
+            } else if (catSelect.options.length > 1) {
+                catSelect.selectedIndex = 1;
+            }
+        }
         
         const paidBySelect = document.getElementById("inputPaidBy");
         if (paidBySelect) {
@@ -2649,7 +2694,17 @@ function closeExpenseModal() {
 }
 
 function onCategoryChange() {
-    const cat = document.getElementById("inputCategory").value;
+    const select = document.getElementById("inputCategory");
+    if (!select) return;
+    const cat = select.value;
+
+    if (cat === '__NEW_CAT__') {
+        if (window.promptNewCategoryForExpense) {
+            window.promptNewCategoryForExpense();
+        }
+        return;
+    }
+
     const paidTo = document.getElementById("inputPaidTo");
     if (!paidTo) return;
 
@@ -2678,12 +2733,15 @@ async function saveExpense(e) {
     const date = document.getElementById("inputDate").value;
     const amountVal = document.getElementById("inputAmount").value;
     const amount = parseFloat(amountVal);
-    const category = document.getElementById("inputCategory").value;
+    const categorySelect = document.getElementById("inputCategory");
+    const category = categorySelect ? categorySelect.value : "";
     const paidBy = document.getElementById("inputPaidBy").value;
     const paidTo = document.getElementById("inputPaidTo").value.trim();
     const paymentMethod = document.getElementById("inputPaymentMethod").value;
     const splitEl = document.getElementById("inputSplitBetween");
     const splitBetween = splitEl ? splitEl.value : ((window.masterConfig && window.masterConfig.splitRules && window.masterConfig.splitRules[0]) || "Household Expense");
+    const notesEl = document.getElementById("inputNotes");
+    const notes = notesEl ? notesEl.value.trim() : "";
 
     // 1. Validation
     if (!date || isNaN(new Date(date).getTime())) {
@@ -2696,9 +2754,12 @@ async function saveExpense(e) {
         showToast("error", "Validation Error", "Amount must be a positive number greater than zero.");
         return;
     }
-    if (!category) {
+    if (!category || category === '__NEW_CAT__') {
         triggerHaptic('error');
-        showToast("error", "Validation Error", "Please select an expense category.");
+        showToast("error", "Validation Error", "Please select or add an expense category.");
+        if (category === '__NEW_CAT__' && window.promptNewCategoryForExpense) {
+            window.promptNewCategoryForExpense();
+        }
         return;
     }
 
@@ -2743,7 +2804,11 @@ async function saveExpense(e) {
         const method = isEdit ? "PUT" : "POST";
         const res = await fetch("/api/expenses", {
             method: method,
-            headers: getAuthHeaders(),
+            headers: getAuthHeaders({
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            }),
+            cache: 'no-store',
             body: JSON.stringify(payload)
         });
 
@@ -2782,6 +2847,21 @@ async function saveExpense(e) {
             window.expenses = expenses;
             window.expensesData = expenses;
 
+            // Automatically synchronize Master Settings categories if a new category was used
+            if (window.masterConfig && window.masterConfig.categories) {
+                const hasCat = window.masterConfig.categories.some(c => c.name.toLowerCase() === savedItem.category.toLowerCase());
+                if (!hasCat) {
+                    window.masterConfig.categories.push({
+                        name: savedItem.category,
+                        icon: '🏷️',
+                        type: 'expense',
+                        defaultPaidTo: savedItem.paidTo || ''
+                    });
+                    if (window.syncDropdownsWithConfig) window.syncDropdownsWithConfig();
+                    if (window.renderAdminView) window.renderAdminView();
+                }
+            }
+
             // 5. Persist to Local Storage Cache
             saveLocalCacheData();
 
@@ -2800,6 +2880,7 @@ async function saveExpense(e) {
 
             // 9. Silent Background Sync to Verify Server Parity
             loadData(true);
+            if (window.loadMasterConfig) window.loadMasterConfig();
         } else {
             console.error("Save rejected by server:", data);
             triggerHaptic('error');

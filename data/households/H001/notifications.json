@@ -1,1 +1,106 @@
-[]
+[
+  {
+    "id": "notif_1790683179222_jtax2",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1790683179221",
+    "actor": "Palash",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-09-29T11:59:39.222Z",
+    "readBy": []
+  },
+  {
+    "id": "notif_1790683179200_g34lc",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "Automated Test Category 1790683179164 • ₹350.5 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1790683179181-r85z",
+    "actor": "Palash",
+    "type": "EXPENSE_DELETE",
+    "amount": 350.5,
+    "timestamp": "2026-09-29T11:59:39.200Z",
+    "readBy": []
+  },
+  {
+    "id": "notif_1790683179189_9kng9",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹350.5",
+    "body": "Automated Test Category 1790683179164 • Paid by Palash • \"Automated test note verifying save action works end-to-end\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1790683179181-r85z",
+    "actor": "Palash",
+    "type": "EXPENSE_CREATE",
+    "amount": 350.5,
+    "timestamp": "2026-09-29T11:59:39.189Z",
+    "readBy": []
+  },
+  {
+    "id": "notif_1790683179169_fx9e9",
+    "householdId": "H001",
+    "title": "🏷️ Palash added category: Automated Test Category 1790683179164",
+    "body": "New spending category available in Master Settings",
+    "url": "/#tab-settings",
+    "tag": "cat-new-1790683179168",
+    "actor": "Palash",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-09-29T11:59:39.169Z",
+    "readBy": []
+  },
+  {
+    "id": "notif_1790683094767_vw131",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1790683094767",
+    "actor": "Palash",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-09-29T11:58:14.767Z",
+    "readBy": []
+  },
+  {
+    "id": "notif_1790683094761_daz0i",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "Automated Test Category 1790683094711 • ₹350.5 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1790683094732-dwq0",
+    "actor": "Palash",
+    "type": "EXPENSE_DELETE",
+    "amount": 350.5,
+    "timestamp": "2026-09-29T11:58:14.761Z",
+    "readBy": []
+  },
+  {
+    "id": "notif_1790683094751_6cywu",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹350.5",
+    "body": "Automated Test Category 1790683094711 • Paid by Palash • \"Automated test note verifying save action works end-to-end\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1790683094732-dwq0",
+    "actor": "Palash",
+    "type": "EXPENSE_CREATE",
+    "amount": 350.5,
+    "timestamp": "2026-09-29T11:58:14.751Z",
+    "readBy": []
+  },
+  {
+    "id": "notif_1790683094719_znnmv",
+    "householdId": "H001",
+    "title": "🏷️ Palash added category: Automated Test Category 1790683094711",
+    "body": "New spending category available in Master Settings",
+    "url": "/#tab-settings",
+    "tag": "cat-new-1790683094718",
+    "actor": "Palash",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-09-29T11:58:14.719Z",
+    "readBy": []
+  }
+]

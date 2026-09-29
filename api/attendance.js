@@ -6,7 +6,10 @@ const notifications = require('./notifications');
 
 module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
 
     // 1. Mandatory Identity & Household Resolution
     const session = authenticateRequest(req);
@@ -31,6 +34,13 @@ module.exports = async function handler(req, res) {
         }
 
         if (req.method === 'POST') {
+            if (session.role === 'VIEWER') {
+                return res.status(403).json({
+                    success: false,
+                    error: "Forbidden: Viewer role has read-only access and cannot modify attendance records."
+                });
+            }
+
             let body = req.body;
             if (typeof body === 'string') {
                 try { body = JSON.parse(body); } catch (e) {}

@@ -1423,11 +1423,14 @@
 
   async function loadMasterConfig() {
     try {
+      const activeHId = (typeof getActiveHouseholdId === 'function') 
+        ? getActiveHouseholdId() 
+        : ((window.currentSessionUser && window.currentSessionUser.householdId) || 'H001');
       const headers = getAdvanceAuthHeaders({
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache'
       });
-      const res = await fetch(`/api/config?_t=${Date.now()}`, {
+      const res = await fetch(`/api/config?householdId=${encodeURIComponent(activeHId)}&_t=${Date.now()}`, {
         cache: 'no-store',
         headers: headers
       });
@@ -1462,11 +1465,21 @@
 
   async function saveMasterConfig(partialUpdates) {
     try {
-      const headers = getAdvanceAuthHeaders();
-      const res = await fetch('/api/config', {
+      const activeHId = (typeof getActiveHouseholdId === 'function') 
+        ? getActiveHouseholdId() 
+        : ((window.currentSessionUser && window.currentSessionUser.householdId) || 'H001');
+      const headers = getAdvanceAuthHeaders({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      });
+      const res = await fetch(`/api/config?householdId=${encodeURIComponent(activeHId)}`, {
         method: 'POST',
         headers: headers,
-        body: JSON.stringify(partialUpdates)
+        cache: 'no-store',
+        body: JSON.stringify({
+          ...partialUpdates,
+          householdId: activeHId
+        })
       });
       if (res.ok) {
         const json = await res.json();
@@ -1483,9 +1496,14 @@
           if (window.renderAdminView) window.renderAdminView();
           if (window.renderAllViews) window.renderAllViews();
           if (window.showToast) {
-            window.showToast('success', 'Master Config Saved!', 'Admin changes applied and synchronized in real-time.');
+            window.showToast('success', 'Master Settings Synchronized!', 'Changes applied and synchronized with household.');
           }
           return true;
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        if (window.showToast) {
+          window.showToast('error', 'Update Failed', errData.error || 'Server rejected configuration update.');
         }
       }
     } catch (err) {
@@ -1509,11 +1527,14 @@
       const inputCat = document.getElementById('inputCategory');
       if (inputCat) {
         const currentVal = inputCat.value;
-        inputCat.innerHTML = config.categories.map(c => 
+        const opts = config.categories.map(c => 
           `<option value="${c.name}">${c.icon || '🏷️'} ${c.name}</option>`
-        ).join('');
+        ).join('') + `<option value="__NEW_CAT__">➕ Add New Category...</option>`;
+        inputCat.innerHTML = opts;
         if (currentVal && config.categories.some(c => c.name === currentVal)) {
           inputCat.value = currentVal;
+        } else if (config.categories.length > 0) {
+          inputCat.value = config.categories[0].name;
         }
       }
 
@@ -1525,6 +1546,8 @@
         ).join('');
         if (currentVal && (currentVal === 'all' || config.categories.some(c => c.name === currentVal))) {
           filterCat.value = currentVal;
+        } else {
+          filterCat.value = 'all';
         }
       }
 
@@ -1769,24 +1792,37 @@
 
     // 3. Categories Grid
     const catGrid = document.getElementById('adminCategoriesGrid');
-    if (catGrid && config.categories) {
-      catGrid.innerHTML = config.categories.map((c) => `
-        <div class="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-slate-300 shadow-sm transition" data-cat-name="${c.name}">
-          <div class="flex items-center space-x-2.5 min-w-0">
-            <span class="text-xl shrink-0">${c.icon || '🏷️'}</span>
-            <div class="min-w-0">
-              <div class="text-xs font-black text-slate-900 truncate">${c.name}</div>
-              <div class="text-[10px] text-slate-500 flex items-center gap-1.5">
-                <span class="px-1.5 py-0.2 rounded font-extrabold uppercase text-[9px] ${c.type === 'income' ? 'bg-emerald-100 text-emerald-800' : (c.type === 'transfer' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700')}">${c.type || 'expense'}</span>
-                ${c.defaultPaidTo ? `<span class="truncate text-slate-400">→ ${c.defaultPaidTo}</span>` : ''}
-              </div>
-            </div>
+    if (catGrid) {
+      const cats = (config && Array.isArray(config.categories)) ? config.categories : [];
+      if (cats.length === 0) {
+        catGrid.innerHTML = `
+          <div class="col-span-full py-8 text-center text-slate-400 font-semibold text-xs bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+            No categories defined for this household yet. Click "+ Add Category" to create one.
           </div>
-          <button onclick="adminDeleteCategory('${c.name.replace(/'/g, "\\'")}')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition shrink-0" title="Delete category">
-            <i class="fa-solid fa-xmark text-xs"></i>
-          </button>
-        </div>
-      `).join('');
+        `;
+      } else {
+        catGrid.innerHTML = cats.map((c) => {
+          const safeName = (c.name || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+          const safeJsName = (c.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          return `
+            <div class="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-slate-300 shadow-sm transition" data-cat-name="${safeName}">
+              <div class="flex items-center space-x-2.5 min-w-0">
+                <span class="text-xl shrink-0">${c.icon || '🏷️'}</span>
+                <div class="min-w-0">
+                  <div class="text-xs font-black text-slate-900 truncate">${safeName}</div>
+                  <div class="text-[10px] text-slate-500 flex items-center gap-1.5">
+                    <span class="px-1.5 py-0.2 rounded font-extrabold uppercase text-[9px] ${c.type === 'income' ? 'bg-emerald-100 text-emerald-800' : (c.type === 'transfer' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700')}">${c.type || 'expense'}</span>
+                    ${c.defaultPaidTo ? `<span class="truncate text-slate-400">→ ${c.defaultPaidTo}</span>` : ''}
+                  </div>
+                </div>
+              </div>
+              <button onclick="adminDeleteCategory('${safeJsName}')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition shrink-0" title="Delete category">
+                <i class="fa-solid fa-xmark text-xs"></i>
+              </button>
+            </div>
+          `;
+        }).join('');
+      }
     }
 
     // 4. Family Members ("Paid By")
@@ -2121,14 +2157,110 @@
   };
 
   // 3. Category Modals & Actions
+  window.quickAddCategoryToHousehold = async function (name, icon = '🏷️', type = 'expense', defaultPaidTo = '') {
+    const cleanName = String(name || '').trim();
+    if (!cleanName) return false;
+
+    if (window.currentSessionUser && window.currentSessionUser.role === 'VIEWER') {
+      const msg = 'Viewer role has read-only access and cannot add or edit categories.';
+      if (window.showToast) window.showToast('error', 'Access Denied', msg);
+      else alert(msg);
+      return false;
+    }
+
+    try {
+      const activeHId = (typeof getActiveHouseholdId === 'function') 
+        ? getActiveHouseholdId() 
+        : ((window.currentSessionUser && window.currentSessionUser.householdId) || 'H001');
+
+      const headers = getAdvanceAuthHeaders({
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      });
+
+      const res = await fetch(`/api/config?householdId=${encodeURIComponent(activeHId)}`, {
+        method: 'POST',
+        headers: headers,
+        cache: 'no-store',
+        body: JSON.stringify({
+          action: 'add_category',
+          category: { name: cleanName, icon: icon || '🏷️', type: type || 'expense', defaultPaidTo: defaultPaidTo || '' },
+          householdId: activeHId
+        })
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          window.masterConfig = json.data;
+          if (window.updateGlobalsFromConfig) window.updateGlobalsFromConfig(json.data);
+          syncDropdownsWithConfig();
+          if (window.renderAdminView) window.renderAdminView();
+          
+          const catSelect = document.getElementById('inputCategory');
+          if (catSelect) {
+            catSelect.value = cleanName;
+            if (typeof onCategoryChange === 'function') onCategoryChange();
+          }
+          if (window.showToast) {
+            window.showToast('success', 'Category Saved', `"${cleanName}" has been added to Master Settings.`);
+          }
+          return true;
+        }
+      } else {
+        const err = await res.json().catch(() => ({}));
+        if (window.showToast) window.showToast('error', 'Category Failed', err.error || 'Failed to save category.');
+      }
+    } catch (e) {
+      console.error('quickAddCategoryToHousehold error:', e);
+      if (window.showToast) window.showToast('error', 'Error', e.message || 'Network error.');
+    }
+    return false;
+  };
+
+  window.promptNewCategoryForExpense = function () {
+    const modal = document.getElementById('adminAddCategoryModal');
+    if (modal) {
+      modal.classList.remove('hidden');
+      const nameInput = document.getElementById('adminNewCatName');
+      if (nameInput) {
+        nameInput.value = '';
+        setTimeout(() => nameInput.focus(), 80);
+      }
+    } else {
+      const name = prompt('Enter new category name:');
+      if (name && name.trim()) {
+        window.quickAddCategoryToHousehold(name.trim());
+      } else {
+        const catSelect = document.getElementById('inputCategory');
+        if (catSelect && catSelect.value === '__NEW_CAT__') {
+          const firstCat = (window.masterConfig && window.masterConfig.categories && window.masterConfig.categories[0]) ? window.masterConfig.categories[0].name : '';
+          catSelect.value = firstCat;
+          if (typeof onCategoryChange === 'function') onCategoryChange();
+        }
+      }
+    }
+  };
+
   window.openAdminAddCategoryModal = function () {
     const modal = document.getElementById('adminAddCategoryModal');
     if (modal) modal.classList.remove('hidden');
+    const nameInput = document.getElementById('adminNewCatName');
+    if (nameInput) setTimeout(() => nameInput.focus(), 80);
   };
+
   window.closeAdminAddCategoryModal = function () {
     const modal = document.getElementById('adminAddCategoryModal');
     if (modal) modal.classList.add('hidden');
+    const catSelect = document.getElementById('inputCategory');
+    if (catSelect && catSelect.value === '__NEW_CAT__') {
+      const firstCat = (window.masterConfig && window.masterConfig.categories && window.masterConfig.categories[0]) ? window.masterConfig.categories[0].name : '';
+      catSelect.value = firstCat;
+      if (typeof onCategoryChange === 'function') onCategoryChange();
+    }
   };
+
   window.adminSaveNewCategory = async function (e) {
     if (e && e.preventDefault) e.preventDefault();
     const name = document.getElementById('adminNewCatName')?.value.trim();
@@ -2138,18 +2270,12 @@
 
     if (!name) return;
 
-    const newCat = { name, icon, type, defaultPaidTo };
-    const currentCats = (window.masterConfig && window.masterConfig.categories) ? [...window.masterConfig.categories] : [];
-    if (currentCats.some(c => c.name.toLowerCase() === name.toLowerCase())) {
-      alert('A category with this name already exists.');
-      return;
+    const ok = await window.quickAddCategoryToHousehold(name, icon, type, defaultPaidTo);
+    if (ok) {
+      window.closeAdminAddCategoryModal();
+      const form = document.getElementById('adminAddCategoryForm');
+      if (form) form.reset();
     }
-    currentCats.push(newCat);
-
-    await saveMasterConfig({ categories: currentCats });
-    window.closeAdminAddCategoryModal();
-    const form = document.getElementById('adminAddCategoryForm');
-    if (form) form.reset();
   };
 
   window.adminDeleteCategory = async function (catName) {

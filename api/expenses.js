@@ -45,6 +45,13 @@ module.exports = async function handler(req, res) {
 
         // POST / PUT: Create or Edit Expense in the authenticated household
         if (req.method === 'POST' || req.method === 'PUT') {
+            if (session.role === 'VIEWER') {
+                return res.status(403).json({
+                    success: false,
+                    error: "Forbidden: Viewer role has read-only access and cannot create or modify transactions."
+                });
+            }
+
             let body = req.body;
             if (typeof body === 'string') {
                 try { body = JSON.parse(body); } catch (e) {}
@@ -75,6 +82,29 @@ module.exports = async function handler(req, res) {
 
             const isEdit = req.method === 'PUT';
             const saved = await storage.saveHouseholdExpense(householdId, body, actorUser);
+
+            // Automatically ensure newly recorded category is synced into household Master Settings
+            const savedCategory = String(saved.category || body.category || '').trim();
+            if (savedCategory) {
+                try {
+                    const currentCfg = await storage.getHouseholdConfig(householdId, true);
+                    if (currentCfg && Array.isArray(currentCfg.categories)) {
+                        const exists = currentCfg.categories.some(c => c.name.toLowerCase() === savedCategory.toLowerCase());
+                        if (!exists) {
+                            currentCfg.categories.push({
+                                name: savedCategory,
+                                icon: '🏷️',
+                                type: 'expense',
+                                defaultPaidTo: saved.paidTo || body.paidTo || ''
+                            });
+                            currentCfg.updatedAt = new Date().toISOString();
+                            await storage.saveHouseholdConfig(householdId, currentCfg, actorUser);
+                        }
+                    }
+                } catch (catErr) {
+                    console.warn('[Category Sync Notice]:', catErr.message);
+                }
+            }
 
             // Closed-app Push Notification & In-App Activity Alert to linked household members
             // E.g., when Palash adds/updates, Pallavi receives a push notification, and vice versa!
@@ -125,6 +155,13 @@ module.exports = async function handler(req, res) {
 
         // DELETE: Delete Expense Record from the authenticated household
         if (req.method === 'DELETE') {
+            if (session.role === 'VIEWER') {
+                return res.status(403).json({
+                    success: false,
+                    error: "Forbidden: Viewer role has read-only access and cannot delete transactions."
+                });
+            }
+
             let body = req.body;
             if (typeof body === 'string') {
                 try { body = JSON.parse(body); } catch (e) {}

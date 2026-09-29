@@ -713,11 +713,11 @@ async function deleteHouseholdExpense(householdId, id, actorUser = 'System') {
 // ==========================================
 // HOUSEHOLD-SCOPED CONFIG REPOSITORY
 // ==========================================
-async function getHouseholdConfig(householdId) {
+async function getHouseholdConfig(householdId, forceFresh = true) {
     const cleanHId = sanitizeId(householdId);
     if (!cleanHId) throw new Error('Unauthorized: Invalid Household context.');
 
-    if (!memoryStore.config[cleanHId]) {
+    if (forceFresh || !memoryStore.config[cleanHId]) {
         const filePath = getHouseholdFilePath(cleanHId, 'config.json');
         let config = readJsonFile(filePath, null);
         if (!config && cleanHId === 'H001') {

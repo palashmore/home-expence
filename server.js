@@ -44,7 +44,10 @@ const staticFiles = [
     'icon.svg',
     'icon-192.png',
     'icon-512.png',
-    'apple-touch-icon.png'
+    'icon-maskable-512.png',
+    'apple-touch-icon.png',
+    'favicon.ico',
+    'og-image.png'
 ];
 
 for (const f of staticFiles) {

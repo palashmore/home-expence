@@ -1,5 +1,5 @@
 // HomeExpenses Progressive Web App Service Worker
-const CACHE_NAME = 'homeexpenses-v11';
+const CACHE_NAME = 'homeexpenses-v12';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -10,6 +10,7 @@ const STATIC_ASSETS = [
   '/icon.svg',
   '/icon-192.png',
   '/icon-512.png',
+  '/icon-maskable-512.png',
   '/apple-touch-icon.png'
 ];
 
@@ -60,7 +61,7 @@ self.addEventListener('fetch', event => {
 // 3. Push and System Notification Handling (Closed-App Mobile Alerts & Heads-Up Banners)
 self.addEventListener('push', event => {
   let data = {
-    title: '🔔 Home Expence Alert',
+    title: '🔔 GharKhata Alert',
     body: 'You have a pending household reminder.',
     url: '/',
     tag: `home-expence-${Date.now()}`
@@ -87,7 +88,7 @@ self.addEventListener('push', event => {
     vibrate: data.vibrate || [300, 100, 300, 100, 300],
     data: { url: data.url || '/' },
     actions: [
-      { action: 'open', title: 'Open Home Expence' }
+      { action: 'open', title: 'Open GharKhata' }
     ]
   };
 

@@ -3,17 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Home Expence · Household Financial Command Center</title>
+    <title>GharKhata · Household Financial Command Center</title>
     <!-- PWA Web App Manifest & Mobile Meta -->
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0f172a">
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
-    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Home Expence">
+    <meta name="apple-mobile-web-app-title" content="GharKhata">
     <meta name="format-detection" content="telephone=no">
+    <!-- Social sharing preview -->
+    <meta property="og:title" content="GharKhata · Household Financial Command Center">
+    <meta property="og:description" content="Household expenses, staff payroll, reimbursements and budget in one place.">
+    <meta property="og:image" content="https://home-expence-pink.vercel.app/og-image.png">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -57,7 +64,7 @@
                 <i class="fa-solid fa-mobile-screen"></i>
             </div>
             <div class="min-w-0 truncate">
-                <div class="text-xs font-bold leading-tight truncate">Install Home Expence</div>
+                <div class="text-xs font-bold leading-tight truncate">Install GharKhata</div>
                 <div class="text-[10px] text-indigo-300 truncate">Fast, offline-ready mobile app</div>
             </div>
         </div>
@@ -83,15 +90,10 @@
                      the controls on the right past the edge of the screen.
                      Desktop keeps shrink-0 exactly as before. -->
                 <div class="flex items-center gap-2 sm:gap-3 min-w-0 shrink sm:shrink-0">
-                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-600 to-indigo-800 flex items-center justify-center text-white shadow-lg shadow-indigo-600/40 shrink-0 border border-indigo-400/20" title="Home Expence">
-                        <svg class="w-4 h-4 sm:w-6 sm:h-6 text-white" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M16 3L3 14H7V27C7 27.55 7.45 28 8 28H24C24.55 28 25 27.55 25 27V14H29L16 3Z" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                            <path d="M12 11H20M12 14.5H19M12 11V23M12 14.5C14.5 14.5 17 14.5 17 17.5C17 20 14 20 12 20M15.5 20L19.5 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </div>
+                    <img src="/icon.svg" alt="GharKhata" class="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl shrink-0">
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5 sm:gap-2">
-                            <span class="text-sm sm:text-lg font-black text-white tracking-tight truncate leading-tight">Home Expence</span>
+                            <span class="text-sm sm:text-lg font-black text-white tracking-tight truncate leading-tight">GharKhata</span>
                             <!-- Active Household Pill (Desktop & Tablet) -->
                             <div id="hdrHouseholdBadge" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800/90 border border-indigo-500/30 text-[11px] font-bold text-indigo-200 shrink-0" title="Current Active Household">
                                 <i class="fa-solid fa-house-chimney text-[10px] text-indigo-400 shrink-0"></i>

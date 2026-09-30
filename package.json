@@ -5,7 +5,10 @@
   "description": "Full-stack Secure Household Expense Tracker & Staff Payroll System",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "keys": "node scripts/generate_keys.js",
+    "test": "bash ./run_tests.sh",
+    "audit": "bash ./run_audit.sh"
   },
   "dependencies": {
     "cookie": "^0.6.0",

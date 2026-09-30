@@ -3,7 +3,55 @@
 const crypto = require('crypto');
 const storage = require('./_storage');
 
-const JWT_SECRET = process.env.JWT_SECRET || "household_secret_token_signing_key_2026_luxury_secure";
+// Session tokens are signed with this. The previous fallback was a literal
+// string committed to this repository, so anyone reading the source could forge
+// a token for any household and any role, including SYSTEM_ADMIN.
+//
+// In production a real secret is now required and the process refuses to start
+// without one. Outside production a random per-process secret is used instead of
+// a shared constant: local sessions stop working after a restart, which is a far
+// smaller cost than shipping a publicly known signing key.
+const MIN_SECRET_LENGTH = 32;
+const INSECURE_LEGACY_SECRET = 'household_secret_token_signing_key_2026_luxury_secure';
+
+function resolveSessionSecret() {
+    const fromEnv = (process.env.JWT_SECRET || '').trim();
+    const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+
+    if (fromEnv && fromEnv !== INSECURE_LEGACY_SECRET && fromEnv.length >= MIN_SECRET_LENGTH) {
+        return fromEnv;
+    }
+
+    if (isProduction) {
+        const why = !fromEnv
+            ? 'JWT_SECRET is not set'
+            : (fromEnv === INSECURE_LEGACY_SECRET
+                ? 'JWT_SECRET is still the old hardcoded value'
+                : `JWT_SECRET is shorter than ${MIN_SECRET_LENGTH} characters`);
+        throw new Error(
+            `Refusing to start: ${why}. Session tokens would be forgeable. ` +
+            `Generate one with:  node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"  ` +
+            `and set it as an environment variable.`
+        );
+    }
+
+    if (fromEnv) {
+        console.warn(
+            `[Auth] JWT_SECRET is weak (${fromEnv === INSECURE_LEGACY_SECRET
+                ? 'the old hardcoded value' : `under ${MIN_SECRET_LENGTH} characters`}). ` +
+            'Using it anyway because this is not production, but it must be replaced before deploying.'
+        );
+        return fromEnv;
+    }
+
+    console.warn(
+        '[Auth] JWT_SECRET is not set. Using a random secret for this process only; ' +
+        'sessions will not survive a restart. Set JWT_SECRET for a stable local setup.'
+    );
+    return crypto.randomBytes(48).toString('base64url');
+}
+
+const JWT_SECRET = resolveSessionSecret();
 const SESSION_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // ==========================================

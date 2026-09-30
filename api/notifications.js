@@ -14,28 +14,59 @@ const VAPID_FILE = path.join(DATA_DIR, 'vapid_keys.json');
 const SUBS_FILE = path.join(DATA_DIR, 'push_subscriptions.json');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 
-// Ensure VAPID keys exist
+// Resolve VAPID keys: environment first, then the on-disk file, and only as a
+// last resort generate a throwaway pair.
+//
+// The env var matters on serverless. There the filesystem is read-only, so the
+// write below silently fails and a fresh key pair is generated on every cold
+// start. Every push subscription a device made is bound to the public key it
+// saw, so the next cold start invalidates all of them and notifications stop
+// arriving with no visible error. Setting VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY
+// pins one pair for the life of the deployment.
 let vapidKeys = null;
-try {
-    if (fs.existsSync(VAPID_FILE)) {
-        vapidKeys = JSON.parse(fs.readFileSync(VAPID_FILE, 'utf8'));
-    }
-} catch (e) {}
+let vapidSource = 'generated';
 
-if (!vapidKeys || !vapidKeys.publicKey || !vapidKeys.privateKey) {
-    vapidKeys = webpush.generateVAPIDKeys();
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    vapidKeys = {
+        publicKey: process.env.VAPID_PUBLIC_KEY.trim(),
+        privateKey: process.env.VAPID_PRIVATE_KEY.trim()
+    };
+    vapidSource = 'environment';
+} else {
     try {
-        if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-        fs.writeFileSync(VAPID_FILE, JSON.stringify(vapidKeys, null, 2), 'utf8');
+        if (fs.existsSync(VAPID_FILE)) {
+            vapidKeys = JSON.parse(fs.readFileSync(VAPID_FILE, 'utf8'));
+            vapidSource = 'data/vapid_keys.json';
+        }
     } catch (e) {}
 }
 
+if (!vapidKeys || !vapidKeys.publicKey || !vapidKeys.privateKey) {
+    vapidKeys = webpush.generateVAPIDKeys();
+    vapidSource = 'generated';
+    let persisted = false;
+    try {
+        if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+        fs.writeFileSync(VAPID_FILE, JSON.stringify(vapidKeys, null, 2), 'utf8');
+        persisted = true;
+    } catch (e) {}
+
+    if (!persisted) {
+        console.warn(
+            '[Push] VAPID keys were generated in memory and could not be saved. ' +
+            'Push subscriptions will break on the next cold start. ' +
+            'Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY to fix this.'
+        );
+    }
+}
+
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@homeexpenses.local';
+
 try {
-    webpush.setVapidDetails(
-        'mailto:admin@homeexpenses.local',
-        vapidKeys.publicKey,
-        vapidKeys.privateKey
-    );
+    webpush.setVapidDetails(VAPID_SUBJECT, vapidKeys.publicKey, vapidKeys.privateKey);
+    if (process.env.NODE_ENV !== 'test') {
+        console.log(`[Push] VAPID keys loaded from ${vapidSource}.`);
+    }
 } catch (e) {
     console.warn('VAPID initialization notice:', e.message);
 }

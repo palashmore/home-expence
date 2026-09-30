@@ -122,6 +122,48 @@ function run() {
             `api/${mod}.js exports a handler (${res.ok ? res.exportType : 'failed to load: ' + res.stderr})`);
     }
 
+    // ------------------------------------------------------------------
+    // Every asset the manifest and the HTML point at must actually ship.
+    //
+    // A missing static file does not 404 here - the server falls back to
+    // index.html - so a broken icon returns HTTP 200 with text/html and looks
+    // fine until something like PWABuilder checks the content type. That is how
+    // icon-maskable-512.png, favicon.ico and og-image.png shipped referenced but
+    // absent: they were added to server.js but not to vercel.json's includeFiles,
+    // which is what decides the serverless bundle.
+    // ------------------------------------------------------------------
+    console.log('\n--- declared assets are on disk and bundled for deploy ---');
+    const fs = require('fs');
+    const read = (f) => fs.readFileSync(path.join(REPO, f), 'utf8');
+
+    const manifest = JSON.parse(read('manifest.json'));
+    const serverSrc = read('server.js');
+    const vercelSrc = read('vercel.json');
+    const indexSrc = read('index.html');
+
+    const declared = new Set();
+    for (const icon of manifest.icons || []) {
+        declared.add(String(icon.src).replace(/^\//, ''));
+    }
+    // Anything index.html references from the site root...
+    for (const m of indexSrc.matchAll(/(?:href|content|src)="\/([\w.-]+\.(?:png|svg|ico|json))"/g)) {
+        declared.add(m[1]);
+    }
+    // ...and anything it references by absolute URL, such as the og:image tag,
+    // which is served from this same deployment.
+    for (const m of indexSrc.matchAll(/(?:href|content|src)="https?:\/\/[^"]*?\/([\w.-]+\.(?:png|svg|ico|json))"/g)) {
+        declared.add(m[1]);
+    }
+
+    for (const asset of [...declared].sort()) {
+        assert(fs.existsSync(path.join(REPO, asset)),
+            `${asset} exists in the repo`);
+        assert(serverSrc.includes(`'${asset}'`),
+            `${asset} is in the server.js staticFiles list`);
+        assert(vercelSrc.includes(asset),
+            `${asset} is in vercel.json includeFiles (otherwise it 404s on Vercel)`);
+    }
+
     console.log('\n====================================================');
     console.log(`📊 Test Results: ${passed} PASSED, ${failed} FAILED`);
     console.log('====================================================');

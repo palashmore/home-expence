@@ -1484,6 +1484,83 @@
   }
   window.loadMasterConfig = loadMasterConfig;
 
+  // Re-fetch the household config and compare the fields we just wrote against
+  // what came back. Returns the stored config so callers can render the truth
+  // rather than their own optimistic copy.
+  async function verifyConfigSaved(householdId, sent) {
+    const result = { ok: true, mismatches: [], stored: null };
+    try {
+      const res = await fetch(
+        `/api/config?householdId=${encodeURIComponent(householdId)}&_t=${Date.now()}`,
+        { headers: getAdvanceAuthHeaders(), cache: 'no-store' }
+      );
+      if (!res.ok) {
+        result.ok = false;
+        result.mismatches.push('could not re-read the saved config');
+        return result;
+      }
+      const json = await res.json();
+      const stored = json.data || json.config || null;
+      result.stored = stored;
+      if (!stored) {
+        result.ok = false;
+        result.mismatches.push('server returned no config to verify against');
+        return result;
+      }
+
+      const sameNumber = (a, b) => Number(a) === Number(b);
+
+      if (sent.monthlyBudgetLimit !== undefined &&
+          !sameNumber(stored.monthlyBudgetLimit, sent.monthlyBudgetLimit)) {
+        result.mismatches.push(
+          `monthly budget (sent ${sent.monthlyBudgetLimit}, stored ${stored.monthlyBudgetLimit})`);
+      }
+
+      if (Array.isArray(sent.staff)) {
+        const storedById = indexById(stored.staff);
+        sent.staff.forEach((s) => {
+          const got = storedById[s.id];
+          if (!got) {
+            result.mismatches.push(`staff ${s.name || s.id} was not saved`);
+            return;
+          }
+          if (!sameNumber(got.baseSalary, s.baseSalary)) {
+            result.mismatches.push(`${s.name || s.id} salary (sent ${s.baseSalary}, stored ${got.baseSalary})`);
+          }
+          if ((got.shortName || '') !== (s.shortName || '')) {
+            result.mismatches.push(`${s.name || s.id} short name`);
+          }
+          if ((got.name || '') !== (s.name || '')) {
+            result.mismatches.push(`${s.id} name`);
+          }
+        });
+      }
+
+      if (Array.isArray(sent.recurringBills)) {
+        const storedById = indexById(stored.recurringBills);
+        sent.recurringBills.forEach((b) => {
+          const got = storedById[b.id];
+          if (!got) {
+            result.mismatches.push(`bill ${b.name || b.id} was not saved`);
+            return;
+          }
+          if (!sameNumber(got.approxAmount, b.approxAmount)) {
+            result.mismatches.push(`${b.name || b.id} amount (sent ${b.approxAmount}, stored ${got.approxAmount})`);
+          }
+          if (!sameNumber(got.dueDay, b.dueDay)) {
+            result.mismatches.push(`${b.name || b.id} due day`);
+          }
+        });
+      }
+
+      result.ok = result.mismatches.length === 0;
+    } catch (err) {
+      result.ok = false;
+      result.mismatches.push(`verification failed: ${err.message}`);
+    }
+    return result;
+  }
+
   async function saveMasterConfig(partialUpdates) {
     try {
       const activeHId = (typeof getActiveHouseholdId === 'function') 
@@ -1505,9 +1582,14 @@
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
-          window.masterConfig = json.data;
+          // Read back before claiming success. A 200 only means the server
+          // accepted the request, not that what it stored matches what the
+          // owner typed. Anything that disagrees is reported, not hidden.
+          const verification = await verifyConfigSaved(activeHId, partialUpdates);
+
+          window.masterConfig = verification.stored || json.data;
           if (window.updateGlobalsFromConfig) {
-            window.updateGlobalsFromConfig(json.data);
+            window.updateGlobalsFromConfig(window.masterConfig);
           }
           syncDropdownsWithConfig();
           if (window.renderAttendanceCalendar) window.renderAttendanceCalendar();
@@ -1516,8 +1598,18 @@
           }
           if (window.renderAdminView) window.renderAdminView();
           if (window.renderAllViews) window.renderAllViews();
+
+          if (!verification.ok) {
+            if (window.showToast) {
+              window.showToast('error', 'Saved value does not match',
+                `The server stored something different for: ${verification.mismatches.join(', ')}. Check the values and try again.`);
+            }
+            return false;
+          }
+
+          window.adminFormDirty = false;
           if (window.showToast) {
-            window.showToast('success', 'Master Settings Synchronized!', 'Changes applied and synchronized with household.');
+            window.showToast('success', 'Saved', 'Changes verified on the server.');
           }
           return true;
         }
@@ -2098,6 +2190,57 @@
     return message;
   }
 
+  // --- unsaved-changes guard (C5) -------------------------------------------
+  // Staff and bill edits are typed into rows and only persisted by the one
+  // global Save. On a phone it is very easy to tap away and lose them silently,
+  // so track dirtiness and warn before the edits can disappear.
+  window.adminFormDirty = false;
+
+  const ADMIN_EDIT_SELECTOR =
+    '.staff-edit-name, .staff-edit-shortname, .staff-edit-role, .staff-edit-salary, ' +
+    '.staff-edit-leaves, .staff-edit-cycleday, .staff-edit-cycletype, .staff-edit-active, ' +
+    '.bill-edit-icon, .bill-edit-name, .bill-edit-cat, .bill-edit-dueday, .bill-edit-amount, ' +
+    '#adminMonthlyBudgetLimit, #adminCycleStartDay, #adminCycleEndDay, ' +
+    '#adminCycleTypeCustom, #adminCycleTypeCalendar';
+
+  function markAdminDirty(e) {
+    if (e.target && e.target.closest && e.target.closest(ADMIN_EDIT_SELECTOR)) {
+      window.adminFormDirty = true;
+      const banner = document.getElementById('adminUnsavedBanner');
+      if (banner) banner.classList.remove('hidden');
+    }
+  }
+  document.addEventListener('input', markAdminDirty, true);
+  document.addEventListener('change', markAdminDirty, true);
+
+  window.adminHasUnsavedChanges = () => window.adminFormDirty === true;
+
+  window.addEventListener('beforeunload', (e) => {
+    if (window.adminFormDirty) {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    }
+  });
+
+  // Leaving the admin tab with edits pending is the common way to lose them.
+  (function guardTabSwitch() {
+    const original = window.switchTab;
+    if (typeof original !== 'function') return;
+    window.switchTab = function (tab, ...rest) {
+      if (window.adminFormDirty && tab !== 'admin') {
+        const leave = window.confirm(
+          'You have unsaved master-settings changes.\n\nLeave this tab and discard them?'
+        );
+        if (!leave) return;
+        window.adminFormDirty = false;
+        const banner = document.getElementById('adminUnsavedBanner');
+        if (banner) banner.classList.add('hidden');
+      }
+      return original.call(this, tab, ...rest);
+    };
+  })();
+
   window.saveAdminConfigFromUI = async function () {
     const config = window.masterConfig || {};
 
@@ -2254,7 +2397,35 @@
       ]
     };
 
-    await saveMasterConfig(payload);
+    // Busy state: the owner must be able to see the save is in flight, and a
+    // double tap must not fire a second write.
+    const saveButtons = [
+      document.getElementById('btnSaveAdminConfig'),
+      document.getElementById('btnSaveAdminConfigMobile')
+    ].filter(Boolean);
+    saveButtons.forEach((b) => {
+      b.dataset.busy = '1';
+      b.dataset.prevHtml = b.innerHTML;
+      b.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i><span>Saving...</span>';
+    });
+
+    let ok = false;
+    try {
+      ok = await saveMasterConfig(payload);
+    } finally {
+      saveButtons.forEach((b) => {
+        delete b.dataset.busy;
+        if (b.dataset.prevHtml) b.innerHTML = b.dataset.prevHtml;
+        delete b.dataset.prevHtml;
+      });
+    }
+
+    if (ok) {
+      window.adminFormDirty = false;
+      const banner = document.getElementById('adminUnsavedBanner');
+      if (banner) banner.classList.add('hidden');
+    }
+    return ok;
   };
 
   window.adminSaveBudget = async function () {

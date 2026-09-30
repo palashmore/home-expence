@@ -38,6 +38,9 @@ class Audit:
         self.checks = []
         self.console_errors = []
         self.dialogs = []
+        # Set only around a step that deliberately provokes a dialog (the
+        # unsaved-changes confirm). Everywhere else a dialog is a bug.
+        self.expecting_dialog = False
 
     def record(self, name, ok, detail=""):
         self.checks.append({"name": name, "ok": bool(ok), "detail": detail})
@@ -71,8 +74,12 @@ def attach_listeners(page, audit):
             audit.console_errors.append(text)
 
     def on_dialog(dialog):
-        audit.dialogs.append(f"{dialog.type}: {dialog.message}")
-        dialog.dismiss()
+        if not audit.expecting_dialog:
+            audit.dialogs.append(f"{dialog.type}: {dialog.message}")
+        try:
+            dialog.dismiss()
+        except PWError:
+            pass          # another handler already answered it
 
     page.on("console", on_console)
     page.on("dialog", on_dialog)
@@ -90,8 +97,19 @@ def login(page, username=OWNER[0], password=OWNER[1]):
     page.wait_for_timeout(1200)
 
 
+def reload_app(page):
+    """Reload without tripping the beforeunload guard, which has its own test."""
+    page.evaluate("window.adminFormDirty = false")
+    page.reload(wait_until="domcontentloaded")
+    page.wait_for_selector("#tab-dashboard", timeout=20000, state="attached")
+    page.wait_for_timeout(1200)
+
+
 def goto_tab(page, tab):
-    page.evaluate(f"switchTab({json.dumps(tab)})")
+    # Navigation itself is not what most checks are testing, and the
+    # unsaved-changes guard would block it with a confirm(). The guard has its
+    # own dedicated test below.
+    page.evaluate(f"window.adminFormDirty = false; switchTab({json.dumps(tab)})")
     page.wait_for_timeout(700)
 
 
@@ -343,9 +361,8 @@ def audit_staff_shortname(page, audit, api):
     seeded["shortName"] = "ZZ9"
     new_staff = [seeded if s["id"] == target_id else s for s in staff]
     api("POST", "/api/config", {**cfg, "staff": new_staff})
-    page.reload(wait_until="domcontentloaded")
-    page.wait_for_selector("#tab-dashboard", timeout=20000, state="attached")
-    page.wait_for_timeout(1200)
+    reload_app(page)
+
     goto_tab(page, "admin")
     page.wait_for_timeout(900)
 
@@ -478,9 +495,90 @@ def audit_no_silent_defaults(page, audit, api):
     )
 
     # Put the form back so later checks start clean.
-    page.reload(wait_until="domcontentloaded")
-    page.wait_for_selector("#tab-dashboard", timeout=20000, state="attached")
-    page.wait_for_timeout(1200)
+    reload_app(page)
+
+
+
+def audit_unsaved_guard(page, audit, api):
+    """C5: inline row edits are only persisted by one global Save, so leaving
+    the tab must not discard them silently."""
+    print("\n[C5] pending inline edits are not lost silently")
+    goto_tab(page, "admin")
+    page.wait_for_timeout(900)
+
+    typed = page.evaluate(
+        """() => {
+            const card = document.querySelector('.staff-mobile-card, #adminStaffTableBody tr');
+            if (!card) return {no_row: true};
+            const sal = card.querySelector('.staff-edit-salary');
+            if (!sal) return {no_salary: true};
+            sal.value = '8888';
+            sal.dispatchEvent(new Event('input', {bubbles: true}));
+            return {ok: true};
+        }"""
+    )
+    if not typed.get("ok"):
+        audit.record("C5 unsaved-changes guard", False, f"could not drive a row: {typed}")
+        return
+
+    audit.record(
+        "C5 an edit marks the form dirty",
+        page.evaluate("window.adminHasUnsavedChanges && window.adminHasUnsavedChanges()") is True,
+        "typing in a row did not register as an unsaved change",
+    )
+    audit.record(
+        "C5 a sticky Save bar appears while changes are pending",
+        page.evaluate(
+            """() => {
+                const b = document.getElementById('adminUnsavedBanner');
+                if (!b) return false;
+                return !b.classList.contains('hidden') && b.offsetHeight > 0;
+            }"""
+        ),
+        "no visible save bar while edits were pending",
+    )
+    audit.record(
+        "C5 the sticky Save button is thumb sized",
+        page.evaluate(
+            """() => {
+                const b = document.getElementById('btnSaveAdminConfigMobile');
+                return b ? b.offsetHeight >= 44 : false;
+            }"""
+        ),
+        "sticky save button is under 44px",
+    )
+
+    # Leaving the tab must prompt rather than discard.
+    prompted = {"seen": False}
+
+    def on_dialog(dialog):
+        prompted["seen"] = True
+
+    page.once("dialog", on_dialog)
+    audit.expecting_dialog = True
+    try:
+        page.evaluate("switchTab('dashboard')")
+        page.wait_for_timeout(600)
+    finally:
+        audit.expecting_dialog = False
+
+    audit.record(
+        "C5 leaving the tab with pending edits asks first",
+        prompted["seen"],
+        "switching tabs discarded the pending edits without asking",
+    )
+    audit.record(
+        "C5 declining the prompt keeps the owner on the admin tab",
+        page.evaluate(
+            """() => {
+                const v = document.getElementById('view-admin');
+                return v ? !v.classList.contains('hidden') : false;
+            }"""
+        ),
+        "the tab switched away even though the prompt was declined",
+    )
+
+    page.evaluate("window.adminFormDirty = false")
 
 
 def main():
@@ -535,7 +633,8 @@ def main():
         audit_number_fields(page, audit)
         audit_delete_confirm(page, audit)
         for fn, label in ((audit_staff_shortname, "C2 staff round-trip"),
-                          (audit_no_silent_defaults, "C3 blank fields blocked")):
+                          (audit_no_silent_defaults, "C3 blank fields blocked"),
+                          (audit_unsaved_guard, "C5 unsaved-changes guard")):
             try:
                 fn(page, audit, api)
             except Exception as e:

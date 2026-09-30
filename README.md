@@ -10,7 +10,7 @@ A high-performance, modern, mobile-first PWA and web application designed for co
    - 100% responsive across all mobile screens (320px iPhone SE, 360px Samsung Galaxy A-series, tablets, desktop).
    - Horizontal swipeable top navigation + native bottom mobile navigation bar with 1-thumb center Quick Add (+) action.
    - PWA installable on iOS Safari ("Add to Home Screen") and Android Chrome ("Install App") for a full-screen, offline-capable mobile experience.
-   - Custom Home Expence Logo featuring an authentic house silhouette with an inner Indian Rupee symbol (₹).
+   - Custom GharKhata Logo featuring an authentic house silhouette with an inner Indian Rupee symbol (₹).
 
 2. **Multi-Household & Dynamic User Scoping**:
    - Real-time scoped filters for family members, categories, payment methods, and personal expense tracking.

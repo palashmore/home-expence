@@ -14,44 +14,55 @@ const storage = require('./_storage');
 const MIN_SECRET_LENGTH = 32;
 const INSECURE_LEGACY_SECRET = 'household_secret_token_signing_key_2026_luxury_secure';
 
+// Never throws. Throwing here runs at require() time, which on serverless kills
+// the whole function before module.exports is assigned - the platform then
+// reports "No exports found in module" and every route, including static files,
+// returns 500 with nothing pointing at the real cause.
+//
+// Instead we always return a usable secret and, when the configuration is unsafe
+// in production, flag it. Requests that mint or accept a session are refused
+// with an explicit message; everything else still serves, so the operator sees
+// the app and a clear reason rather than an opaque 500.
 function resolveSessionSecret() {
     const fromEnv = (process.env.JWT_SECRET || '').trim();
     const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
 
     if (fromEnv && fromEnv !== INSECURE_LEGACY_SECRET && fromEnv.length >= MIN_SECRET_LENGTH) {
-        return fromEnv;
+        return { secret: fromEnv, misconfigured: null };
     }
 
+    const why = !fromEnv
+        ? 'JWT_SECRET is not set'
+        : (fromEnv === INSECURE_LEGACY_SECRET
+            ? 'JWT_SECRET is still the old hardcoded value from the source'
+            : `JWT_SECRET is shorter than ${MIN_SECRET_LENGTH} characters`);
+
     if (isProduction) {
-        const why = !fromEnv
-            ? 'JWT_SECRET is not set'
-            : (fromEnv === INSECURE_LEGACY_SECRET
-                ? 'JWT_SECRET is still the old hardcoded value'
-                : `JWT_SECRET is shorter than ${MIN_SECRET_LENGTH} characters`);
-        throw new Error(
-            `Refusing to start: ${why}. Session tokens would be forgeable. ` +
-            `Generate one with:  node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"  ` +
-            `and set it as an environment variable.`
+        // A random secret means nothing signed with a guessable key is ever
+        // accepted. Sessions cannot be issued at all until this is fixed.
+        console.error(
+            `[Auth] ${why}. Sign-in is disabled until it is set, because session ` +
+            `tokens would otherwise be forgeable. Generate one with: npm run keys`
         );
+        return { secret: crypto.randomBytes(48).toString('base64url'), misconfigured: why };
     }
 
     if (fromEnv) {
         console.warn(
-            `[Auth] JWT_SECRET is weak (${fromEnv === INSECURE_LEGACY_SECRET
-                ? 'the old hardcoded value' : `under ${MIN_SECRET_LENGTH} characters`}). ` +
-            'Using it anyway because this is not production, but it must be replaced before deploying.'
+            `[Auth] ${why}. Using it anyway because this is not production, ` +
+            'but it must be replaced before deploying.'
         );
-        return fromEnv;
+        return { secret: fromEnv, misconfigured: null };
     }
 
     console.warn(
         '[Auth] JWT_SECRET is not set. Using a random secret for this process only; ' +
         'sessions will not survive a restart. Set JWT_SECRET for a stable local setup.'
     );
-    return crypto.randomBytes(48).toString('base64url');
+    return { secret: crypto.randomBytes(48).toString('base64url'), misconfigured: null };
 }
 
-const JWT_SECRET = resolveSessionSecret();
+const { secret: JWT_SECRET, misconfigured: SESSION_SECRET_PROBLEM } = resolveSessionSecret();
 const SESSION_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // ==========================================
@@ -157,6 +168,19 @@ function authenticateRequest(req) {
 module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+
+    // Refuse to issue or accept sessions while the signing secret is unsafe,
+    // and say exactly why. The rest of the deployment keeps serving so this is
+    // visible and fixable instead of showing a bare 500.
+    if (SESSION_SECRET_PROBLEM) {
+        return res.status(503).json({
+            success: false,
+            error: `Server configuration error: ${SESSION_SECRET_PROBLEM}. ` +
+                   'Sign-in is disabled until a valid JWT_SECRET is set. ' +
+                   'Generate one with "npm run keys", add it to the environment, and redeploy.',
+            code: 'SESSION_SECRET_NOT_CONFIGURED'
+        });
+    }
 
     try {
         // GET: Verify session or list public user directory

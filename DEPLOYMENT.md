@@ -77,13 +77,21 @@ this value. It used to fall back to a string committed to this repository, which
 meant anyone who read the source could forge a token for any household and any
 role, including `SYSTEM_ADMIN`.
 
-That fallback is gone. The app now **refuses to start in production** if
-`JWT_SECRET` is missing, is shorter than 32 characters, or is still the old
-hardcoded value. Outside production it falls back to a random per-process secret
-and warns — sessions then stop working across restarts, which is intended.
+That fallback is gone. In production, if `JWT_SECRET` is missing, shorter than
+32 characters, or still the old hardcoded value, the app **signs with a random
+secret and disables sign-in**: `/api/auth` returns **503** with
+`SESSION_SECRET_NOT_CONFIGURED` and a message saying what to do. The rest of the
+deployment keeps serving, so you see the app and a clear reason rather than a
+blank error page.
 
-If a deployment crashes on boot with *"Refusing to start: JWT_SECRET is not
-set"*, that is this check doing its job.
+Outside production it falls back to a random per-process secret and warns —
+sessions then stop working across restarts, which is intended.
+
+> **Note:** an earlier version *threw* on boot instead. On serverless that runs
+> at import time and kills the function before it exports its handler, so the
+> platform reported `No exports found in module "/var/task/index.cjs"` and
+> **every** route returned 500, including `/` and static files, with nothing
+> pointing at the real cause. `test_boot_suite.js` now guards against that.
 
 Changing `JWT_SECRET` later invalidates every existing session, so everyone has
 to sign in again.
@@ -115,8 +123,15 @@ re-enable notifications.
 
 ## 4. Checking it worked
 
-1. Open the deployment and sign in. If login fails, `JWT_SECRET` is missing or
-   the deployment was not redeployed after adding it.
+1. Open the deployment and sign in. If sign-in returns **503** with
+   `SESSION_SECRET_NOT_CONFIGURED`, `JWT_SECRET` is missing or invalid, or the
+   deployment was not redeployed after adding it.
+   Check quickly with:
+   ```bash
+   curl -s -X POST https://<your-app>/api/auth      -H 'Content-Type: application/json'      -d '{"action":"login","username":"x","password":"y"}'
+   ```
+   A 503 with that code means the variable still is not in effect; a 401 means
+   the secret is fine and only the credentials were wrong.
 2. Check the Vercel function logs for `[Push] VAPID keys loaded from environment.`
 3. `GET /api/notifications?action=vapid_key` should return the same public key
    you set, and should keep returning it after the function goes cold.

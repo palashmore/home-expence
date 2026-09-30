@@ -6,7 +6,7 @@ Branch `fix/mobile-complete`, cut from `fix/security-hardening` at `eb8809f`
 **Verification at the time of writing**
 
 ```
-bash ./run_tests.sh   ->  3 suites, all passing
+bash ./run_tests.sh   ->  4 suites, all passing
 bash ./run_audit.sh   ->  165 checks, 0 bugs
 ```
 
@@ -99,8 +99,17 @@ referred to the value.
 
 **`JWT_SECRET` had a hardcoded fallback** committed to this repository, so
 anyone reading the source could forge a session token for any household and any
-role. Production now refuses to start without a real secret; outside production
-a random per-process secret is used instead of a shared constant.
+role. In production a bad secret now disables sign-in — `/api/auth` returns 503
+with `SESSION_SECRET_NOT_CONFIGURED` — while the rest of the app keeps serving;
+outside production a random per-process secret is used instead of a shared
+constant.
+
+The first attempt at this *threw* at module load, which on Vercel runs before
+`module.exports` is assigned. The platform reported `No exports found in module
+"/var/task/index.cjs"` and every route returned 500, including `/` and static
+assets, with nothing naming the real cause. `test_boot_suite.js` now loads every
+entry point and `api/*` route under six environment permutations and asserts each
+one still exports a handler.
 
 **VAPID keys were file-only.** On serverless the filesystem is read-only, so the
 write failed silently and a new key pair was generated on every cold start,

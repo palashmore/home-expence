@@ -2255,6 +2255,29 @@
     if (window.renderAllViews) window.renderAllViews();
   }
 
+  // Ask before a delete, and say how much history it affects. Deleting a
+  // category or member that expenses still refer to leaves those records
+  // pointing at something that no longer exists, so the count has to be in
+  // front of the owner before they decide.
+  async function confirmDeleteWithUsage(entity, name, whatItIs) {
+    const count = await entityUsageCount(entity, name);
+    if (count === null) {
+      return window.confirm(
+        `Remove ${whatItIs} "${name}"?\n\n` +
+        `The number of expenses using it could not be checked, so some records ` +
+        `may still refer to it.`);
+    }
+    if (count === 0) {
+      return window.confirm(`Remove ${whatItIs} "${name}"?\n\nNo expenses use it.`);
+    }
+    return window.confirm(
+      `"${name}" is used by ${count} expense${count === 1 ? '' : 's'}.\n\n` +
+      `Removing it from Master Settings keeps ${count === 1 ? 'that record' : 'those records'} ` +
+      `and ${count === 1 ? 'its' : 'their'} history intact, but ${count === 1 ? 'it' : 'they'} ` +
+      `will refer to a value that is no longer in the list.\n\n` +
+      `To keep everything consistent, cancel and rename it instead.\n\nRemove anyway?`);
+  }
+
   // Rename one of the simple string lists, or a category's name.
   window.adminRenameEntity = async function (entity, currentName) {
     const label = ENTITY_LABEL[entity] || 'Item';
@@ -2703,6 +2726,7 @@
   };
 
   window.adminRemoveSplitRule = async function (ruleName) {
+    if (!await confirmDeleteWithUsage('splitRule', ruleName, 'split rule')) return;
     const config = window.masterConfig || {};
     const current = config.splitRules || [];
     const updated = current.filter(r => r !== ruleName);
@@ -3017,7 +3041,7 @@
   };
 
   window.adminDeleteCategory = async function (catName) {
-    if (!confirm(`Are you sure you want to remove the category "${catName}"?`)) return;
+    if (!await confirmDeleteWithUsage('category', catName, 'the category')) return;
     const currentCats = (window.masterConfig && window.masterConfig.categories) ? [...window.masterConfig.categories] : [];
     const filtered = currentCats.filter(c => c.name !== catName);
     await saveMasterConfig({ categories: filtered });
@@ -3040,7 +3064,7 @@
   };
 
   window.adminRemoveFamilyMember = async function (memberName) {
-    if (!confirm(`Remove family member "${memberName}"?`)) return;
+    if (!await confirmDeleteWithUsage('familyMember', memberName, 'family member')) return;
     const currentMembers = (window.masterConfig && window.masterConfig.familyMembers) ? [...window.masterConfig.familyMembers] : [];
     const filtered = currentMembers.filter(m => m !== memberName);
     await saveMasterConfig({ familyMembers: filtered });
@@ -3063,7 +3087,7 @@
   };
 
   window.adminRemovePaymentMethod = async function (methodName) {
-    if (!confirm(`Remove payment method "${methodName}"?`)) return;
+    if (!await confirmDeleteWithUsage('paymentMethod', methodName, 'payment method')) return;
     const currentMethods = (window.masterConfig && window.masterConfig.paymentMethods) ? [...window.masterConfig.paymentMethods] : [];
     const filtered = currentMethods.filter(m => m !== methodName);
     await saveMasterConfig({ paymentMethods: filtered });

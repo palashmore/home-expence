@@ -728,6 +728,67 @@ def audit_rename_flows(page, audit, api):
     page.evaluate("closeAdminEditCategoryModal()")
 
 
+def audit_delete_warnings(page, audit, api):
+    """Deleting a category, member, method or rule that expenses still use must
+    warn with the real count and must not proceed if the owner declines."""
+    print("\n[D] destructive removes warn with the affected count")
+    goto_tab(page, "admin")
+    page.wait_for_timeout(900)
+
+    cfg = read_config(api)
+    cats = cfg.get("categories") or []
+    if not cats:
+        audit.record("D delete warning", False, "no categories to test with")
+        return
+
+    # Pick a category that is actually in use, so the count must be non-zero.
+    target, expected = None, 0
+    for c in cats:
+        n = api("GET", f"/api/config?action=usage&entity=category&name={quote(c['name'])}").get("count", 0)
+        if n > 0:
+            target, expected = c["name"], n
+            break
+    if not target:
+        audit.record("D delete warning", False, "no category is referenced by any expense")
+        return
+
+    seen = {"msg": None}
+
+    def capture(dialog):
+        seen["msg"] = dialog.message
+
+    page.on("dialog", capture)
+    audit.dialog_action = "dismiss"          # decline the delete
+    try:
+        page.evaluate("(n) => window.adminDeleteCategory(n)", target)
+        page.wait_for_timeout(1500)
+    finally:
+        audit.dialog_action = None
+        page.remove_listener("dialog", capture)
+
+    audit.record(
+        "D removing a category in use asks first",
+        seen["msg"] is not None,
+        "the category was removed with no confirmation at all",
+    )
+    audit.record(
+        "D the warning states how many expenses are affected",
+        seen["msg"] is not None and str(expected) in seen["msg"],
+        f"expected the count {expected} in the message, got: {seen['msg']!r}",
+    )
+    audit.record(
+        "D declining the warning leaves the category in place",
+        any(c["name"] == target for c in (read_config(api).get("categories") or [])),
+        f"{target!r} was removed even though the confirmation was declined",
+    )
+    after = api("GET", f"/api/config?action=usage&entity=category&name={quote(target)}")
+    audit.record(
+        "D no expense was orphaned by the declined delete",
+        after.get("count") == expected,
+        f"{after.get('count')} expenses reference it now, expected {expected}",
+    )
+
+
 def audit_expense_round_trip(page, audit, api):
     """Section D, row 1: the flow the owner uses every day. Every field must be
     enterable on a phone, saved exactly, visible in the API, still right after a
@@ -983,6 +1044,7 @@ def main():
                           (audit_no_silent_defaults, "C3 blank fields blocked"),
                           (audit_unsaved_guard, "C5 unsaved-changes guard"),
                           (audit_rename_flows, "D rename round-trip"),
+                          (audit_delete_warnings, "D delete warning"),
                           (audit_expense_round_trip, "D expense round-trip")):
             try:
                 fn(page, audit, api)

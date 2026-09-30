@@ -7,7 +7,7 @@ Branch `fix/mobile-complete`, cut from `fix/security-hardening` at `eb8809f`
 
 ```
 bash ./run_tests.sh   ->  3 suites, all passing
-bash ./run_audit.sh   ->  132 checks, 0 bugs
+bash ./run_audit.sh   ->  165 checks, 0 bugs
 ```
 
 Baseline on the unchanged checkout was **44 OK / 34 bugs**.
@@ -95,6 +95,35 @@ reporting a mismatch instead of claiming success.
 rule had add and delete only. A delete silently orphaned every expense that
 referred to the value.
 
+## 3b. Deployment and admin bugs (second pass)
+
+**`JWT_SECRET` had a hardcoded fallback** committed to this repository, so
+anyone reading the source could forge a session token for any household and any
+role. Production now refuses to start without a real secret; outside production
+a random per-process secret is used instead of a shared constant.
+
+**VAPID keys were file-only.** On serverless the filesystem is read-only, so the
+write failed silently and a new key pair was generated on every cold start,
+invalidating every push subscription with no error anywhere. They are now read
+from the environment first. `DEPLOYMENT.md` has the full Vercel walkthrough and
+`npm run keys` generates all three secrets.
+
+**The admin console was unreachable.** The tenant-management card was gated on
+`role === 'ADMIN'`, but the seeded system administrator has `SYSTEM_ADMIN` -
+which is what the server accepts. The card was hidden from the only account that
+can use it, the directory stayed empty, and every row action was dead. The same
+mismatch gated the Switch, Edit and Delete buttons.
+
+**Editing a household could overwrite another household's budget.**
+`openEditHouseholdModal` pre-filled the budget from `window.masterConfig`, the
+*currently active* household's config, while Save sends it to the *target*
+household. Renaming household B silently wrote A's budget onto B.
+
+**Two-device sync was verified, not assumed.** Two independent browser contexts,
+same household: create, edit and delete each propagate, a stale write is refused
+with 409 rather than silently overwriting the newer value, and a device in
+another household never receives the records.
+
 ## 4. What was added
 
 - `api/_paths.js` — one source of truth for storage locations, honouring
@@ -129,13 +158,11 @@ audited or fixed, and should not be assumed working:
 - receipts (upload, replace, remove)
 - attendance calendar and payroll (leaves, deductions, final salary, voucher)
 - the reimbursement settle-up flow itself
-- admin user and household management **through the mobile UI** (the API paths
-  are covered by the existing suites)
 - profile display name and password change
 - Excel import, Excel/PDF export
 - the expenses ledger's search, filters, sort and pagination
 - Dashboard, Personal view, Bill Radar, Audit tab, Data and Backup, Notifications
-- offline queue replay and two-device sync
+- offline queue replay
 - theme switch, PWA install banner
 - the section F redesign items: bottom-nav restructure, a single filter bottom
   sheet, dashboard reordering, transaction-card redesign. The existing bottom
@@ -154,7 +181,9 @@ client and server.
   `Household123!`) and appear in the test files. `reset_password.js` does not
   exist in this repo. Rotate them before this is exposed to the internet.
 - **`GIST_ID` is still hardcoded** as a fallback in `api/_cloud_sync.js`.
-- Vercel needs `JWT_SECRET` (32+ chars) and the VAPID keys before login works.
+- Vercel needs `JWT_SECRET` (32+ chars) before login works, and the VAPID keys
+  before push survives a cold start. `npm run keys` generates both; the full
+  walkthrough is in `DEPLOYMENT.md`.
 
 ## 8. To verify this yourself
 

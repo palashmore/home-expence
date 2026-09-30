@@ -13,7 +13,7 @@ bash ./run_tests.sh     # 3 Node API suites
 bash ./run_audit.sh     # Playwright mobile UI audit
 ```
 
-**Current state:** API suites green. Mobile audit **132 checks, 0 bugs**
+**Current state:** API suites green. Mobile audit **165 checks, 0 bugs**
 (baseline on an unchanged checkout: 44 OK / 34 bugs).
 
 ---
@@ -70,8 +70,8 @@ bash ./run_audit.sh     # Playwright mobile UI audit
 | Attendance — day marks, bonus, notes | **NOT DONE** | not audited |
 | Payroll — leaves, deductions, final salary, voucher | **NOT DONE** | not audited |
 | Reimbursement — settle amount, note, history | **PARTIAL** | paise are now enterable (C1); the settle flow itself is not audited |
-| Users (admin) — name, username, email, role, household, status, password | **NOT DONE** | covered by the API suites; the mobile UI is not audited |
-| Households (admin) — name, budget, status | **NOT DONE** | as above |
+| Users (admin) — name, username, email, role, household, status, password | **DONE** | driven through the real admin UI: create, sign in as the user, change role (and prove a VIEWER is blocked from writing), reset password (and prove the old one stops working), deactivate (and prove they cannot sign in) |
+| Households (admin) — name, budget, status | **DONE** | create and edit through the UI, budget stored exactly (64250, 2805.50), and editing one household proven not to disturb another's budget |
 | Profile — display name, password change | **NOT DONE** | not audited |
 
 ## E. Areas
@@ -85,8 +85,10 @@ bash ./run_audit.sh     # Playwright mobile UI audit
 | Receipts, Bill Radar, Payroll, attendance calendar | **NOT DONE** |
 | Reimbursement and settle-up | **NOT DONE** |
 | Audit tab, Data and Backup, Notifications | **NOT DONE** |
-| Offline mode and queue replay, multi-device sync | **NOT DONE** |
-| Admin create/edit/deactivate, theme switch, PWA install | **NOT DONE** |
+| Multi-device sync | **DONE** — 9 checks in two separate browser contexts: create/edit/delete propagate, stale write refused with 409, cross-household isolation |
+| Offline mode and queue replay | **NOT DONE** |
+| Admin create/edit/deactivate | **DONE** — see above |
+| Theme switch, PWA install banner | **NOT DONE** |
 
 ## F. Mobile design standards
 
@@ -100,3 +102,15 @@ bash ./run_audit.sh     # Playwright mobile UI audit
 | Busy state, no double-tap, feedback after verified read-back | **DONE** for master settings and category edit |
 | Destructive actions confirm with large buttons | **DONE** |
 | Bottom nav restructure, one filter bottom sheet, dashboard reordering, transaction card redesign | **NOT DONE** — the existing bottom nav and more-sheet were left as they are |
+
+
+---
+
+## Deployment configuration
+
+| Item | Status |
+|---|---|
+| `JWT_SECRET` | **DONE** — the hardcoded fallback is gone; production refuses to start without a real secret. See `DEPLOYMENT.md` |
+| VAPID keys | **DONE** — read from `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`, so they no longer regenerate on every serverless cold start |
+| `npm run keys` | **DONE** — generates all three secrets locally |
+| `.env.example` | **DONE** — rewritten; it previously documented databases this app does not use and omitted every variable it reads |

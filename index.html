@@ -2891,6 +2891,54 @@
         </div>
     </div>
 
+    <!-- ================= MODAL: EDIT CATEGORY ================= -->
+    <!-- Categories previously had add and delete only. Renaming one cascades
+         onto every expense that refers to it, which the server does. -->
+    <div id="adminEditCategoryModal" class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center p-4" style="display:none">
+        <div class="modal-content glass-card bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-sm w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h4 class="text-base font-black text-slate-900">Edit Category</h4>
+                    <p class="text-xs text-slate-500 mt-0.5 font-medium">Renaming updates every expense that uses it.</p>
+                </div>
+                <button onclick="closeAdminEditCategoryModal()" class="text-slate-400 hover:text-slate-700 transition" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label for="editCategoryName" class="block text-[10px] font-black uppercase text-slate-400 mb-1">Name</label>
+                    <input type="text" id="editCategoryName" autocomplete="off" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="editCategoryIcon" class="block text-[10px] font-black uppercase text-slate-400 mb-1">Icon</label>
+                        <input type="text" id="editCategoryIcon" maxlength="4" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-center font-bold focus:border-indigo-500 focus:bg-white transition">
+                    </div>
+                    <div>
+                        <label for="editCategoryType" class="block text-[10px] font-black uppercase text-slate-400 mb-1">Type</label>
+                        <select id="editCategoryType" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                            <option value="transfer">Transfer</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label for="editCategoryDefaultPaidTo" class="block text-[10px] font-black uppercase text-slate-400 mb-1">Default Paid To</label>
+                    <input type="text" id="editCategoryDefaultPaidTo" autocomplete="off" placeholder="Optional vendor" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                </div>
+                <p id="editCategoryError" class="field-error"></p>
+            </div>
+
+            <div class="flex flex-col-reverse gap-3 pt-1">
+                <button onclick="closeAdminEditCategoryModal()" class="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition">Cancel</button>
+                <button id="btnSubmitEditCategory" onclick="submitAdminEditCategory()" class="w-full px-5 py-3 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white font-black text-sm rounded-xl shadow-md transition">Save Category</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ================= MODAL 3: DELETE CONFIRMATION ================= -->
     <div id="deleteConfirmModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-4">
         <div class="modal-content glass-card bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 text-center space-y-4">

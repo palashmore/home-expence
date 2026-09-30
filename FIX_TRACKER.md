@@ -14,8 +14,8 @@ bash ./run_tests.sh     # Node API suites
 bash ./run_audit.sh     # Playwright mobile UI audit
 ```
 
-**Current state:** API suites green. Mobile audit **91 checks, 0 bugs**
-(baseline was 44 OK / 34 bugs).
+**Current state:** three API suites green (including 41 server-rule checks).
+Mobile audit clean; baseline was 44 OK / 34 bugs.
 
 ---
 
@@ -58,12 +58,12 @@ bash ./run_audit.sh     # Playwright mobile UI audit
 |---|---|---|---|
 | Expense | date, amount, category, paidBy, splitBetween, paidTo, paymentMethod, notes | **TODO** | add/edit/delete verified by the API suites; not yet driven through the mobile UI |
 | Expense receipt | upload, replace, remove | **TODO** | not audited |
-| Category | rename, icon, type, defaultPaidTo | **TODO** | add + delete only; **no edit UI exists**. Rename must update existing expenses or block with a clear message |
+| Category | rename, icon, type, defaultPaidTo | **DONE** | edit modal added; rename cascades onto every referring expense, or reports the count and refuses (409) until confirmed. Tests: `D category rename is stored`, `D renaming a category carries its expenses with it`, `D the renamed category is pre-filled after a reload`, `D a second edit saves correctly`, plus server suite TEST 6/7 |
 | Recurring bill | name, category, icon, dueDay, approxAmount | **PARTIAL** | C1/C3/C5 fixed; full round-trip test still to add |
 | Staff | name, shortName, role, baseSalary, allowedPaidLeaves, billingCycleDay, cycleType, active | **PARTIAL** | name/shortName/salary proven; leaves, cycle day, cycleType, active still to prove |
-| Family member | rename | **TODO** | add + remove only; **no rename UI** |
-| Payment method | rename | **TODO** | add + remove only; **no rename UI** |
-| Split rule | rename | **TODO** | add + remove only; **no rename UI** |
+| Family member | rename | **DONE** | rename control added; cascades onto `paidBy`. Test: `D family member has an edit control in the UI` + server rename suite |
+| Payment method | rename | **DONE** | rename control added; cascades onto `paymentMethod`. Test: `D payment method has an edit control in the UI` + server rename suite |
+| Split rule | rename | **DONE** | rename control added; cascades onto `splitBetween`. Test: `D split rule has an edit control in the UI` + server rename suite |
 | Household cycle | type, cycleStartDay, cycleEndDay | **PARTIAL** | validation added (C3); round-trip test still to add |
 | Monthly budget | amount | **PARTIAL** | C1 fixed and verified on save; reload round-trip still to add |
 | Attendance | day marks, bonus, notes, per month | **TODO** | not audited |
@@ -75,7 +75,9 @@ bash ./run_audit.sh     # Playwright mobile UI audit
 
 Deleting a category, member, payment method or staff member that is referenced
 by existing expenses must warn with the count of affected records and offer to
-keep history. **Not yet implemented.**
+keep history. **Partially done:** `GET /api/config?action=usage&entity=&name=`
+returns the live reference count and the rename flow uses it. The *delete*
+paths do not warn yet.
 
 ## E. Areas not yet audited
 

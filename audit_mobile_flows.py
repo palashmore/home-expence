@@ -17,8 +17,17 @@ import json
 import os
 import sys
 import time
+from urllib.parse import quote
 
 from playwright.sync_api import sync_playwright, Error as PWError
+
+# Category icons and staff names contain emoji. The Windows console defaults to
+# cp1252, which cannot encode them, so a report line would crash the run.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
 
 BASE_URL = os.environ.get("AUDIT_BASE_URL", "http://localhost:8000")
 PHONE = {"width": 390, "height": 844}
@@ -38,15 +47,18 @@ class Audit:
         self.checks = []
         self.console_errors = []
         self.dialogs = []
-        # Set only around a step that deliberately provokes a dialog (the
-        # unsaved-changes confirm). Everywhere else a dialog is a bug.
-        self.expecting_dialog = False
+        # "accept" / "dismiss" while a step deliberately provokes dialogs;
+        # None everywhere else, where a dialog is a bug. Exactly one handler
+        # answers every dialog - leaving one unanswered hangs the page.
+        self.dialog_action = None
 
     def record(self, name, ok, detail=""):
         self.checks.append({"name": name, "ok": bool(ok), "detail": detail})
         mark = "OK  " if ok else "BUG "
         line = f"  {mark} {name}"
-        if detail:
+        # `detail` describes what went wrong, so printing it next to a passing
+        # check reads as a contradiction. Only show it on failure.
+        if detail and not ok:
             line += f"\n         {detail}"
         print(line, flush=True)
         return ok
@@ -74,12 +86,19 @@ def attach_listeners(page, audit):
             audit.console_errors.append(text)
 
     def on_dialog(dialog):
-        if not audit.expecting_dialog:
+        # Every dialog must be answered here. A handler that returns without
+        # answering leaves the page blocked until the test times out.
+        action = audit.dialog_action
+        if action is None:
             audit.dialogs.append(f"{dialog.type}: {dialog.message}")
+            action = "dismiss"
         try:
-            dialog.dismiss()
+            if action == "accept":
+                dialog.accept()
+            else:
+                dialog.dismiss()
         except PWError:
-            pass          # another handler already answered it
+            pass          # already answered
 
     page.on("console", on_console)
     page.on("dialog", on_dialog)
@@ -554,13 +573,14 @@ def audit_unsaved_guard(page, audit, api):
     def on_dialog(dialog):
         prompted["seen"] = True
 
-    page.once("dialog", on_dialog)
-    audit.expecting_dialog = True
+    page.on("dialog", on_dialog)
+    audit.dialog_action = "dismiss"        # "stay on this tab"
     try:
         page.evaluate("switchTab('dashboard')")
         page.wait_for_timeout(600)
     finally:
-        audit.expecting_dialog = False
+        audit.dialog_action = None
+        page.remove_listener("dialog", on_dialog)
 
     audit.record(
         "C5 leaving the tab with pending edits asks first",
@@ -579,6 +599,133 @@ def audit_unsaved_guard(page, audit, api):
     )
 
     page.evaluate("window.adminFormDirty = false")
+
+
+def audit_rename_flows(page, audit, api):
+    """Section D: category, family member, payment method and split rule had no
+    edit UI at all. Prove a rename is reachable from the phone, survives a
+    reload, and carries the referring expenses with it."""
+    print("\n[D] renameable entities round-trip from the UI")
+    goto_tab(page, "admin")
+    page.wait_for_timeout(900)
+
+    # --- the edit affordances must exist on screen -------------------------
+    for label, selector in (
+        ("category", ".cat-edit-btn"),
+        ("family member", '[onclick*="adminRenameEntity(\'familyMember\'"]'),
+        ("payment method", '[onclick*="adminRenameEntity(\'paymentMethod\'"]'),
+        ("split rule", '[onclick*="adminRenameEntity(\'splitRule\'"]'),
+    ):
+        audit.record(
+            f"D {label} has an edit control in the UI",
+            page.query_selector(selector) is not None,
+            "add and delete only; no way to rename",
+        )
+
+    # --- category edit modal round-trip ------------------------------------
+    cfg = read_config(api)
+    cats = cfg.get("categories") or []
+    if not cats:
+        audit.record("D category edit round-trip", False, "no categories configured")
+        return
+
+    original = cats[0]["name"]
+    renamed = f"{original} QA"
+
+    # Count what should move with it.
+    usage = api("GET", f"/api/config?action=usage&entity=category&name={quote(original)}")
+    expected_moves = usage.get("count", 0)
+
+    opened = page.evaluate("(n) => window.adminEditCategory(n)", original)
+    page.wait_for_timeout(500)
+    audit.record(
+        "D the category editor opens with the stored values pre-filled",
+        opened is True
+        and page.input_value("#editCategoryName") == original
+        and page.input_value("#editCategoryType") in ("expense", "income", "transfer"),
+        f"opened={opened}, name field={page.input_value('#editCategoryName') if opened else 'n/a'}",
+    )
+
+    # Change name, icon and type together, and accept the cascade prompt.
+    page.fill("#editCategoryName", renamed)
+    page.fill("#editCategoryIcon", "🧪")
+    page.select_option("#editCategoryType", "expense")
+    page.fill("#editCategoryDefaultPaidTo", "QA Vendor")
+
+    audit.dialog_action = "accept"         # confirm the cascade
+    try:
+        page.evaluate("submitAdminEditCategory()")
+        page.wait_for_timeout(2500)
+    finally:
+        audit.dialog_action = None
+
+    after = read_config(api)
+    got = next((c for c in (after.get("categories") or []) if c["name"] == renamed), None)
+    audit.record(
+        "D category rename is stored",
+        got is not None,
+        f"no category named {renamed!r} after the save",
+    )
+    if got:
+        audit.record("D category icon is stored", got.get("icon") == "🧪",
+                     f"icon is {got.get('icon')!r}")
+        audit.record("D category defaultPaidTo is stored", got.get("defaultPaidTo") == "QA Vendor",
+                     f"defaultPaidTo is {got.get('defaultPaidTo')!r}")
+
+    # The referring expenses must have moved, not been orphaned.
+    left_behind = api("GET", f"/api/config?action=usage&entity=category&name={quote(original)}")
+    audit.record(
+        "D renaming a category carries its expenses with it",
+        left_behind.get("count") == 0,
+        f"{left_behind.get('count')} expense(s) still point at the old name "
+        f"(expected {expected_moves} to move)",
+    )
+    moved_to = api("GET", f"/api/config?action=usage&entity=category&name={quote(renamed)}")
+    audit.record(
+        "D the moved expenses now carry the new name",
+        moved_to.get("count") == expected_moves,
+        f"{moved_to.get('count')} under the new name, expected {expected_moves}",
+    )
+
+    # It must survive a reload, and re-open pre-filled with the new values.
+    reload_app(page)
+    goto_tab(page, "admin")
+    page.wait_for_timeout(900)
+    page.evaluate("(n) => window.adminEditCategory(n)", renamed)
+    page.wait_for_timeout(500)
+    audit.record(
+        "D the renamed category is pre-filled after a reload",
+        page.input_value("#editCategoryName") == renamed
+        and page.input_value("#editCategoryDefaultPaidTo") == "QA Vendor",
+        f"name={page.input_value('#editCategoryName')!r}, "
+        f"paidTo={page.input_value('#editCategoryDefaultPaidTo')!r}",
+    )
+
+    # Second save: change it back, proving edit-again works too.
+    page.fill("#editCategoryName", original)
+    page.fill("#editCategoryIcon", cats[0].get("icon") or "🏷️")
+    page.fill("#editCategoryDefaultPaidTo", cats[0].get("defaultPaidTo") or "")
+    audit.dialog_action = "accept"         # confirm the cascade
+    try:
+        page.evaluate("submitAdminEditCategory()")
+        page.wait_for_timeout(2500)
+    finally:
+        audit.dialog_action = None
+
+    restored = read_config(api)
+    audit.record(
+        "D a second edit saves correctly and restores the original",
+        any(c["name"] == original for c in (restored.get("categories") or [])),
+        f"category {original!r} was not restored",
+    )
+    back = api("GET", f"/api/config?action=usage&entity=category&name={quote(original)}")
+    audit.record(
+        "D the expenses come back with it",
+        back.get("count") == expected_moves,
+        f"{back.get('count')} expenses under {original!r}, expected {expected_moves}",
+    )
+
+    page.evaluate("closeAdminEditCategoryModal()")
 
 
 def main():
@@ -634,7 +781,8 @@ def main():
         audit_delete_confirm(page, audit)
         for fn, label in ((audit_staff_shortname, "C2 staff round-trip"),
                           (audit_no_silent_defaults, "C3 blank fields blocked"),
-                          (audit_unsaved_guard, "C5 unsaved-changes guard")):
+                          (audit_unsaved_guard, "C5 unsaved-changes guard"),
+                          (audit_rename_flows, "D rename round-trip")):
             try:
                 fn(page, audit, api)
             except Exception as e:

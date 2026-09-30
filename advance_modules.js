@@ -2035,23 +2035,27 @@
         `;
       } else {
         catGrid.innerHTML = cats.map((c) => {
-          const safeName = (c.name || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-          const safeJsName = (c.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          const jsName = esc(JSON.stringify(c.name || ''));
           return `
-            <div class="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-slate-300 shadow-sm transition" data-cat-name="${safeName}">
+            <div class="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-slate-300 shadow-sm transition" data-cat-name="${esc(c.name || '')}">
               <div class="flex items-center space-x-2.5 min-w-0">
-                <span class="text-xl shrink-0">${c.icon || '🏷️'}</span>
+                <span class="text-xl shrink-0">${esc(c.icon || '🏷️')}</span>
                 <div class="min-w-0">
-                  <div class="text-xs font-black text-slate-900 truncate">${safeName}</div>
+                  <div class="text-xs font-black text-slate-900 truncate">${esc(c.name || '')}</div>
                   <div class="text-[10px] text-slate-500 flex items-center gap-1.5">
-                    <span class="px-1.5 py-0.2 rounded font-extrabold uppercase text-[9px] ${c.type === 'income' ? 'bg-emerald-100 text-emerald-800' : (c.type === 'transfer' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700')}">${c.type || 'expense'}</span>
-                    ${c.defaultPaidTo ? `<span class="truncate text-slate-400">→ ${c.defaultPaidTo}</span>` : ''}
+                    <span class="px-1.5 py-0.2 rounded font-extrabold uppercase text-[9px] ${c.type === 'income' ? 'bg-emerald-100 text-emerald-800' : (c.type === 'transfer' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700')}">${esc(c.type || 'expense')}</span>
+                    ${c.defaultPaidTo ? `<span class="truncate text-slate-400">→ ${esc(c.defaultPaidTo)}</span>` : ''}
                   </div>
                 </div>
               </div>
-              <button onclick="adminDeleteCategory('${safeJsName}')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition shrink-0" title="Delete category">
-                <i class="fa-solid fa-xmark text-xs"></i>
-              </button>
+              <div class="flex items-center gap-1 shrink-0">
+                <button onclick="adminEditCategory(${jsName})" class="cat-edit-btn p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition" title="Edit category" aria-label="Edit category ${esc(c.name || '')}">
+                  <i class="fa-solid fa-pen text-xs"></i>
+                </button>
+                <button onclick="adminDeleteCategory(${jsName})" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition" title="Delete category" aria-label="Delete category ${esc(c.name || '')}">
+                  <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+              </div>
             </div>
           `;
         }).join('');
@@ -2064,8 +2068,9 @@
       famList.innerHTML = config.familyMembers.map(m => `
         <span class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold bg-violet-50 text-violet-800 border border-violet-200 shadow-sm">
           <i class="fa-solid fa-user text-violet-500 mr-1.5 text-[10px]"></i>
-          <span>${m}</span>
-          <button onclick="adminRemoveFamilyMember('${m}')" class="ml-2 text-violet-400 hover:text-rose-600 transition font-black">&times;</button>
+          <span>${esc(m)}</span>
+          <button onclick="adminRenameEntity('familyMember', ${esc(JSON.stringify(m))})" class="ml-2 text-violet-400 hover:text-indigo-600 transition" title="Rename" aria-label="Rename ${esc(m)}"><i class="fa-solid fa-pen text-[10px]"></i></button>
+          <button onclick="adminRemoveFamilyMember(${esc(JSON.stringify(m))})" class="ml-1.5 text-violet-400 hover:text-rose-600 transition font-black" title="Remove" aria-label="Remove ${esc(m)}">&times;</button>
         </span>
       `).join('');
     }
@@ -2076,8 +2081,9 @@
       payList.innerHTML = config.paymentMethods.map(m => `
         <span class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200 shadow-sm">
           <i class="fa-solid fa-credit-card text-sky-500 mr-1.5 text-[10px]"></i>
-          <span>${m}</span>
-          <button onclick="adminRemovePaymentMethod('${m}')" class="ml-2 text-sky-400 hover:text-rose-600 transition font-black">&times;</button>
+          <span>${esc(m)}</span>
+          <button onclick="adminRenameEntity('paymentMethod', ${esc(JSON.stringify(m))})" class="ml-2 text-sky-400 hover:text-indigo-600 transition" title="Rename" aria-label="Rename ${esc(m)}"><i class="fa-solid fa-pen text-[10px]"></i></button>
+          <button onclick="adminRemovePaymentMethod(${esc(JSON.stringify(m))})" class="ml-1.5 text-sky-400 hover:text-rose-600 transition font-black" title="Remove" aria-label="Remove ${esc(m)}">&times;</button>
         </span>
       `).join('');
     }
@@ -2088,8 +2094,9 @@
       splitList.innerHTML = config.splitRules.map(r => `
         <span class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-50 text-purple-800 border border-purple-200 shadow-sm">
           <i class="fa-solid fa-arrows-split-up-and-left text-purple-500 mr-1.5 text-[10px]"></i>
-          <span>${r}</span>
-          <button onclick="adminRemoveSplitRule('${r.replace(/'/g, "\\'")}')" class="ml-2 text-purple-400 hover:text-rose-600 transition font-black">&times;</button>
+          <span>${esc(r)}</span>
+          <button onclick="adminRenameEntity('splitRule', ${esc(JSON.stringify(r))})" class="ml-2 text-purple-400 hover:text-indigo-600 transition" title="Rename" aria-label="Rename ${esc(r)}"><i class="fa-solid fa-pen text-[10px]"></i></button>
+          <button onclick="adminRemoveSplitRule(${esc(JSON.stringify(r))})" class="ml-1.5 text-purple-400 hover:text-rose-600 transition font-black" title="Remove" aria-label="Remove ${esc(r)}">&times;</button>
         </span>
       `).join('');
     }
@@ -2189,6 +2196,220 @@
     }
     return message;
   }
+
+  // ========================================================
+  // RENAME / EDIT FOR CATEGORIES, MEMBERS, METHODS, SPLIT RULES
+  // Previously these could only be added and deleted. Renaming one has to
+  // carry the existing expenses with it, so the server does the cascade and
+  // tells us how much history is affected before anything moves.
+  // ========================================================
+
+  const ENTITY_LABEL = {
+    category: 'Category',
+    familyMember: 'Family Member',
+    paymentMethod: 'Payment Method',
+    splitRule: 'Split Rule'
+  };
+
+  async function configRequest(body) {
+    const activeHId = (typeof getActiveHouseholdId === 'function')
+      ? getActiveHouseholdId()
+      : ((window.currentSessionUser && window.currentSessionUser.householdId) || 'H001');
+    const res = await fetch(`/api/config?householdId=${encodeURIComponent(activeHId)}`, {
+      method: 'POST',
+      headers: getAdvanceAuthHeaders({ 'Cache-Control': 'no-cache, no-store, must-revalidate' }),
+      cache: 'no-store',
+      body: JSON.stringify({ ...body, householdId: activeHId })
+    });
+    let json = {};
+    try { json = await res.json(); } catch (e) {}
+    return { status: res.status, json };
+  }
+
+  async function entityUsageCount(entity, name) {
+    try {
+      const activeHId = (typeof getActiveHouseholdId === 'function')
+        ? getActiveHouseholdId()
+        : ((window.currentSessionUser && window.currentSessionUser.householdId) || 'H001');
+      const res = await fetch(
+        `/api/config?action=usage&entity=${encodeURIComponent(entity)}` +
+        `&name=${encodeURIComponent(name)}&householdId=${encodeURIComponent(activeHId)}&_t=${Date.now()}`,
+        { headers: getAdvanceAuthHeaders(), cache: 'no-store' });
+      if (!res.ok) return null;
+      const json = await res.json();
+      return typeof json.count === 'number' ? json.count : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function applyConfigResponse(json) {
+    if (!json || !json.data) return;
+    window.masterConfig = json.data;
+    if (window.updateGlobalsFromConfig) window.updateGlobalsFromConfig(json.data);
+    syncDropdownsWithConfig();
+    if (window.renderAdminView) window.renderAdminView();
+    if (window.renderAllViews) window.renderAllViews();
+  }
+
+  // Rename one of the simple string lists, or a category's name.
+  window.adminRenameEntity = async function (entity, currentName) {
+    const label = ENTITY_LABEL[entity] || 'Item';
+    const next = window.prompt(`Rename ${label}\n\nCurrent name: ${currentName}`, currentName);
+    if (next === null) return false;                 // cancelled
+    const to = String(next).trim();
+    if (!to) {
+      if (window.showToast) window.showToast('error', 'Name required', `A ${label.toLowerCase()} needs a name.`);
+      return false;
+    }
+    if (to === currentName) return false;            // nothing to do
+
+    const affected = await entityUsageCount(entity, currentName);
+    if (affected && affected > 0) {
+      const ok = window.confirm(
+        `"${currentName}" is used by ${affected} expense${affected === 1 ? '' : 's'}.\n\n` +
+        `Renaming it to "${to}" will update ${affected === 1 ? 'that record' : 'all of them'} so no history is orphaned.\n\nContinue?`);
+      if (!ok) return false;
+    }
+
+    const { status, json } = await configRequest({
+      action: 'rename_entity', entity, from: currentName, to, cascade: true
+    });
+
+    if (status === 200 && json.success) {
+      applyConfigResponse(json);
+      if (window.showToast) {
+        window.showToast('success', `${label} renamed`,
+          json.updatedExpenses
+            ? `"${currentName}" is now "${to}". ${json.updatedExpenses} expense${json.updatedExpenses === 1 ? '' : 's'} updated.`
+            : `"${currentName}" is now "${to}".`);
+      }
+      return true;
+    }
+
+    if (window.showToast) {
+      window.showToast('error', 'Rename failed',
+        json.error || `Could not rename this ${label.toLowerCase()}.`);
+    }
+    return false;
+  };
+
+  // Categories carry more than a name, so they get their own small editor.
+  window.adminEditCategory = async function (categoryName) {
+    const config = window.masterConfig || {};
+    const cat = (config.categories || []).find(c => c.name === categoryName);
+    if (!cat) {
+      if (window.showToast) window.showToast('error', 'Not found', 'That category no longer exists.');
+      return false;
+    }
+
+    const modal = document.getElementById('adminEditCategoryModal');
+    if (!modal) {
+      // No modal in the DOM: fall back to a plain rename so the action still works.
+      return window.adminRenameEntity('category', categoryName);
+    }
+
+    modal.dataset.originalName = categoryName;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v == null ? '' : v; };
+    set('editCategoryName', cat.name);
+    set('editCategoryIcon', cat.icon || '🏷️');
+    set('editCategoryType', cat.type || 'expense');
+    set('editCategoryDefaultPaidTo', cat.defaultPaidTo || '');
+    const errSlot = document.getElementById('editCategoryError');
+    if (errSlot) { errSlot.textContent = ''; errSlot.classList.remove('is-visible'); }
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    return true;
+  };
+
+  window.closeAdminEditCategoryModal = function () {
+    const modal = document.getElementById('adminEditCategoryModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  };
+
+  window.submitAdminEditCategory = async function () {
+    const modal = document.getElementById('adminEditCategoryModal');
+    if (!modal) return false;
+    const originalName = modal.dataset.originalName || '';
+    const val = (id) => {
+      const el = document.getElementById(id);
+      return el ? String(el.value || '').trim() : '';
+    };
+    const newName = val('editCategoryName');
+    const errSlot = document.getElementById('editCategoryError');
+    const showErr = (m) => {
+      if (errSlot) { errSlot.textContent = m; errSlot.classList.add('is-visible'); }
+      else if (window.showToast) window.showToast('error', 'Cannot save', m);
+    };
+    if (errSlot) { errSlot.textContent = ''; errSlot.classList.remove('is-visible'); }
+
+    if (!newName) return showErr('Category name is required.'), false;
+
+    const btn = document.getElementById('btnSubmitEditCategory');
+    if (btn) btn.dataset.busy = '1';
+    try {
+      // 1. Rename first, so history moves with the name.
+      if (newName !== originalName) {
+        const affected = await entityUsageCount('category', originalName);
+        if (affected && affected > 0) {
+          const ok = window.confirm(
+            `"${originalName}" is used by ${affected} expense${affected === 1 ? '' : 's'}.\n\n` +
+            `Renaming to "${newName}" will update ${affected === 1 ? 'that record' : 'all of them'}.\n\nContinue?`);
+          if (!ok) return false;
+        }
+        const r = await configRequest({
+          action: 'rename_entity', entity: 'category',
+          from: originalName, to: newName, cascade: true
+        });
+        if (r.status !== 200 || !r.json.success) {
+          showErr(r.json.error || 'Could not rename the category.');
+          return false;
+        }
+        applyConfigResponse(r.json);
+      }
+
+      // 2. Then the other attributes, on the (possibly new) name.
+      const config = window.masterConfig || {};
+      const cats = (config.categories || []).map(c =>
+        c.name === newName
+          ? {
+              ...c,
+              icon: val('editCategoryIcon') || c.icon || '🏷️',
+              type: val('editCategoryType') || c.type || 'expense',
+              defaultPaidTo: val('editCategoryDefaultPaidTo')
+            }
+          : c);
+      const r2 = await configRequest({ categories: cats });
+      if (r2.status !== 200 || !r2.json.success) {
+        showErr(r2.json.error || 'Category renamed, but the other details could not be saved.');
+        return false;
+      }
+      applyConfigResponse(r2.json);
+
+      // 3. Read back and confirm before claiming success.
+      const check = (window.masterConfig.categories || []).find(c => c.name === newName);
+      if (!check) {
+        showErr('The server did not store the category under that name.');
+        return false;
+      }
+      const wantIcon = val('editCategoryIcon') || '🏷️';
+      const wantType = val('editCategoryType') || 'expense';
+      const wantPaidTo = val('editCategoryDefaultPaidTo');
+      if (check.icon !== wantIcon || check.type !== wantType || (check.defaultPaidTo || '') !== wantPaidTo) {
+        showErr('Saved values do not match what you entered. Please check and try again.');
+        return false;
+      }
+
+      window.closeAdminEditCategoryModal();
+      if (window.showToast) window.showToast('success', 'Category saved', `"${newName}" updated and verified.`);
+      return true;
+    } finally {
+      if (btn) delete btn.dataset.busy;
+    }
+  };
 
   // --- unsaved-changes guard (C5) -------------------------------------------
   // Staff and bill edits are typed into rows and only persisted by the one

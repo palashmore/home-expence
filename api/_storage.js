@@ -756,6 +756,65 @@ async function saveHouseholdExpense(householdId, record, actorUser = 'System') {
     return formatted;
 }
 
+/**
+ * Apply one server-driven change across many expenses in a single pass.
+ *
+ * Calling saveHouseholdExpense in a loop rewrites the whole ledger (twice, for
+ * H001) and appends an audit row per record, so renaming a category used by 35
+ * expenses meant ~105 file writes and 35 opaque UPDATE_EXPENSE entries. This
+ * reads once, mutates in memory, writes once, and logs the operation as the
+ * single action it actually was.
+ *
+ * `mutate(record)` returns a changed record, or null/undefined to leave it be.
+ * Returns the number of records changed.
+ */
+async function bulkUpdateHouseholdExpenses(householdId, mutate, actorUser = 'System', auditMeta = {}) {
+    const cleanHId = sanitizeId(householdId);
+    if (!cleanHId) throw new Error('Unauthorized: Invalid Household context.');
+    if (typeof mutate !== 'function') throw new Error('bulkUpdateHouseholdExpenses requires a mutate function.');
+
+    const list = await getHouseholdExpenses(cleanHId, true);
+    const now = new Date().toISOString();
+    const changedIds = [];
+
+    for (let i = 0; i < list.length; i++) {
+        const record = list[i];
+        if (!record || record.isDeleted) continue;
+        const next = mutate({ ...record });
+        if (!next) continue;
+        list[i] = {
+            ...next,
+            version: Number(record.version || 1) + 1,
+            updatedAt: now,
+            updatedBy: actorUser
+        };
+        changedIds.push(record.id);
+    }
+
+    if (changedIds.length === 0) return 0;
+
+    memoryStore.expenses[cleanHId] = list;
+    writeJsonFile(getHouseholdFilePath(cleanHId, 'expenses.json'), list);
+
+    if (cleanHId === 'H001') {
+        writeJsonFile(path.join(DATA_DIR, 'expenses.json'), list);
+        cloudSync.writeJson('expenses.json', list).catch(err => {
+            console.warn('[CloudSync] bulk expenses write notice:', err.message);
+        });
+    }
+
+    await logHouseholdAudit(
+        cleanHId,
+        auditMeta.action || 'BULK_UPDATE_EXPENSES',
+        auditMeta.recordId || `bulk-${changedIds.length}`,
+        auditMeta.diff || {},
+        { ...auditMeta.snapshot, affectedCount: changedIds.length, affectedIds: changedIds.slice(0, 50) },
+        actorUser
+    );
+
+    return changedIds.length;
+}
+
 async function deleteHouseholdExpense(householdId, id, actorUser = 'System') {
     const cleanHId = sanitizeId(householdId);
     if (!cleanHId) throw new Error('Unauthorized: Invalid Household context.');
@@ -1002,6 +1061,7 @@ module.exports = {
     getHouseholdExpenses,
     getHouseholdExpenseById,
     saveHouseholdExpense,
+    bulkUpdateHouseholdExpenses,
     deleteHouseholdExpense,
     getHouseholdConfig,
     saveHouseholdConfig,

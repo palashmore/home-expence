@@ -215,27 +215,31 @@ module.exports = async function handler(req, res) {
                 };
                 await storage.saveHouseholdConfig(householdId, updatedConfig, actorUser);
 
-                // Cascade onto the referring expenses.
+                // Cascade onto the referring expenses in a single pass, logged
+                // as the one action it is rather than N anonymous updates.
                 let moved = 0;
                 if (affected > 0) {
                     const needle = from.toLowerCase();
-                    for (const e of expenses) {
-                        if (!e || e.isDeleted) continue;
-                        let touched = false;
-                        const patch = { ...e };
-                        for (const f of spec.expenseFields) {
-                            if (String(patch[f] ?? '').trim().toLowerCase() === needle) {
-                                patch[f] = to;
-                                touched = true;
+                    moved = await storage.bulkUpdateHouseholdExpenses(
+                        householdId,
+                        (record) => {
+                            let touched = false;
+                            for (const f of spec.expenseFields) {
+                                if (String(record[f] ?? '').trim().toLowerCase() === needle) {
+                                    record[f] = to;
+                                    touched = true;
+                                }
                             }
+                            return touched ? record : null;
+                        },
+                        actorUser,
+                        {
+                            action: 'RENAME_ENTITY',
+                            recordId: `${body.entity}:${from}`,
+                            diff: { [body.entity]: { old: from, new: to } },
+                            snapshot: { entity: body.entity, from, to }
                         }
-                        if (!touched) continue;
-                        // Bypass the optimistic-concurrency check: this is a
-                        // server-driven bulk move, not a competing user edit.
-                        delete patch.version;
-                        await storage.saveHouseholdExpense(householdId, patch, actorUser);
-                        moved += 1;
-                    }
+                    );
                 }
 
                 const freshConfig = await storage.getHouseholdConfig(householdId, true);

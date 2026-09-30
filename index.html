@@ -78,7 +78,11 @@
             <div class="flex justify-between h-14 sm:h-16 items-center gap-3">
                 
                 <!-- Zone 1: Logo, Brand & Active Household (Left - Always Visible) -->
-                <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+                <!-- On phones this must be allowed to shrink so the brand text
+                     truncates; with shrink-0 it held its full width and pushed
+                     the controls on the right past the edge of the screen.
+                     Desktop keeps shrink-0 exactly as before. -->
+                <div class="flex items-center gap-2 sm:gap-3 min-w-0 shrink sm:shrink-0">
                     <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-600 to-indigo-800 flex items-center justify-center text-white shadow-lg shadow-indigo-600/40 shrink-0 border border-indigo-400/20" title="Home Expence">
                         <svg class="w-4 h-4 sm:w-6 sm:h-6 text-white" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M16 3L3 14H7V27C7 27.55 7.45 28 8 28H24C24.55 28 25 27.55 25 27V14H29L16 3Z" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -149,10 +153,9 @@
                         <span id="mobileOfflineQueueCount">0</span>
                     </button>
 
-                    <!-- Mobile Direct Quick Sign Out Button -->
-                    <button type="button" onclick="signOut()" class="w-8 h-8 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 hover:text-white border border-rose-500/40 shadow-sm transition flex items-center justify-center shrink-0" title="Sign Out" aria-label="Sign Out">
-                        <i class="fa-solid fa-right-from-bracket text-xs text-rose-400"></i>
-                    </button>
+                    <!-- Sign Out lives in the ⋮ menu below (twice: the account
+                         banner and the last row), so a sixth 44px control here
+                         only cost horizontal room the phone header does not have. -->
 
                     <!-- Mobile More Actions Hub Dropdown (⋮) -->
                     <div class="relative inline-block text-left">

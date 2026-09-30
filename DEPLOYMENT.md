@@ -13,6 +13,25 @@ Run this once, on your own machine, in the repo root:
 npm run keys
 ```
 
+**On Windows PowerShell**, `npm run keys` may fail with *"npm.ps1 cannot be
+loaded because running scripts is disabled on this system"*. That is PowerShell's
+execution policy blocking npm's `.ps1` shim, not a problem with this repo. Use
+either of these instead:
+
+```powershell
+node scripts/generate_keys.js      # simplest - skips npm entirely
+npm.cmd run keys                   # or call the .cmd shim directly
+```
+
+To fix it for good (per-user, no admin rights needed):
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+The same applies to `npm test` and `npm run audit` — use `npm.cmd`, or run
+`bash ./run_tests.sh` and `bash ./run_audit.sh` directly.
+
 It prints three values:
 
 ```

@@ -1,6 +1,7 @@
 const { authenticateRequest } = require('./auth');
 const storage = require('./_storage');
 const notifications = require('./notifications');
+const rules = require('./_config_rules');
 
 module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
@@ -38,6 +39,27 @@ module.exports = async function handler(req, res) {
     try {
         // GET: Fetch config for authenticated household (Strict fresh reload from disk)
         if (req.method === 'GET') {
+            // Usage probe: how many live expenses reference a category, member,
+            // payment method or split rule. Used to warn before a delete or a
+            // rename instead of silently orphaning records.
+            if (req.query && req.query.action === 'usage') {
+                const spec = rules.entitySpec(req.query.entity);
+                if (!spec) {
+                    return res.status(400).json({ success: false, error: 'Unknown entity for usage lookup.' });
+                }
+                const name = String(req.query.name || '').trim();
+                if (!name) {
+                    return res.status(400).json({ success: false, error: 'A name is required for a usage lookup.' });
+                }
+                const expenses = await storage.getHouseholdExpenses(householdId, true);
+                return res.status(200).json({
+                    success: true,
+                    entity: req.query.entity,
+                    name: name,
+                    count: rules.countReferences(expenses, spec, name)
+                });
+            }
+
             const config = await storage.getHouseholdConfig(householdId, true);
             return res.status(200).json({
                 success: true,
@@ -125,6 +147,119 @@ module.exports = async function handler(req, res) {
                 });
             }
 
+            // Action: rename a category, family member, payment method or split
+            // rule, cascading the new value onto every expense that refers to
+            // the old one. Without the cascade a rename orphans history.
+            if (body.action === 'rename_entity') {
+                const spec = rules.entitySpec(body.entity);
+                if (!spec) {
+                    return res.status(400).json({ success: false, error: 'Unknown entity type for rename.' });
+                }
+                const from = String(body.from || '').trim();
+                const to = String(body.to || '').trim();
+                if (!from || !to) {
+                    return res.status(422).json({
+                        success: false,
+                        error: 'Both the current name and the new name are required.',
+                        fieldErrors: [{ field: 'to', message: 'Enter a new name.' }]
+                    });
+                }
+
+                const list = Array.isArray(current[spec.list]) ? current[spec.list] : [];
+                const nameOf = (item) => (spec.objects ? String(item?.name ?? '') : String(item ?? ''));
+                const idx = list.findIndex(i => nameOf(i).trim().toLowerCase() === from.toLowerCase());
+                if (idx === -1) {
+                    return res.status(404).json({ success: false, error: `"${from}" was not found.` });
+                }
+                const clash = list.findIndex((i, j) =>
+                    j !== idx && nameOf(i).trim().toLowerCase() === to.toLowerCase());
+                if (clash !== -1) {
+                    return res.status(422).json({
+                        success: false,
+                        error: `"${to}" already exists.`,
+                        fieldErrors: [{ field: 'to', message: 'That name is already in use.' }]
+                    });
+                }
+
+                const expenses = await storage.getHouseholdExpenses(householdId, true);
+                const affected = rules.countReferences(expenses, spec, from);
+
+                // The caller must opt in once it knows how much history moves.
+                if (affected > 0 && body.cascade !== true) {
+                    return res.status(409).json({
+                        success: false,
+                        error: `"${from}" is used by ${affected} expense${affected === 1 ? '' : 's'}.`,
+                        requiresCascade: true,
+                        affected: affected
+                    });
+                }
+
+                const nextList = list.slice();
+                nextList[idx] = spec.objects ? { ...list[idx], name: to } : to;
+
+                // Recurring bills also carry a category name.
+                let nextBills = current.recurringBills;
+                if (body.entity === 'category' && Array.isArray(nextBills)) {
+                    nextBills = nextBills.map(b =>
+                        String(b?.category ?? '').trim().toLowerCase() === from.toLowerCase()
+                            ? { ...b, category: to }
+                            : b);
+                }
+
+                const updatedConfig = {
+                    ...current,
+                    [spec.list]: nextList,
+                    ...(nextBills ? { recurringBills: nextBills } : {}),
+                    householdId: householdId,
+                    updatedAt: new Date().toISOString()
+                };
+                await storage.saveHouseholdConfig(householdId, updatedConfig, actorUser);
+
+                // Cascade onto the referring expenses.
+                let moved = 0;
+                if (affected > 0) {
+                    const needle = from.toLowerCase();
+                    for (const e of expenses) {
+                        if (!e || e.isDeleted) continue;
+                        let touched = false;
+                        const patch = { ...e };
+                        for (const f of spec.expenseFields) {
+                            if (String(patch[f] ?? '').trim().toLowerCase() === needle) {
+                                patch[f] = to;
+                                touched = true;
+                            }
+                        }
+                        if (!touched) continue;
+                        // Bypass the optimistic-concurrency check: this is a
+                        // server-driven bulk move, not a competing user edit.
+                        delete patch.version;
+                        await storage.saveHouseholdExpense(householdId, patch, actorUser);
+                        moved += 1;
+                    }
+                }
+
+                const freshConfig = await storage.getHouseholdConfig(householdId, true);
+                return res.status(200).json({
+                    success: true,
+                    message: `Renamed "${from}" to "${to}".` +
+                        (moved ? ` ${moved} expense${moved === 1 ? '' : 's'} updated.` : ''),
+                    renamed: { entity: body.entity, from, to },
+                    updatedExpenses: moved,
+                    data: freshConfig
+                });
+            }
+
+            // Reject invalid values outright rather than coercing them into
+            // plausible-looking numbers nobody chose.
+            const fieldErrors = rules.validateConfigPayload(body);
+            if (fieldErrors.length) {
+                return res.status(422).json({
+                    success: false,
+                    error: fieldErrors.map(e => e.message).join(' '),
+                    fieldErrors: fieldErrors
+                });
+            }
+
             // Sanitization and deduplication of categories if provided in batch update
             if (Array.isArray(body.categories)) {
                 const seen = new Set();
@@ -134,7 +269,10 @@ module.exports = async function handler(req, res) {
                     const key = String(cat.name).trim().toLowerCase();
                     if (!seen.has(key)) {
                         seen.add(key);
+                        // Spread first so properties this endpoint does not know
+                        // about survive the round-trip instead of being dropped.
                         dedupedCats.push({
+                            ...cat,
                             name: String(cat.name).trim(),
                             icon: cat.icon || '🏷️',
                             type: cat.type || 'expense',
@@ -147,15 +285,19 @@ module.exports = async function handler(req, res) {
 
             // Normalization of recurring bills (approxAmount & budgetedAmount)
             if (Array.isArray(body.recurringBills)) {
+                // Values are already validated above, so normalisation here only
+                // converts types - it never substitutes a default for a value
+                // the caller actually supplied.
                 body.recurringBills = body.recurringBills.map((b, idx) => {
                     if (!b || typeof b !== 'object') return null;
                     const rawAmt = b.approxAmount !== undefined ? b.approxAmount : (b.budgetedAmount !== undefined ? b.budgetedAmount : b.amount);
-                    const cleanAmount = Number(String(rawAmt || '0').replace(/[^0-9.]/g, '')) || 0;
+                    const cleanAmount = rules.parseAmount(rawAmt);
                     return {
+                        ...b,
                         id: b.id || `bill-${idx + 1}`,
-                        name: String(b.name || 'Recurring Bill').trim(),
-                        category: String(b.category || 'General').trim(),
-                        dueDay: parseInt(b.dueDay, 10) || 1,
+                        name: String(b.name).trim(),
+                        category: String(b.category || '').trim(),
+                        dueDay: rules.parseDay(b.dueDay),
                         approxAmount: cleanAmount,
                         budgetedAmount: cleanAmount,
                         icon: b.icon || '⚡'
@@ -168,14 +310,15 @@ module.exports = async function handler(req, res) {
                 body.staff = body.staff.map((s, idx) => {
                     if (!s || typeof s !== 'object') return null;
                     const rawSal = s.baseSalary !== undefined ? s.baseSalary : s.salary;
-                    const cleanSalary = Number(String(rawSal || '0').replace(/[^0-9.]/g, '')) || 0;
+                    const prevLeaves = rules.parseDay(s.allowedPaidLeaves);
+                    const prevCycleDay = rules.parseDay(s.billingCycleDay);
                     return {
                         ...s,
                         id: s.id || `staff-${idx + 1}`,
-                        name: String(s.name || '').trim(),
-                        baseSalary: cleanSalary,
-                        allowedPaidLeaves: parseInt(s.allowedPaidLeaves, 10) || 0,
-                        billingCycleDay: parseInt(s.billingCycleDay, 10) || 1,
+                        name: String(s.name).trim(),
+                        baseSalary: rules.parseAmount(rawSal),
+                        allowedPaidLeaves: prevLeaves,
+                        billingCycleDay: prevCycleDay,
                         active: s.active !== false
                     };
                 }).filter(Boolean);
@@ -183,7 +326,7 @@ module.exports = async function handler(req, res) {
 
             // Normalization of monthly budget target
             if (body.monthlyBudgetLimit !== undefined) {
-                body.monthlyBudgetLimit = Number(String(body.monthlyBudgetLimit).replace(/[^0-9.]/g, '')) || 50000;
+                body.monthlyBudgetLimit = rules.parseAmount(body.monthlyBudgetLimit);
             }
 
             const updated = {

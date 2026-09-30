@@ -1738,18 +1738,23 @@
     const staffTbody = document.getElementById('adminStaffTableBody');
     if (staffTbody && config.staff) {
       staffTbody.innerHTML = config.staff.map((s) => `
-        <tr class="hover:bg-slate-50 transition border-b border-slate-100" data-staff-id="${s.id}">
+        <tr class="hover:bg-slate-50 transition border-b border-slate-100" data-staff-id="${esc(s.id)}">
           <td class="py-2.5 px-3">
-            <input type="text" class="staff-edit-name bg-white border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-xs w-full focus:border-indigo-500" value="${s.name}">
+            <input type="text" class="staff-edit-name bg-white border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-xs w-full focus:border-indigo-500" value="${esc(s.name)}">
+            <p class="staff-err-name field-error"></p>
           </td>
           <td class="py-2.5 px-3">
-            <input type="text" class="staff-edit-role bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs w-full focus:border-indigo-500" value="${s.role || ''}">
+            <input type="text" class="staff-edit-shortname bg-white border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-xs w-20 focus:border-indigo-500" value="${esc(s.shortName || '')}" placeholder="Short">
+          </td>
+          <td class="py-2.5 px-3">
+            <input type="text" class="staff-edit-role bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs w-full focus:border-indigo-500" value="${esc(s.role || '')}">
           </td>
           <td class="py-2.5 px-3">
             <div class="flex items-center">
               <span class="text-slate-400 mr-1 font-bold">₹</span>
               <input type="number" step="any" min="0" inputmode="decimal" class="staff-edit-salary bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-24 focus:border-indigo-500" value="${s.baseSalary}">
             </div>
+            <p class="staff-err-salary field-error"></p>
           </td>
           <td class="py-2.5 px-3 bg-indigo-50/60 border-x border-indigo-100">
             <div class="flex items-center space-x-1.5">
@@ -1775,7 +1780,7 @@
             </label>
           </td>
           <td class="py-2.5 px-3 text-right">
-            <button onclick="adminDeleteStaff('${s.id}')" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition" title="Delete staff member">
+            <button onclick="adminDeleteStaff(${esc(JSON.stringify(s.id))})" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition" title="Delete staff member" aria-label="Delete staff member">
               <i class="fa-solid fa-trash text-xs"></i>
             </button>
           </td>
@@ -1786,17 +1791,22 @@
     const staffMobile = document.getElementById('adminStaffMobileList');
     if (staffMobile && config.staff) {
       staffMobile.innerHTML = config.staff.map((s) => `
-        <div class="staff-mobile-card p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 shadow-2xs" data-staff-id="${s.id}">
+        <div class="staff-mobile-card p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 shadow-2xs" data-staff-id="${esc(s.id)}">
           <div class="flex items-center justify-between gap-2">
-            <input type="text" class="staff-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 focus:bg-white focus:border-indigo-500" value="${s.name}" placeholder="Staff Name">
-            <button onclick="adminDeleteStaff('${s.id}')" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0" title="Delete staff member">
+            <input type="text" class="staff-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 focus:bg-white focus:border-indigo-500" value="${esc(s.name)}" placeholder="Staff Name">
+            <button onclick="adminDeleteStaff(${esc(JSON.stringify(s.id))})" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" title="Delete staff member" aria-label="Delete staff member">
               <i class="fa-solid fa-trash text-xs"></i>
             </button>
           </div>
+          <p class="staff-err-name field-error"></p>
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div>
+              <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Short Name</label>
+              <input type="text" class="staff-edit-shortname bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs w-full focus:bg-white focus:border-indigo-500" value="${esc(s.shortName || '')}" placeholder="e.g. AS">
+            </div>
+            <div>
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Role</label>
-              <input type="text" class="staff-edit-role bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs w-full focus:bg-white focus:border-indigo-500" value="${s.role || ''}" placeholder="Role">
+              <input type="text" class="staff-edit-role bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs w-full focus:bg-white focus:border-indigo-500" value="${esc(s.role || '')}" placeholder="Role">
             </div>
             <div>
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Base Salary (₹)</label>
@@ -1804,6 +1814,7 @@
                 <span class="text-slate-400 mr-1 font-bold text-xs">₹</span>
                 <input type="number" step="any" min="0" inputmode="decimal" class="staff-edit-salary bg-transparent font-black text-xs w-full focus:outline-none" value="${s.baseSalary}">
               </div>
+              <p class="staff-err-salary field-error"></p>
             </div>
             <div>
               <label class="block text-[10px] font-black uppercase text-indigo-600 mb-0.5">Allowed Leaves</label>
@@ -1837,17 +1848,18 @@
       billsTbody.innerHTML = config.recurringBills.map((b) => {
         const billAmt = Number(b.approxAmount !== undefined && b.approxAmount !== null ? b.approxAmount : (b.budgetedAmount !== undefined ? b.budgetedAmount : 0)) || 0;
         return `
-        <tr class="hover:bg-slate-50 transition border-b border-slate-100" data-bill-id="${b.id}">
+        <tr class="hover:bg-slate-50 transition border-b border-slate-100" data-bill-id="${esc(b.id)}">
           <td class="py-2.5 px-3">
-            <input type="text" class="bill-edit-icon bg-white border border-slate-200 rounded-lg px-1.5 py-1 text-xs w-10 text-center font-bold" value="${b.icon || '⚡'}">
+            <input type="text" class="bill-edit-icon bg-white border border-slate-200 rounded-lg px-1.5 py-1 text-xs w-10 text-center font-bold" value="${esc(b.icon || '⚡')}">
           </td>
           <td class="py-2.5 px-3">
-            <input type="text" class="bill-edit-name bg-white border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-xs w-full focus:border-indigo-500" value="${b.name}">
+            <input type="text" class="bill-edit-name bg-white border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-xs w-full focus:border-indigo-500" value="${esc(b.name)}">
+            <p class="bill-err-name field-error"></p>
           </td>
           <td class="py-2.5 px-3">
             <select class="bill-edit-cat bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold focus:border-indigo-500 w-full">
               ${(config.categories || []).map(c => `
-                <option value="${c.name}" ${c.name === b.category ? 'selected' : ''}>${c.name}</option>
+                <option value="${esc(c.name)}" ${c.name === b.category ? 'selected' : ''}>${esc(c.name)}</option>
               `).join('')}
             </select>
           </td>
@@ -1862,9 +1874,10 @@
               <span class="text-slate-400 mr-1 font-bold">₹</span>
               <input type="number" step="any" min="0" inputmode="decimal" class="bill-edit-amount bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-28 focus:border-indigo-500" value="${billAmt}">
             </div>
+            <p class="bill-err-amount field-error"></p>
           </td>
           <td class="py-2.5 px-3 text-right">
-            <button onclick="adminDeleteBill('${b.id}')" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition" title="Delete bill">
+            <button onclick="adminDeleteBill(${esc(JSON.stringify(b.id))})" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition" title="Delete bill" aria-label="Delete bill">
               <i class="fa-solid fa-trash text-xs"></i>
             </button>
           </td>
@@ -1878,13 +1891,13 @@
       billsMobile.innerHTML = config.recurringBills.map((b) => {
         const billAmt = Number(b.approxAmount !== undefined && b.approxAmount !== null ? b.approxAmount : (b.budgetedAmount !== undefined ? b.budgetedAmount : 0)) || 0;
         return `
-        <div class="bill-mobile-card p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 shadow-2xs" data-bill-id="${b.id}">
+        <div class="bill-mobile-card p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 shadow-2xs" data-bill-id="${esc(b.id)}">
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 flex-1">
-              <input type="text" class="bill-edit-icon bg-slate-50 border border-slate-200 rounded-xl px-1 py-1 text-center font-bold text-base w-9 shrink-0" value="${b.icon || '⚡'}">
-              <input type="text" class="bill-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 focus:bg-white focus:border-indigo-500" value="${b.name}" placeholder="Bill Name">
+              <input type="text" class="bill-edit-icon bg-slate-50 border border-slate-200 rounded-xl px-1 py-1 text-center font-bold text-base w-9 shrink-0" value="${esc(b.icon || '⚡')}">
+              <input type="text" class="bill-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 focus:bg-white focus:border-indigo-500" value="${esc(b.name)}" placeholder="Bill Name">
             </div>
-            <button onclick="adminDeleteBill('${b.id}')" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0" title="Delete bill">
+            <button onclick="adminDeleteBill(${esc(JSON.stringify(b.id))})" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" title="Delete bill" aria-label="Delete bill">
               <i class="fa-solid fa-trash text-xs"></i>
             </button>
           </div>
@@ -1893,7 +1906,7 @@
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Category</label>
               <select class="bill-edit-cat bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-semibold focus:bg-white focus:border-indigo-500 w-full">
                 ${(config.categories || []).map(c => `
-                  <option value="${c.name}" ${c.name === b.category ? 'selected' : ''}>${c.name}</option>
+                  <option value="${esc(c.name)}" ${c.name === b.category ? 'selected' : ''}>${esc(c.name)}</option>
                 `).join('')}
               </select>
             </div>
@@ -1910,6 +1923,7 @@
                 <span class="text-slate-400 mr-1 font-bold text-xs">₹</span>
                 <input type="number" step="any" min="0" inputmode="decimal" class="bill-edit-amount bg-transparent font-black text-xs w-full focus:outline-none" value="${billAmt}">
               </div>
+              <p class="bill-err-amount field-error"></p>
             </div>
           </div>
         </div>
@@ -2024,6 +2038,66 @@
   // ADMIN SAVE & UPDATE ACTIONS
   // ========================================================
 
+  // --- form reading helpers -------------------------------------------------
+  // These deliberately return null for "the user left it blank" instead of
+  // substituting a plausible-looking default. A silent `|| 0` or `|| 30` writes
+  // a number nobody chose straight into the household's records.
+
+  const esc = (v) => (window.escapeHtml ? window.escapeHtml(v) : String(v == null ? '' : v));
+
+  function indexById(list) {
+    const out = {};
+    (Array.isArray(list) ? list : []).forEach((item) => {
+      if (item && item.id != null) out[item.id] = item;
+    });
+    return out;
+  }
+
+  function fieldOf(scope, selector) {
+    if (!scope) return null;
+    return scope === document ? document.querySelector(selector) : scope.querySelector(selector);
+  }
+
+  function readText(scope, selector, fallback) {
+    const el = fieldOf(scope, selector);
+    if (!el) return fallback === undefined ? '' : (fallback || '');
+    return String(el.value == null ? '' : el.value).trim();
+  }
+
+  function readNumber(scope, selector, fallback) {
+    const el = fieldOf(scope, selector);
+    if (!el) return fallback === undefined ? null : fallback;
+    const raw = String(el.value == null ? '' : el.value).trim();
+    if (raw === '') return null;                       // blank is blank, not zero
+    const n = Number(raw.replace(/[^0-9.\-]/g, ''));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function readInt(scope, selector, fallback) {
+    const n = readNumber(scope, selector, fallback);
+    if (n === null) return null;
+    return Number.isInteger(n) ? n : Math.trunc(n);
+  }
+
+  function clearFieldErrors() {
+    document.querySelectorAll('.field-error').forEach((p) => {
+      p.textContent = '';
+      p.classList.remove('is-visible');
+    });
+    document.querySelectorAll('.has-field-error').forEach((el) => el.classList.remove('has-field-error'));
+  }
+
+  function fieldError(scope, selector, message) {
+    const slot = fieldOf(scope, selector);
+    if (slot) {
+      slot.textContent = message;
+      slot.classList.add('is-visible');
+      const row = slot.closest('tr, .staff-mobile-card, .bill-mobile-card, div');
+      if (row) row.classList.add('has-field-error');
+    }
+    return message;
+  }
+
   window.saveAdminConfigFromUI = async function () {
     const config = window.masterConfig || {};
 
@@ -2033,27 +2107,53 @@
       ? mobileStaffCards
       : document.querySelectorAll('#adminStaffTableBody tr');
 
+    clearFieldErrors();
+    const errors = [];
+    const existingStaffById = indexById(config.staff);
+
     const updatedStaff = [];
     staffElements.forEach((el, index) => {
       const id = el.dataset.staffId || `staff-${index + 1}`;
-      const name = el.querySelector('.staff-edit-name')?.value.trim() || 'Staff';
-      const role = el.querySelector('.staff-edit-role')?.value.trim() || '';
-      const baseSalary = parseFloat(el.querySelector('.staff-edit-salary')?.value) || 0;
-      const allowedPaidLeaves = parseInt(el.querySelector('.staff-edit-leaves')?.value, 10) || 0;
-      const billingCycleDay = parseInt(el.querySelector('.staff-edit-cycleday')?.value, 10) || 30;
-      const cycleType = el.querySelector('.staff-edit-cycletype')?.value || 'calendar_month';
-      const active = el.querySelector('.staff-edit-active')?.checked !== false;
+      // Start from the stored record so properties without an input on screen
+      // (shortName, and anything added later) survive the save. Rebuilding the
+      // object from the visible inputs silently deleted them.
+      const existing = existingStaffById[id] || {};
 
-      const shortName = name.includes(' - ') ? name.split(' - ')[1].trim() : name;
+      const name = readText(el, '.staff-edit-name', existing.name);
+      const shortName = readText(el, '.staff-edit-shortname', existing.shortName);
+      const role = readText(el, '.staff-edit-role', existing.role);
+      const salary = readNumber(el, '.staff-edit-salary', existing.baseSalary);
+      const leaves = readInt(el, '.staff-edit-leaves', existing.allowedPaidLeaves);
+      const cycleDay = readInt(el, '.staff-edit-cycleday', existing.billingCycleDay);
+      const cycleType = el.querySelector('.staff-edit-cycletype')?.value || existing.cycleType || 'calendar_month';
+      const activeEl = el.querySelector('.staff-edit-active');
+      const active = activeEl ? activeEl.checked : (existing.active !== false);
+
+      // Validate. Never invent a value the owner did not type.
+      if (!name) {
+        errors.push(fieldError(el, '.staff-err-name', 'Staff name is required.'));
+      }
+      if (salary === null || !Number.isFinite(salary) || salary < 0) {
+        errors.push(fieldError(el, '.staff-err-salary', 'Enter a salary of 0 or more.'));
+      }
+      if (leaves !== null && (!Number.isInteger(leaves) || leaves < 0 || leaves > 31)) {
+        errors.push(fieldError(el, '.staff-err-name', 'Allowed leaves must be between 0 and 31.'));
+      }
+      if (cycleDay !== null && (!Number.isInteger(cycleDay) || cycleDay < 1 || cycleDay > 31)) {
+        errors.push(fieldError(el, '.staff-err-name', 'Payday must be a day between 1 and 31.'));
+      }
 
       updatedStaff.push({
+        ...existing,
         id,
         name,
-        shortName,
+        // An empty short name means "same as name" for display, but we store the
+        // owner's choice as typed rather than overwriting it with the full name.
+        shortName: shortName || existing.shortName || '',
         role,
-        baseSalary,
-        allowedPaidLeaves,
-        billingCycleDay,
+        baseSalary: salary,
+        allowedPaidLeaves: leaves,
+        billingCycleDay: cycleDay,
         cycleType,
         active
       });
@@ -2065,17 +2165,31 @@
       ? mobileBillCards
       : document.querySelectorAll('#adminBillsTableBody tr');
 
+    const existingBillsById = indexById(config.recurringBills);
+
     const updatedBills = [];
     billElements.forEach((el, index) => {
       const id = el.dataset.billId || `bill-${index + 1}`;
-      const icon = el.querySelector('.bill-edit-icon')?.value.trim() || '⚡';
-      const name = el.querySelector('.bill-edit-name')?.value.trim() || 'Bill';
-      const category = el.querySelector('.bill-edit-cat')?.value || 'Electricity Bill';
-      const dueDay = parseInt(el.querySelector('.bill-edit-dueday')?.value, 10) || 10;
-      const rawAmt = el.querySelector('.bill-edit-amount')?.value;
-      const approxAmount = Number(String(rawAmt || '0').replace(/[^0-9.]/g, '')) || 0;
+      const existing = existingBillsById[id] || {};
+
+      const icon = readText(el, '.bill-edit-icon', existing.icon) || existing.icon || '⚡';
+      const name = readText(el, '.bill-edit-name', existing.name);
+      const category = el.querySelector('.bill-edit-cat')?.value || existing.category || '';
+      const dueDay = readInt(el, '.bill-edit-dueday', existing.dueDay);
+      const approxAmount = readNumber(el, '.bill-edit-amount', existing.approxAmount);
+
+      if (!name) {
+        errors.push(fieldError(el, '.bill-err-name', 'Bill name is required.'));
+      }
+      if (approxAmount === null || !Number.isFinite(approxAmount) || approxAmount < 0) {
+        errors.push(fieldError(el, '.bill-err-amount', 'Enter an amount of 0 or more.'));
+      }
+      if (dueDay === null || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) {
+        errors.push(fieldError(el, '.bill-err-name', 'Due day must be a day between 1 and 31.'));
+      }
 
       updatedBills.push({
+        ...existing,
         id,
         name,
         category,
@@ -2088,10 +2202,19 @@
 
     // 3. Gather Household Cycle
     const isCustom = document.getElementById('adminCycleTypeCustom')?.checked;
-    const startDay = parseInt(document.getElementById('adminCycleStartDay')?.value, 10) || 5;
-    const endDay = parseInt(document.getElementById('adminCycleEndDay')?.value, 10) || 5;
+    const prevCycle = config.householdCycle || {};
+    const startDay = readInt(document, '#adminCycleStartDay', prevCycle.cycleStartDay);
+    const endDay = readInt(document, '#adminCycleEndDay', prevCycle.cycleEndDay);
+
+    if (startDay === null || !Number.isInteger(startDay) || startDay < 1 || startDay > 31) {
+      errors.push(fieldError(document, '#adminCycleStartDayError', 'Cycle start day must be between 1 and 31.'));
+    }
+    if (endDay === null || !Number.isInteger(endDay) || endDay < 1 || endDay > 31) {
+      errors.push(fieldError(document, '#adminCycleEndDayError', 'Cycle end day must be between 1 and 31.'));
+    }
 
     const updatedCycle = {
+      ...prevCycle,
       type: isCustom ? 'custom' : 'calendar',
       cycleStartDay: startDay,
       cycleEndDay: endDay,
@@ -2099,7 +2222,23 @@
     };
 
     // 4. Gather Monthly Budget Target
-    const monthlyBudgetLimit = parseFloat(document.getElementById('adminMonthlyBudgetLimit')?.value) || 50000;
+    const monthlyBudgetLimit = readNumber(document, '#adminMonthlyBudgetLimit', config.monthlyBudgetLimit);
+    if (monthlyBudgetLimit === null || !Number.isFinite(monthlyBudgetLimit) || monthlyBudgetLimit < 0) {
+      errors.push(fieldError(document, '#adminMonthlyBudgetLimitError', 'Enter a monthly budget of 0 or more.'));
+    }
+
+    // Block the save rather than persisting invented values.
+    if (errors.length) {
+      if (window.showToast) {
+        window.showToast('error', 'Nothing saved',
+          `${errors.length} field${errors.length === 1 ? '' : 's'} need${errors.length === 1 ? 's' : ''} attention. Your changes are still on screen.`);
+      }
+      const firstBad = document.querySelector('.field-error.is-visible');
+      if (firstBad && firstBad.scrollIntoView) {
+        firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return false;
+    }
 
     const payload = {
       ...config,

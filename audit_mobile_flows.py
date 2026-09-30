@@ -64,6 +64,10 @@ def attach_listeners(page, audit):
             # Chrome logs a 401 on the pre-login session probe; that is expected.
             if "401" in text and "auth" in text.lower():
                 return
+            # Browser policy notice, not an app fault: Chrome refuses vibrate()
+            # until the frame has had a real tap. A phone user always has.
+            if "navigator.vibrate" in text:
+                return
             audit.console_errors.append(text)
 
     def on_dialog(dialog):
@@ -159,11 +163,20 @@ TAP_TARGET_JS = """
   const out = [];
   const sel = 'button, a[href], input[type=checkbox], input[type=radio], select, [role=button], [onclick]';
   for (const el of document.querySelectorAll(sel)) {
-    const r = el.getBoundingClientRect();
-    if (r.width === 0 && r.height === 0) continue;          // not rendered
     const cs = getComputedStyle(el);
     if (cs.display === 'none' || cs.visibility === 'hidden') continue;
     if (el.closest('[style*="display: none"], .hidden')) continue;
+
+    // A checkbox or radio wrapped in a label is tapped via the label, so the
+    // label is the real target. Measure what the thumb actually has to hit.
+    let target = el;
+    if (el.tagName === 'INPUT') {
+      const lbl = el.closest('label');
+      if (lbl) target = lbl;
+    }
+
+    const r = target.getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) continue;          // not rendered
     if (r.bottom < 0 || r.top > window.innerHeight * 4) continue;  // far offscreen
     if (r.width < 44 || r.height < 44) {
       out.push({
@@ -242,52 +255,232 @@ def audit_no_overflow(page, audit, screen):
 # ---------------------------------------------------------------------------
 def audit_delete_confirm(page, audit):
     print("\n[C4] destructive confirmation is thumb sized")
-    box = page.evaluate(
+    opened = page.evaluate(
         """() => {
             const m = document.getElementById('deleteConfirmModal');
             if (!m) return {missing: true};
-            const prevDisplay = m.style.display;
-            const hadHidden = m.classList.contains('hidden');
+            m.dataset.auditPrevDisplay = m.style.display;
+            m.dataset.auditWasHidden = m.classList.contains('hidden') ? '1' : '0';
             m.classList.remove('hidden');
             m.style.display = 'flex';
-            const btn = document.getElementById('btnConfirmDeleteAction');
-            const res = btn ? (() => { const r = btn.getBoundingClientRect();
-                return {w: Math.round(r.width), h: Math.round(r.height)}; })()
-              : {missingBtn: true};
-            if (hadHidden) m.classList.add('hidden');
-            m.style.display = prevDisplay;
-            return res;
+            return {ok: true};
         }"""
     )
-    if box.get("missing") or box.get("missingBtn"):
-        return audit.record("C4 delete confirm button sized", False, "modal or button not found")
-    ok = box["h"] >= MIN_TAP
-    return audit.record(
+    if opened.get("missing"):
+        return audit.record("C4 delete confirm button sized", False, "delete modal not found")
+
+    # The modal animates in from scale(.95). getBoundingClientRect reflects the
+    # transform, so let it settle before measuring or we read a false 42px.
+    page.wait_for_timeout(600)
+
+    box = page.evaluate(
+        """() => {
+            const btn = document.getElementById('btnConfirmDeleteAction');
+            const cancel = document.querySelector('#deleteConfirmModal button:not(#btnConfirmDeleteAction)');
+            if (!btn) return {missingBtn: true};
+            const lay = (el) => el ? {w: el.offsetWidth, h: el.offsetHeight} : null;
+            return {btn: lay(btn), cancel: lay(cancel)};
+        }"""
+    )
+    page.evaluate(
+        """() => {
+            const m = document.getElementById('deleteConfirmModal');
+            if (!m) return;
+            if (m.dataset.auditWasHidden === '1') m.classList.add('hidden');
+            m.style.display = m.dataset.auditPrevDisplay || '';
+        }"""
+    )
+    if box.get("missingBtn"):
+        return audit.record("C4 delete confirm button sized", False, "confirm button not found")
+
+    ok = box["btn"]["h"] >= MIN_TAP
+    audit.record(
         "C4 delete confirm button >= 44px tall",
         ok,
-        f"measured {box['w']}x{box['h']}px",
+        f"measured {box['btn']['w']}x{box['btn']['h']}px",
     )
+    cancel = box.get("cancel")
+    audit.record(
+        "C4 cancel button is equally thumb sized",
+        bool(cancel) and cancel["h"] >= MIN_TAP,
+        f"cancel measured {cancel}",
+    )
+    return ok
 
 
 # ---------------------------------------------------------------------------
 # C2 - staff shortName must survive a save
 # ---------------------------------------------------------------------------
-def audit_staff_shortname(page, audit, api):
-    print("\n[C2] staff fields survive a save")
-    cfg = api("GET", "/api/config")
-    staff = (cfg.get("config") or cfg).get("staff") or []
-    if not staff:
-        return audit.record("C2 staff shortName preserved", False, "no staff configured to test")
+def read_config(api):
+    """/api/config wraps the household config in `data`."""
+    res = api("GET", "/api/config")
+    for key in ("data", "config"):
+        inner = res.get(key)
+        if isinstance(inner, dict):
+            return inner
+    return res
 
-    target = staff[0]
-    before = dict(target)
-    has_field = page.query_selector(f'[data-staff-shortname], .staff-edit-shortname') is not None
+
+def audit_staff_shortname(page, audit, api):
+    """C2: editing one staff field must not wipe the fields that have no input,
+    and must not wipe the ones that do. Proven by a real round-trip, not by
+    reading the code."""
+    print("\n[C2/C3] staff edits round-trip without data loss")
+    goto_tab(page, "admin")
+    page.wait_for_timeout(900)
+
+    cfg = read_config(api)
+    staff = cfg.get("staff") or []
+    if not staff:
+        audit.record("C2 staff round-trip", False, "no staff configured to test against")
+        return
+
+    target_id = staff[0]["id"]
+
+    # Seed a distinctive shortName straight through the API so we know the
+    # stored value before the UI touches it.
+    seeded = dict(staff[0])
+    seeded["shortName"] = "ZZ9"
+    new_staff = [seeded if s["id"] == target_id else s for s in staff]
+    api("POST", "/api/config", {**cfg, "staff": new_staff})
+    page.reload(wait_until="domcontentloaded")
+    page.wait_for_selector("#tab-dashboard", timeout=20000, state="attached")
+    page.wait_for_timeout(1200)
+    goto_tab(page, "admin")
+    page.wait_for_timeout(900)
+
+    # The field must exist on screen at all.
+    has_field = page.query_selector(".staff-edit-shortname") is not None
     audit.record(
         "C2 staff Short Name has an input in the UI",
         has_field,
-        "no shortName field rendered; any save rebuilds the object and loses it",
+        "no shortName input rendered; a save rebuilds the object and loses it",
     )
-    return has_field, before
+
+    # It must be pre-filled with the stored value.
+    if has_field:
+        prefilled = page.evaluate(
+            """(id) => {
+                const row = document.querySelector(`[data-staff-id="${id}"] .staff-edit-shortname`);
+                return row ? row.value : null;
+            }""",
+            target_id,
+        )
+        audit.record(
+            "C2 Short Name is pre-filled when editing",
+            prefilled == "ZZ9",
+            f"expected 'ZZ9', form shows {prefilled!r}",
+        )
+
+    # Now change only the salary through the UI and save.
+    changed = page.evaluate(
+        """(id) => {
+            const row = document.querySelector(`[data-staff-id="${id}"]`);
+            if (!row) return {no_row: true};
+            const sal = row.querySelector('.staff-edit-salary');
+            if (!sal) return {no_salary: true};
+            sal.value = '7525';
+            sal.dispatchEvent(new Event('input', {bubbles: true}));
+            sal.dispatchEvent(new Event('change', {bubbles: true}));
+            return {ok: true};
+        }""",
+        target_id,
+    )
+    if not changed.get("ok"):
+        audit.record("C2 staff round-trip", False, f"could not drive the row: {changed}")
+        return
+
+    page.evaluate("saveAdminConfigFromUI()")
+    page.wait_for_timeout(1800)
+
+    after = read_config(api)
+    saved = next((s for s in (after.get("staff") or []) if s["id"] == target_id), None)
+    if not saved:
+        audit.record("C2 staff round-trip", False, "staff record disappeared after save")
+        return
+
+    audit.record(
+        "C2 shortName survives an unrelated edit",
+        saved.get("shortName") == "ZZ9",
+        f"shortName is now {saved.get('shortName')!r}, expected 'ZZ9'",
+    )
+    audit.record(
+        "C2 the edited salary is stored as an exact number",
+        saved.get("baseSalary") == 7525,
+        f"baseSalary is {saved.get('baseSalary')!r} ({type(saved.get('baseSalary')).__name__})",
+    )
+    audit.record(
+        "C2 name is not overwritten by the save",
+        saved.get("name") == staff[0].get("name"),
+        f"name is {saved.get('name')!r}, expected {staff[0].get('name')!r}",
+    )
+
+
+def audit_no_silent_defaults(page, audit, api):
+    """C3: a blank required field must block the save with a message, not be
+    quietly replaced by 'Staff' / 0 / 30 / 50000."""
+    print("\n[C3] blank fields block the save instead of inventing values")
+    goto_tab(page, "admin")
+    page.wait_for_timeout(900)
+
+    before = read_config(api)
+    staff = before.get("staff") or []
+    if not staff:
+        audit.record("C3 blank name blocked", False, "no staff configured to test against")
+        return
+    target_id = staff[0]["id"]
+    original_name = staff[0].get("name")
+
+    cleared = page.evaluate(
+        """(id) => {
+            const row = document.querySelector(`[data-staff-id="${id}"]`);
+            if (!row) return {no_row: true};
+            const n = row.querySelector('.staff-edit-name');
+            if (!n) return {no_name: true};
+            n.value = '';
+            n.dispatchEvent(new Event('input', {bubbles: true}));
+            return {ok: true};
+        }""",
+        target_id,
+    )
+    if not cleared.get("ok"):
+        audit.record("C3 blank name blocked", False, f"could not drive the row: {cleared}")
+        return
+
+    page.evaluate("saveAdminConfigFromUI()")
+
+    # Check the form state the owner would actually see, before anything else
+    # re-renders the view.
+    msg_shown = page.evaluate(
+        """() => {
+            const p = document.querySelector('.field-error.is-visible');
+            return p ? p.textContent.trim() : null;
+        }"""
+    )
+    audit.record(
+        "C3 a field-level error is shown next to the blank field",
+        bool(msg_shown),
+        "save was blocked but no message appeared next to the field",
+    )
+    audit.record(
+        "C3 the error names the field that is wrong",
+        bool(msg_shown) and "required" in (msg_shown or "").lower(),
+        f"message was {msg_shown!r}",
+    )
+
+    page.wait_for_timeout(1500)
+    after = read_config(api)
+    saved = next((s for s in (after.get("staff") or []) if s["id"] == target_id), None)
+    audit.record(
+        "C3 blank staff name does not become 'Staff'",
+        saved is not None and saved.get("name") == original_name,
+        f"stored name is {(saved.get('name') if saved else None)!r}, expected it unchanged at {original_name!r}",
+    )
+
+    # Put the form back so later checks start clean.
+    page.reload(wait_until="domcontentloaded")
+    page.wait_for_selector("#tab-dashboard", timeout=20000, state="attached")
+    page.wait_for_timeout(1200)
 
 
 def main():
@@ -341,10 +534,12 @@ def main():
 
         audit_number_fields(page, audit)
         audit_delete_confirm(page, audit)
-        try:
-            audit_staff_shortname(page, audit, api)
-        except Exception as e:
-            audit.record("C2 staff shortName preserved", False, f"audit error: {e}")
+        for fn, label in ((audit_staff_shortname, "C2 staff round-trip"),
+                          (audit_no_silent_defaults, "C3 blank fields blocked")):
+            try:
+                fn(page, audit, api)
+            except Exception as e:
+                audit.record(label, False, f"audit error: {type(e).__name__}: {e}")
 
         print("\n[F] layout and tap targets per screen")
         for tab in ["dashboard", "personal", "expenses", "staff", "matrix", "admin", "settings"]:

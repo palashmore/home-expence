@@ -122,8 +122,8 @@
                         <span id="mobileUserInitial">P</span>
                     </button>
                     
-                    <!-- Mobile Compact Theme Palette Trigger (32px, tap opens 8 luxury themes) -->
-                    <div class="relative w-8 h-8 rounded-xl bg-slate-800/90 text-amber-400 border border-slate-700/80 shadow-sm flex items-center justify-center shrink-0 cursor-pointer overflow-hidden" title="Select Color Theme">
+                    <!-- Mobile Theme Palette Trigger (tap opens 8 luxury themes) -->
+                    <div class="theme-trigger relative w-11 h-11 rounded-xl bg-slate-800/90 text-amber-400 border border-slate-700/80 shadow-sm flex items-center justify-center shrink-0 cursor-pointer overflow-hidden" title="Select Color Theme">
                         <i class="fa-solid fa-palette text-xs pointer-events-none"></i>
                         <select id="mobileThemeSelector" onchange="changeTheme(this.value)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer bg-slate-900 text-white" aria-label="Theme Selector">
                             <option value="indigo">✨ Royal Indigo</option>
@@ -2172,6 +2172,7 @@
                             <thead>
                                 <tr class="bg-slate-900 text-slate-200 uppercase font-black tracking-wider">
                                     <th class="py-3 px-3">Staff Name</th>
+                                    <th class="py-3 px-3">Short Name</th>
                                     <th class="py-3 px-3">Role</th>
                                     <th class="py-3 px-3">Base Salary (₹)</th>
                                     <th class="py-3 px-3 bg-indigo-950/80 text-indigo-200 border-x border-indigo-800">
@@ -2352,10 +2353,12 @@
                             <div>
                                 <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Cycle Start Day (e.g. 5)</label>
                                 <input type="number" min="1" max="31" inputmode="numeric" id="adminCycleStartDay" value="5" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                                <p id="adminCycleStartDayError" class="field-error"></p>
                             </div>
                             <div>
                                 <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Cycle End Day (e.g. 5)</label>
                                 <input type="number" min="1" max="31" inputmode="numeric" id="adminCycleEndDay" value="5" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                                <p id="adminCycleEndDayError" class="field-error"></p>
                             </div>
                         </div>
                         <p class="text-[11px] text-slate-600 font-medium">
@@ -2384,6 +2387,7 @@
                                 <div class="relative flex-1">
                                     <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
                                     <input type="number" step="any" min="0" inputmode="decimal" id="adminMonthlyBudgetLimit" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-black text-slate-900 focus:border-indigo-500">
+                                <p id="adminMonthlyBudgetLimitError" class="field-error"></p>
                                 </div>
                                 <button type="button" onclick="adminSaveBudget()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 shrink-0" title="Save Budget Limit">
                                     <i class="fa-solid fa-floppy-disk"></i>
@@ -2882,9 +2886,11 @@
                 <p class="text-xs text-slate-500 mt-1 font-medium">Are you sure you want to permanently delete this transaction?</p>
                 <div id="deleteConfirmDetails" class="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 text-left"></div>
             </div>
-            <div class="flex justify-center space-x-2 pt-2">
-                <button onclick="closeDeleteConfirmModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition">Cancel</button>
-                <button id="btnConfirmDeleteAction" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-md transition">Yes, Delete</button>
+            <!-- Destructive choice: both buttons are full width and thumb sized,
+                 with the safe option first and clearly separated from Delete. -->
+            <div class="flex flex-col-reverse gap-3 pt-2">
+                <button onclick="closeDeleteConfirmModal()" class="w-full min-h-[48px] px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition">Cancel</button>
+                <button id="btnConfirmDeleteAction" class="w-full min-h-[48px] px-5 py-3 bg-red-600 hover:bg-red-700 text-white font-black text-sm rounded-xl shadow-md transition">Yes, Delete</button>
             </div>
         </div>
     </div>

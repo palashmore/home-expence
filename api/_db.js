@@ -3,8 +3,9 @@
 const fs = require('fs');
 const path = require('path');
 const cloudSync = require('./_cloud_sync');
+const paths = require('./_paths');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
+const DATA_DIR = paths.DATA_DIR;
 const DATA_FILE = path.join(DATA_DIR, 'expenses.json');
 const FALLBACK_FILE = path.join(__dirname, '..', 'initial_expenses.json');
 const EXCEL_IMPORT_PATH = 'C:\\Users\\lenovo\\Downloads\\DOC-20260924-WA0001.xlsx';

@@ -4,8 +4,9 @@ const fs = require('fs');
 const path = require('path');
 const { authenticateRequest } = require('./auth');
 const storage = require('./_storage');
+const paths = require('./_paths');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
+const DATA_DIR = paths.DATA_DIR;
 
 function getHouseholdBackupsDir(householdId) {
     const clean = storage.sanitizeId(householdId);

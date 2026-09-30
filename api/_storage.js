@@ -1,18 +1,18 @@
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const cloudSync = require('./_cloud_sync');
+const paths = require('./_paths');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const HOUSEHOLDS_DIR = path.join(DATA_DIR, 'households');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
-const HOUSEHOLDS_FILE = path.join(DATA_DIR, 'households.json');
+const DATA_DIR = paths.DATA_DIR;
+const HOUSEHOLDS_DIR = paths.HOUSEHOLDS_DIR;
+const USERS_FILE = paths.USERS_FILE;
+const HOUSEHOLDS_FILE = paths.HOUSEHOLDS_FILE;
 
 // Writable overlay directory for serverless (Vercel / AWS Lambda) and cross-platform temp storage
-const TMP_BASE_DIR = path.join(os.tmpdir(), 'homeexpenses_data');
-const TMP_HOUSEHOLDS_DIR = path.join(TMP_BASE_DIR, 'households');
-const TMP_USERS_FILE = path.join(TMP_BASE_DIR, 'users.json');
-const TMP_HOUSEHOLDS_FILE = path.join(TMP_BASE_DIR, 'households.json');
+const TMP_BASE_DIR = paths.TMP_DIR;
+const TMP_HOUSEHOLDS_DIR = paths.TMP_HOUSEHOLDS_DIR;
+const TMP_USERS_FILE = paths.TMP_USERS_FILE;
+const TMP_HOUSEHOLDS_FILE = paths.TMP_HOUSEHOLDS_FILE;
 
 // In-Memory cache keyed by householdId
 const memoryStore = {

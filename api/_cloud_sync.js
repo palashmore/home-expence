@@ -2,8 +2,7 @@
 // Provides unified persistence across all devices via GitHub Gist & Local Disk
 const fs = require('fs');
 const path = require('path');
-
-const os = require('os');
+const paths = require('./_paths');
 
 const GIST_ID = process.env.GIST_ID || 'e42cd546045cc0773af7798b25ed4065';
 
@@ -11,8 +10,15 @@ function getAuthToken() {
   return process.env.GITHUB_TOKEN || process.env.GIST_TOKEN || null;
 }
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const TMP_DIR = path.join(os.tmpdir(), 'homeexpenses_data');
+// Hard kill switch. Set CLOUD_SYNC_DISABLED=1 to keep every run (tests, local dev,
+// CI) entirely off the shared Gist. Read as well as write, so a disabled run can
+// never be poisoned by remote state either.
+function cloudSyncEnabled() {
+  return !paths.isCloudSyncDisabled();
+}
+
+const DATA_DIR = paths.DATA_DIR;
+const TMP_DIR = paths.TMP_DIR;
 
 // In-Memory cache with TTL to optimize read speed while keeping it fresh
 const cache = {
@@ -22,6 +28,7 @@ const cache = {
 const CACHE_TTL_MS = 3000; // 3 seconds TTL
 
 async function fetchFromGist() {
+  if (!cloudSyncEnabled()) return null;
   if (!GIST_ID) return null;
   const token = getAuthToken();
   try {
@@ -46,6 +53,7 @@ async function fetchFromGist() {
 }
 
 async function patchToGist(filesPayload) {
+  if (!cloudSyncEnabled()) return false;
   const token = getAuthToken();
   if (!token || !GIST_ID) return false;
   try {

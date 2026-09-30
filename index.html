@@ -2351,11 +2351,11 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Cycle Start Day (e.g. 5)</label>
-                                <input type="number" min="1" max="31" id="adminCycleStartDay" value="5" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                                <input type="number" min="1" max="31" inputmode="numeric" id="adminCycleStartDay" value="5" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
                             </div>
                             <div>
                                 <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Cycle End Day (e.g. 5)</label>
-                                <input type="number" min="1" max="31" id="adminCycleEndDay" value="5" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                                <input type="number" min="1" max="31" inputmode="numeric" id="adminCycleEndDay" value="5" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
                             </div>
                         </div>
                         <p class="text-[11px] text-slate-600 font-medium">
@@ -2383,7 +2383,7 @@
                             <div class="flex items-center gap-2">
                                 <div class="relative flex-1">
                                     <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-                                    <input type="number" step="500" min="1000" id="adminMonthlyBudgetLimit" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-black text-slate-900 focus:border-indigo-500">
+                                    <input type="number" step="any" min="0" inputmode="decimal" id="adminMonthlyBudgetLimit" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-black text-slate-900 focus:border-indigo-500">
                                 </div>
                                 <button type="button" onclick="adminSaveBudget()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 shrink-0" title="Save Budget Limit">
                                     <i class="fa-solid fa-floppy-disk"></i>
@@ -2988,7 +2988,7 @@
                         </div>
                         <div class="relative">
                             <span class="absolute left-3 top-2 text-slate-400 font-black text-sm">₹</span>
-                            <input type="number" step="1" min="1" id="settleUpAmountInput" oninput="onSettleAmountChange()" class="w-full pl-7 pr-3 py-2 bg-slate-50 border-2 border-emerald-400 rounded-xl text-base font-black text-slate-900 focus:border-emerald-600 focus:bg-white transition" placeholder="Enter amount">
+                            <input type="number" step="0.01" min="0.01" inputmode="decimal" id="settleUpAmountInput" oninput="onSettleAmountChange()" class="w-full pl-7 pr-3 py-2 bg-slate-50 border-2 border-emerald-400 rounded-xl text-base font-black text-slate-900 focus:border-emerald-600 focus:bg-white transition" placeholder="Enter amount">
                         </div>
                         <!-- Quick Installment Chips -->
                         <div class="flex items-center gap-1.5 mt-2 flex-wrap" id="settleQuickChips"></div>
@@ -3089,17 +3089,17 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Base Salary (₹)</label>
-                        <input type="number" min="0" step="50" id="adminNewStaffSalary" placeholder="e.g. 5000" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                        <input type="number" min="0" step="any" inputmode="decimal" id="adminNewStaffSalary" placeholder="e.g. 5000" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Allowed Paid Leaves</label>
-                        <input type="number" min="0" max="31" id="adminNewStaffLeaves" value="4" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                        <input type="number" min="0" max="31" inputmode="numeric" id="adminNewStaffLeaves" value="4" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Payday Date (1-31)</label>
-                        <input type="number" min="1" max="31" id="adminNewStaffCycleDay" value="30" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                        <input type="number" min="1" max="31" inputmode="numeric" id="adminNewStaffCycleDay" value="30" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Cycle Type</label>
@@ -3148,11 +3148,11 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Due Day of Month (1-31)</label>
-                        <input type="number" min="1" max="31" id="adminNewBillDueDay" value="10" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                        <input type="number" min="1" max="31" inputmode="numeric" id="adminNewBillDueDay" value="10" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Approx Amount (₹)</label>
-                        <input type="number" min="0" step="10" id="adminNewBillAmount" placeholder="e.g. 1500" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                        <input type="number" min="0" step="any" inputmode="decimal" id="adminNewBillAmount" placeholder="e.g. 1500" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
@@ -3429,7 +3429,7 @@
                     <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">Monthly Budget Limit (₹)</label>
                     <div class="relative">
                         <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-                        <input type="number" step="1000" min="5000" id="createHouseholdBudget" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                        <input type="number" step="any" min="0" inputmode="decimal" id="createHouseholdBudget" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
                     </div>
                 </div>
 
@@ -3551,7 +3551,7 @@
                     <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">Monthly Budget Limit (₹)</label>
                     <div class="relative">
                         <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-                        <input type="number" step="1000" min="1000" id="editHouseholdBudget" class="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                        <input type="number" step="any" min="0" inputmode="decimal" id="editHouseholdBudget" class="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
                     </div>
                 </div>
 

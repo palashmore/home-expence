@@ -1748,19 +1748,19 @@
           <td class="py-2.5 px-3">
             <div class="flex items-center">
               <span class="text-slate-400 mr-1 font-bold">₹</span>
-              <input type="number" step="50" min="0" class="staff-edit-salary bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-24 focus:border-indigo-500" value="${s.baseSalary}">
+              <input type="number" step="any" min="0" inputmode="decimal" class="staff-edit-salary bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-24 focus:border-indigo-500" value="${s.baseSalary}">
             </div>
           </td>
           <td class="py-2.5 px-3 bg-indigo-50/60 border-x border-indigo-100">
             <div class="flex items-center space-x-1.5">
-              <input type="number" min="0" max="31" class="staff-edit-leaves bg-white border-2 border-indigo-400 rounded-lg px-2 py-1 font-black text-xs text-indigo-900 w-16 text-center focus:border-indigo-600 shadow-sm" value="${s.allowedPaidLeaves ?? 4}">
+              <input type="number" min="0" max="31" inputmode="numeric" class="staff-edit-leaves bg-white border-2 border-indigo-400 rounded-lg px-2 py-1 font-black text-xs text-indigo-900 w-16 text-center focus:border-indigo-600 shadow-sm" value="${s.allowedPaidLeaves ?? 4}">
               <span class="text-[10px] text-indigo-700 font-extrabold uppercase">Free Days</span>
             </div>
           </td>
           <td class="py-2.5 px-3">
             <div class="flex items-center space-x-1">
               <span class="text-[10px] text-slate-400 font-bold">Day</span>
-              <input type="number" min="1" max="31" class="staff-edit-cycleday bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-14 text-center focus:border-indigo-500" value="${s.billingCycleDay || 30}">
+              <input type="number" min="1" max="31" inputmode="numeric" class="staff-edit-cycleday bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-14 text-center focus:border-indigo-500" value="${s.billingCycleDay || 30}">
             </div>
           </td>
           <td class="py-2.5 px-3">
@@ -1802,18 +1802,18 @@
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Base Salary (₹)</label>
               <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
                 <span class="text-slate-400 mr-1 font-bold text-xs">₹</span>
-                <input type="number" step="50" min="0" class="staff-edit-salary bg-transparent font-black text-xs w-full focus:outline-none" value="${s.baseSalary}">
+                <input type="number" step="any" min="0" inputmode="decimal" class="staff-edit-salary bg-transparent font-black text-xs w-full focus:outline-none" value="${s.baseSalary}">
               </div>
             </div>
             <div>
               <label class="block text-[10px] font-black uppercase text-indigo-600 mb-0.5">Allowed Leaves</label>
-              <input type="number" min="0" max="31" class="staff-edit-leaves bg-indigo-50 border border-indigo-200 rounded-xl px-2 py-1 font-black text-xs text-indigo-900 w-full text-center" value="${s.allowedPaidLeaves ?? 4}">
+              <input type="number" min="0" max="31" inputmode="numeric" class="staff-edit-leaves bg-indigo-50 border border-indigo-200 rounded-xl px-2 py-1 font-black text-xs text-indigo-900 w-full text-center" value="${s.allowedPaidLeaves ?? 4}">
             </div>
             <div>
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Payday</label>
               <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
                 <span class="text-[10px] text-slate-400 font-bold mr-1">Day</span>
-                <input type="number" min="1" max="31" class="staff-edit-cycleday bg-transparent font-black text-xs w-full focus:outline-none" value="${s.billingCycleDay || 30}">
+                <input type="number" min="1" max="31" inputmode="numeric" class="staff-edit-cycleday bg-transparent font-black text-xs w-full focus:outline-none" value="${s.billingCycleDay || 30}">
               </div>
             </div>
           </div>
@@ -1854,13 +1854,13 @@
           <td class="py-2.5 px-3">
             <div class="flex items-center space-x-1">
               <span class="text-[10px] text-slate-400 font-bold">Day</span>
-              <input type="number" min="1" max="31" class="bill-edit-dueday bg-white border-2 border-indigo-200 rounded-lg px-2 py-1 font-black text-xs text-indigo-700 w-16 text-center focus:border-indigo-500" value="${b.dueDay}">
+              <input type="number" min="1" max="31" inputmode="numeric" class="bill-edit-dueday bg-white border-2 border-indigo-200 rounded-lg px-2 py-1 font-black text-xs text-indigo-700 w-16 text-center focus:border-indigo-500" value="${b.dueDay}">
             </div>
           </td>
           <td class="py-2.5 px-3">
             <div class="flex items-center">
               <span class="text-slate-400 mr-1 font-bold">₹</span>
-              <input type="number" step="50" min="0" class="bill-edit-amount bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-28 focus:border-indigo-500" value="${billAmt}">
+              <input type="number" step="any" min="0" inputmode="decimal" class="bill-edit-amount bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-28 focus:border-indigo-500" value="${billAmt}">
             </div>
           </td>
           <td class="py-2.5 px-3 text-right">
@@ -1901,14 +1901,14 @@
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Due Day</label>
               <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
                 <span class="text-[10px] text-slate-400 font-bold mr-1">Day</span>
-                <input type="number" min="1" max="31" class="bill-edit-dueday bg-transparent font-black text-xs text-indigo-700 w-full focus:outline-none" value="${b.dueDay}">
+                <input type="number" min="1" max="31" inputmode="numeric" class="bill-edit-dueday bg-transparent font-black text-xs text-indigo-700 w-full focus:outline-none" value="${b.dueDay}">
               </div>
             </div>
             <div>
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Approx Amount (₹)</label>
               <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
                 <span class="text-slate-400 mr-1 font-bold text-xs">₹</span>
-                <input type="number" step="50" min="0" class="bill-edit-amount bg-transparent font-black text-xs w-full focus:outline-none" value="${billAmt}">
+                <input type="number" step="any" min="0" inputmode="decimal" class="bill-edit-amount bg-transparent font-black text-xs w-full focus:outline-none" value="${billAmt}">
               </div>
             </div>
           </div>

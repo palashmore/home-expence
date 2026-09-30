@@ -121,6 +121,44 @@ re-enable notifications.
 
 ---
 
+## 3b. Data persistence on Vercel — read this before relying on it
+
+Vercel's filesystem is **read-only**, apart from `/tmp`, which is per-instance
+and wiped when the function goes cold. `writeJsonFile` writes to `/tmp` first and
+then tries the repo's `data/` directory, which fails silently on Vercel.
+
+That leaves the GitHub Gist as the only durable store, and it has two limits:
+
+1. **Gist writes need a token.** Without `GITHUB_TOKEN`, `patchToGist` returns
+   early and nothing is saved anywhere durable. Every expense you add will
+   survive only until that instance goes cold, then disappear.
+2. **Only household `H001` syncs.** The cloud-sync calls in `api/_storage.js` are
+   guarded by `cleanHId === 'H001'`. Any household created after that — `H002`
+   and up — has **no durable storage on Vercel at all**.
+
+So for a working Vercel deployment of H001:
+
+```
+GITHUB_TOKEN=<a token with the "gist" scope>
+GIST_ID=<your own gist id>
+```
+
+Create the token at **GitHub → Settings → Developer settings → Personal access
+tokens**, with only the `gist` scope. Create a secret gist with the files it will
+manage (`expenses.json`, `config.json`, `users.json`, `households.json`,
+`audit_log.json`) and use its id.
+
+If you leave `GIST_ID` unset, the app falls back to a gist id that is hardcoded
+in `api/_cloud_sync.js` and visible to anyone reading this repository. Set your
+own, or set `CLOUD_SYNC_DISABLED=1` and accept that data is not persisted.
+
+**If you need more than one household to persist, Vercel is the wrong host for
+this app as written** — run it somewhere with a real writable disk (a VPS,
+Render, Railway, Fly.io, or a container with a volume), where `data/` is
+writable and no gist is involved.
+
+---
+
 ## 4. Checking it worked
 
 1. Open the deployment and sign in. If sign-in returns **503** with
@@ -162,7 +200,8 @@ For running the test suites you do not need any of this — `run_tests.sh` and
 - [ ] **Seeded passwords changed.** `admin`, `palash`, `pallavi` and `sanjay`
       still use the default `Admin@123` / `Household123!` pattern, which also
       appears in the test files
-- [ ] Decide on Gist sync: set `CLOUD_SYNC_DISABLED=1`, or set your own `GIST_ID`
-      and `GITHUB_TOKEN`. The built-in default gist id is public
+- [ ] **`GITHUB_TOKEN` and `GIST_ID` set**, or accept that nothing you enter on
+      Vercel survives a cold start (see section 3b). The built-in default gist id
+      is public
 - [ ] Note that Tailwind is loaded from the Play CDN, which warns that it is not
       intended for production

@@ -122,8 +122,8 @@
                         <span id="mobileUserInitial">P</span>
                     </button>
                     
-                    <!-- Mobile Compact Theme Palette Trigger (32px, tap opens 8 luxury themes) -->
-                    <div class="relative w-8 h-8 rounded-xl bg-slate-800/90 text-amber-400 border border-slate-700/80 shadow-sm flex items-center justify-center shrink-0 cursor-pointer overflow-hidden" title="Select Color Theme">
+                    <!-- Mobile Theme Palette Trigger (tap opens 8 luxury themes) -->
+                    <div class="theme-trigger relative w-11 h-11 rounded-xl bg-slate-800/90 text-amber-400 border border-slate-700/80 shadow-sm flex items-center justify-center shrink-0 cursor-pointer overflow-hidden" title="Select Color Theme">
                         <i class="fa-solid fa-palette text-xs pointer-events-none"></i>
                         <select id="mobileThemeSelector" onchange="changeTheme(this.value)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer bg-slate-900 text-white" aria-label="Theme Selector">
                             <option value="indigo">✨ Royal Indigo</option>
@@ -2040,7 +2040,7 @@
                     </p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-                    <button onclick="saveAdminConfigFromUI()" class="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-black rounded-xl shadow-lg shadow-indigo-500/30 transition flex items-center space-x-1.5">
+                    <button id="btnSaveAdminConfig" onclick="saveAdminConfigFromUI()" class="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-black rounded-xl shadow-lg shadow-indigo-500/30 transition flex items-center space-x-1.5">
                         <i class="fa-solid fa-floppy-disk"></i>
                         <span>Save All Changes</span>
                     </button>
@@ -2172,6 +2172,7 @@
                             <thead>
                                 <tr class="bg-slate-900 text-slate-200 uppercase font-black tracking-wider">
                                     <th class="py-3 px-3">Staff Name</th>
+                                    <th class="py-3 px-3">Short Name</th>
                                     <th class="py-3 px-3">Role</th>
                                     <th class="py-3 px-3">Base Salary (₹)</th>
                                     <th class="py-3 px-3 bg-indigo-950/80 text-indigo-200 border-x border-indigo-800">
@@ -2351,11 +2352,13 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Cycle Start Day (e.g. 5)</label>
-                                <input type="number" min="1" max="31" id="adminCycleStartDay" value="5" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                                <input type="number" min="1" max="31" inputmode="numeric" id="adminCycleStartDay" value="5" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                                <p id="adminCycleStartDayError" class="field-error"></p>
                             </div>
                             <div>
                                 <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Cycle End Day (e.g. 5)</label>
-                                <input type="number" min="1" max="31" id="adminCycleEndDay" value="5" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                                <input type="number" min="1" max="31" inputmode="numeric" id="adminCycleEndDay" value="5" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                                <p id="adminCycleEndDayError" class="field-error"></p>
                             </div>
                         </div>
                         <p class="text-[11px] text-slate-600 font-medium">
@@ -2383,7 +2386,8 @@
                             <div class="flex items-center gap-2">
                                 <div class="relative flex-1">
                                     <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-                                    <input type="number" step="500" min="1000" id="adminMonthlyBudgetLimit" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-black text-slate-900 focus:border-indigo-500">
+                                    <input type="number" step="any" min="0" inputmode="decimal" id="adminMonthlyBudgetLimit" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-black text-slate-900 focus:border-indigo-500">
+                                <p id="adminMonthlyBudgetLimitError" class="field-error"></p>
                                 </div>
                                 <button type="button" onclick="adminSaveBudget()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 shrink-0" title="Save Budget Limit">
                                     <i class="fa-solid fa-floppy-disk"></i>
@@ -2429,6 +2433,22 @@
                     </div>
                 </div>
 
+            </div>
+
+            <!-- Sticky mobile save bar. Inline edits in the staff and bill rows
+                 are only persisted by this one Save, so on a phone it has to be
+                 reachable at all times rather than scrolled far above. -->
+            <div id="adminUnsavedBanner" class="hidden sticky-save-bar">
+                <div class="sticky-save-bar-inner">
+                    <span class="sticky-save-bar-label">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        Unsaved changes
+                    </span>
+                    <button id="btnSaveAdminConfigMobile" onclick="saveAdminConfigFromUI()" class="sticky-save-bar-btn">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Save</span>
+                    </button>
+                </div>
             </div>
 
         </div>
@@ -2871,6 +2891,54 @@
         </div>
     </div>
 
+    <!-- ================= MODAL: EDIT CATEGORY ================= -->
+    <!-- Categories previously had add and delete only. Renaming one cascades
+         onto every expense that refers to it, which the server does. -->
+    <div id="adminEditCategoryModal" class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center p-4" style="display:none">
+        <div class="modal-content glass-card bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-sm w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h4 class="text-base font-black text-slate-900">Edit Category</h4>
+                    <p class="text-xs text-slate-500 mt-0.5 font-medium">Renaming updates every expense that uses it.</p>
+                </div>
+                <button onclick="closeAdminEditCategoryModal()" class="text-slate-400 hover:text-slate-700 transition" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label for="editCategoryName" class="block text-[10px] font-black uppercase text-slate-400 mb-1">Name</label>
+                    <input type="text" id="editCategoryName" autocomplete="off" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="editCategoryIcon" class="block text-[10px] font-black uppercase text-slate-400 mb-1">Icon</label>
+                        <input type="text" id="editCategoryIcon" maxlength="4" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-center font-bold focus:border-indigo-500 focus:bg-white transition">
+                    </div>
+                    <div>
+                        <label for="editCategoryType" class="block text-[10px] font-black uppercase text-slate-400 mb-1">Type</label>
+                        <select id="editCategoryType" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                            <option value="transfer">Transfer</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label for="editCategoryDefaultPaidTo" class="block text-[10px] font-black uppercase text-slate-400 mb-1">Default Paid To</label>
+                    <input type="text" id="editCategoryDefaultPaidTo" autocomplete="off" placeholder="Optional vendor" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                </div>
+                <p id="editCategoryError" class="field-error"></p>
+            </div>
+
+            <div class="flex flex-col-reverse gap-3 pt-1">
+                <button onclick="closeAdminEditCategoryModal()" class="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition">Cancel</button>
+                <button id="btnSubmitEditCategory" onclick="submitAdminEditCategory()" class="w-full px-5 py-3 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white font-black text-sm rounded-xl shadow-md transition">Save Category</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ================= MODAL 3: DELETE CONFIRMATION ================= -->
     <div id="deleteConfirmModal" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-4">
         <div class="modal-content glass-card bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 text-center space-y-4">
@@ -2882,9 +2950,11 @@
                 <p class="text-xs text-slate-500 mt-1 font-medium">Are you sure you want to permanently delete this transaction?</p>
                 <div id="deleteConfirmDetails" class="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 text-left"></div>
             </div>
-            <div class="flex justify-center space-x-2 pt-2">
-                <button onclick="closeDeleteConfirmModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition">Cancel</button>
-                <button id="btnConfirmDeleteAction" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-md transition">Yes, Delete</button>
+            <!-- Destructive choice: both buttons are full width and thumb sized,
+                 with the safe option first and clearly separated from Delete. -->
+            <div class="flex flex-col-reverse gap-3 pt-2">
+                <button onclick="closeDeleteConfirmModal()" class="w-full min-h-[48px] px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition">Cancel</button>
+                <button id="btnConfirmDeleteAction" class="w-full min-h-[48px] px-5 py-3 bg-red-600 hover:bg-red-700 text-white font-black text-sm rounded-xl shadow-md transition">Yes, Delete</button>
             </div>
         </div>
     </div>
@@ -2988,7 +3058,7 @@
                         </div>
                         <div class="relative">
                             <span class="absolute left-3 top-2 text-slate-400 font-black text-sm">₹</span>
-                            <input type="number" step="1" min="1" id="settleUpAmountInput" oninput="onSettleAmountChange()" class="w-full pl-7 pr-3 py-2 bg-slate-50 border-2 border-emerald-400 rounded-xl text-base font-black text-slate-900 focus:border-emerald-600 focus:bg-white transition" placeholder="Enter amount">
+                            <input type="number" step="0.01" min="0.01" inputmode="decimal" id="settleUpAmountInput" oninput="onSettleAmountChange()" class="w-full pl-7 pr-3 py-2 bg-slate-50 border-2 border-emerald-400 rounded-xl text-base font-black text-slate-900 focus:border-emerald-600 focus:bg-white transition" placeholder="Enter amount">
                         </div>
                         <!-- Quick Installment Chips -->
                         <div class="flex items-center gap-1.5 mt-2 flex-wrap" id="settleQuickChips"></div>
@@ -3089,17 +3159,17 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Base Salary (₹)</label>
-                        <input type="number" min="0" step="50" id="adminNewStaffSalary" placeholder="e.g. 5000" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                        <input type="number" min="0" step="any" inputmode="decimal" id="adminNewStaffSalary" placeholder="e.g. 5000" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Allowed Paid Leaves</label>
-                        <input type="number" min="0" max="31" id="adminNewStaffLeaves" value="4" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                        <input type="number" min="0" max="31" inputmode="numeric" id="adminNewStaffLeaves" value="4" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Payday Date (1-31)</label>
-                        <input type="number" min="1" max="31" id="adminNewStaffCycleDay" value="30" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                        <input type="number" min="1" max="31" inputmode="numeric" id="adminNewStaffCycleDay" value="30" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Cycle Type</label>
@@ -3148,11 +3218,11 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Due Day of Month (1-31)</label>
-                        <input type="number" min="1" max="31" id="adminNewBillDueDay" value="10" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                        <input type="number" min="1" max="31" inputmode="numeric" id="adminNewBillDueDay" value="10" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Approx Amount (₹)</label>
-                        <input type="number" min="0" step="10" id="adminNewBillAmount" placeholder="e.g. 1500" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
+                        <input type="number" min="0" step="any" inputmode="decimal" id="adminNewBillAmount" placeholder="e.g. 1500" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500">
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
@@ -3429,7 +3499,7 @@
                     <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">Monthly Budget Limit (₹)</label>
                     <div class="relative">
                         <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-                        <input type="number" step="1000" min="5000" id="createHouseholdBudget" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                        <input type="number" step="any" min="0" inputmode="decimal" id="createHouseholdBudget" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
                     </div>
                 </div>
 
@@ -3551,7 +3621,7 @@
                     <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">Monthly Budget Limit (₹)</label>
                     <div class="relative">
                         <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-                        <input type="number" step="1000" min="1000" id="editHouseholdBudget" class="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                        <input type="number" step="any" min="0" inputmode="decimal" id="editHouseholdBudget" class="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:border-indigo-500 focus:bg-white transition">
                     </div>
                 </div>
 

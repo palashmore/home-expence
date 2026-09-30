@@ -11,6 +11,10 @@
  */
 
 (function () {
+  // Every user-supplied string rendered into innerHTML goes through this.
+  // Defined first so it is available to every renderer in this module.
+  const esc = (v) => (window.escapeHtml ? window.escapeHtml(v) : String(v == null ? '' : v));
+
   'use strict';
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -279,7 +283,7 @@
       warningBox.innerHTML = `
         <div class="flex items-center gap-1.5 text-amber-800">
           <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
-          <span><strong>Potential Duplicate Detected:</strong> A payment of <strong>₹${amount.toLocaleString('en-IN')}</strong> to <em>"${dup.paidTo}"</em> was already recorded on <strong>${dup.date}</strong> (within 24 hrs). Check to prevent duplicate entry.</span>
+          <span><strong>Potential Duplicate Detected:</strong> A payment of <strong>₹${amount.toLocaleString('en-IN')}</strong> to <em>"${esc(dup.paidTo)}"</em> was already recorded on <strong>${esc(dup.date)}</strong> (within 24 hrs). Check to prevent duplicate entry.</span>
         </div>
       `;
       return;
@@ -350,7 +354,7 @@
       badge.textContent = `${duplicates.length} Alert${duplicates.length > 1 ? 's' : ''}`;
       listContent.innerHTML = duplicates.map(d => `
         <div class="flex items-center gap-2">
-          <span>• Potential duplicate entry: <strong>₹${Number(d.exp2.amount).toLocaleString('en-IN')}</strong> to <em>${d.exp2.paidTo}</em> on ${d.exp2.date}.</span>
+          <span>• Potential duplicate entry: <strong>₹${Number(d.exp2.amount).toLocaleString('en-IN')}</strong> to <em>${esc(d.exp2.paidTo)}</em> on ${d.exp2.date}.</span>
         </div>
       `).join('');
     } else {
@@ -683,7 +687,7 @@
 
     container.innerHTML = chips.map(c => `
       <button type="button" onclick="setSettleAmount(${c.val})" class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 transition active:scale-95">
-        ${c.label}
+        ${esc(c.label)}
       </button>
     `).join('');
   };
@@ -1380,10 +1384,10 @@
             <tbody class="divide-y divide-slate-100">
               ${topTxs.map(t => `
                 <tr>
-                  <td class="py-1 text-slate-600">${t.date}</td>
-                  <td class="py-1 font-semibold text-slate-900">${t.paidTo || t.vendor || '-'}</td>
-                  <td class="py-1 text-slate-600">${t.category || '-'}</td>
-                  <td class="py-1 text-slate-600">${t.paidBy || '-'}</td>
+                  <td class="py-1 text-slate-600">${esc(t.date)}</td>
+                  <td class="py-1 font-semibold text-slate-900">${esc(t.paidTo || t.vendor || '-')}</td>
+                  <td class="py-1 text-slate-600">${esc(t.category || '-')}</td>
+                  <td class="py-1 text-slate-600">${esc(t.paidBy || '-')}</td>
                   <td class="py-1 text-right font-black text-slate-900">₹${Number(t.amount).toLocaleString('en-IN')}</td>
                 </tr>
               `).join('')}
@@ -1484,6 +1488,83 @@
   }
   window.loadMasterConfig = loadMasterConfig;
 
+  // Re-fetch the household config and compare the fields we just wrote against
+  // what came back. Returns the stored config so callers can render the truth
+  // rather than their own optimistic copy.
+  async function verifyConfigSaved(householdId, sent) {
+    const result = { ok: true, mismatches: [], stored: null };
+    try {
+      const res = await fetch(
+        `/api/config?householdId=${encodeURIComponent(householdId)}&_t=${Date.now()}`,
+        { headers: getAdvanceAuthHeaders(), cache: 'no-store' }
+      );
+      if (!res.ok) {
+        result.ok = false;
+        result.mismatches.push('could not re-read the saved config');
+        return result;
+      }
+      const json = await res.json();
+      const stored = json.data || json.config || null;
+      result.stored = stored;
+      if (!stored) {
+        result.ok = false;
+        result.mismatches.push('server returned no config to verify against');
+        return result;
+      }
+
+      const sameNumber = (a, b) => Number(a) === Number(b);
+
+      if (sent.monthlyBudgetLimit !== undefined &&
+          !sameNumber(stored.monthlyBudgetLimit, sent.monthlyBudgetLimit)) {
+        result.mismatches.push(
+          `monthly budget (sent ${sent.monthlyBudgetLimit}, stored ${stored.monthlyBudgetLimit})`);
+      }
+
+      if (Array.isArray(sent.staff)) {
+        const storedById = indexById(stored.staff);
+        sent.staff.forEach((s) => {
+          const got = storedById[s.id];
+          if (!got) {
+            result.mismatches.push(`staff ${s.name || s.id} was not saved`);
+            return;
+          }
+          if (!sameNumber(got.baseSalary, s.baseSalary)) {
+            result.mismatches.push(`${s.name || s.id} salary (sent ${s.baseSalary}, stored ${got.baseSalary})`);
+          }
+          if ((got.shortName || '') !== (s.shortName || '')) {
+            result.mismatches.push(`${s.name || s.id} short name`);
+          }
+          if ((got.name || '') !== (s.name || '')) {
+            result.mismatches.push(`${s.id} name`);
+          }
+        });
+      }
+
+      if (Array.isArray(sent.recurringBills)) {
+        const storedById = indexById(stored.recurringBills);
+        sent.recurringBills.forEach((b) => {
+          const got = storedById[b.id];
+          if (!got) {
+            result.mismatches.push(`bill ${b.name || b.id} was not saved`);
+            return;
+          }
+          if (!sameNumber(got.approxAmount, b.approxAmount)) {
+            result.mismatches.push(`${b.name || b.id} amount (sent ${b.approxAmount}, stored ${got.approxAmount})`);
+          }
+          if (!sameNumber(got.dueDay, b.dueDay)) {
+            result.mismatches.push(`${b.name || b.id} due day`);
+          }
+        });
+      }
+
+      result.ok = result.mismatches.length === 0;
+    } catch (err) {
+      result.ok = false;
+      result.mismatches.push(`verification failed: ${err.message}`);
+    }
+    return result;
+  }
+
   async function saveMasterConfig(partialUpdates) {
     try {
       const activeHId = (typeof getActiveHouseholdId === 'function') 
@@ -1505,9 +1586,14 @@
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
-          window.masterConfig = json.data;
+          // Read back before claiming success. A 200 only means the server
+          // accepted the request, not that what it stored matches what the
+          // owner typed. Anything that disagrees is reported, not hidden.
+          const verification = await verifyConfigSaved(activeHId, partialUpdates);
+
+          window.masterConfig = verification.stored || json.data;
           if (window.updateGlobalsFromConfig) {
-            window.updateGlobalsFromConfig(json.data);
+            window.updateGlobalsFromConfig(window.masterConfig);
           }
           syncDropdownsWithConfig();
           if (window.renderAttendanceCalendar) window.renderAttendanceCalendar();
@@ -1516,8 +1602,18 @@
           }
           if (window.renderAdminView) window.renderAdminView();
           if (window.renderAllViews) window.renderAllViews();
+
+          if (!verification.ok) {
+            if (window.showToast) {
+              window.showToast('error', 'Saved value does not match',
+                `The server stored something different for: ${verification.mismatches.join(', ')}. Check the values and try again.`);
+            }
+            return false;
+          }
+
+          window.adminFormDirty = false;
           if (window.showToast) {
-            window.showToast('success', 'Master Settings Synchronized!', 'Changes applied and synchronized with household.');
+            window.showToast('success', 'Saved', 'Changes verified on the server.');
           }
           return true;
         }
@@ -1645,7 +1741,7 @@
         const colorClass = chipColors[idx % chipColors.length];
         const isSelected = (typeof dashboardFilters !== 'undefined' && dashboardFilters.paidBy === m);
         const activeClass = isSelected ? 'ring-2 ring-indigo-500 font-black' : '';
-        return `<button onclick="quickFilterPaidBy('${m}')" class="quick-chip px-2.5 py-1 rounded-lg font-bold ${colorClass} ${activeClass} border transition shadow-xs text-xs">${icon} ${m}</button>`;
+        return `<button onclick="quickFilterPaidBy(${esc(JSON.stringify(m))})" class="quick-chip px-2.5 py-1 rounded-lg font-bold ${colorClass} ${activeClass} border transition shadow-xs text-xs">${icon} ${m}</button>`;
       }).join('');
     }
 
@@ -1711,7 +1807,7 @@
       if (attSelect) {
         const currentVal = attSelect.value;
         attSelect.innerHTML = config.staff.filter(s => s.active !== false).map(s => 
-          `<option value="${s.name}">${s.name} (${s.role || s.shortName})</option>`
+          `<option value="${s.name}">${s.name} (${esc(s.role || s.shortName)})</option>`
         ).join('');
         if (currentVal && config.staff.some(s => s.name === currentVal)) {
           attSelect.value = currentVal;
@@ -1738,29 +1834,34 @@
     const staffTbody = document.getElementById('adminStaffTableBody');
     if (staffTbody && config.staff) {
       staffTbody.innerHTML = config.staff.map((s) => `
-        <tr class="hover:bg-slate-50 transition border-b border-slate-100" data-staff-id="${s.id}">
+        <tr class="hover:bg-slate-50 transition border-b border-slate-100" data-staff-id="${esc(s.id)}">
           <td class="py-2.5 px-3">
-            <input type="text" class="staff-edit-name bg-white border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-xs w-full focus:border-indigo-500" value="${s.name}">
+            <input type="text" class="staff-edit-name bg-white border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-xs w-full focus:border-indigo-500" value="${esc(s.name)}">
+            <p class="staff-err-name field-error"></p>
           </td>
           <td class="py-2.5 px-3">
-            <input type="text" class="staff-edit-role bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs w-full focus:border-indigo-500" value="${s.role || ''}">
+            <input type="text" class="staff-edit-shortname bg-white border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-xs w-20 focus:border-indigo-500" value="${esc(s.shortName || '')}" placeholder="Short">
+          </td>
+          <td class="py-2.5 px-3">
+            <input type="text" class="staff-edit-role bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs w-full focus:border-indigo-500" value="${esc(s.role || '')}">
           </td>
           <td class="py-2.5 px-3">
             <div class="flex items-center">
               <span class="text-slate-400 mr-1 font-bold">₹</span>
-              <input type="number" step="50" min="0" class="staff-edit-salary bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-24 focus:border-indigo-500" value="${s.baseSalary}">
+              <input type="number" step="any" min="0" inputmode="decimal" class="staff-edit-salary bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-24 focus:border-indigo-500" value="${s.baseSalary}">
             </div>
+            <p class="staff-err-salary field-error"></p>
           </td>
           <td class="py-2.5 px-3 bg-indigo-50/60 border-x border-indigo-100">
             <div class="flex items-center space-x-1.5">
-              <input type="number" min="0" max="31" class="staff-edit-leaves bg-white border-2 border-indigo-400 rounded-lg px-2 py-1 font-black text-xs text-indigo-900 w-16 text-center focus:border-indigo-600 shadow-sm" value="${s.allowedPaidLeaves ?? 4}">
+              <input type="number" min="0" max="31" inputmode="numeric" class="staff-edit-leaves bg-white border-2 border-indigo-400 rounded-lg px-2 py-1 font-black text-xs text-indigo-900 w-16 text-center focus:border-indigo-600 shadow-sm" value="${s.allowedPaidLeaves ?? 4}">
               <span class="text-[10px] text-indigo-700 font-extrabold uppercase">Free Days</span>
             </div>
           </td>
           <td class="py-2.5 px-3">
             <div class="flex items-center space-x-1">
               <span class="text-[10px] text-slate-400 font-bold">Day</span>
-              <input type="number" min="1" max="31" class="staff-edit-cycleday bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-14 text-center focus:border-indigo-500" value="${s.billingCycleDay || 30}">
+              <input type="number" min="1" max="31" inputmode="numeric" class="staff-edit-cycleday bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-14 text-center focus:border-indigo-500" value="${s.billingCycleDay || 30}">
             </div>
           </td>
           <td class="py-2.5 px-3">
@@ -1775,7 +1876,7 @@
             </label>
           </td>
           <td class="py-2.5 px-3 text-right">
-            <button onclick="adminDeleteStaff('${s.id}')" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition" title="Delete staff member">
+            <button onclick="adminDeleteStaff(${esc(JSON.stringify(s.id))})" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition" title="Delete staff member" aria-label="Delete staff member">
               <i class="fa-solid fa-trash text-xs"></i>
             </button>
           </td>
@@ -1786,34 +1887,40 @@
     const staffMobile = document.getElementById('adminStaffMobileList');
     if (staffMobile && config.staff) {
       staffMobile.innerHTML = config.staff.map((s) => `
-        <div class="staff-mobile-card p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 shadow-2xs" data-staff-id="${s.id}">
+        <div class="staff-mobile-card p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 shadow-2xs" data-staff-id="${esc(s.id)}">
           <div class="flex items-center justify-between gap-2">
-            <input type="text" class="staff-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 focus:bg-white focus:border-indigo-500" value="${s.name}" placeholder="Staff Name">
-            <button onclick="adminDeleteStaff('${s.id}')" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0" title="Delete staff member">
+            <input type="text" class="staff-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 focus:bg-white focus:border-indigo-500" value="${esc(s.name)}" placeholder="Staff Name">
+            <button onclick="adminDeleteStaff(${esc(JSON.stringify(s.id))})" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" title="Delete staff member" aria-label="Delete staff member">
               <i class="fa-solid fa-trash text-xs"></i>
             </button>
           </div>
+          <p class="staff-err-name field-error"></p>
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div>
+              <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Short Name</label>
+              <input type="text" class="staff-edit-shortname bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs w-full focus:bg-white focus:border-indigo-500" value="${esc(s.shortName || '')}" placeholder="e.g. AS">
+            </div>
+            <div>
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Role</label>
-              <input type="text" class="staff-edit-role bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs w-full focus:bg-white focus:border-indigo-500" value="${s.role || ''}" placeholder="Role">
+              <input type="text" class="staff-edit-role bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs w-full focus:bg-white focus:border-indigo-500" value="${esc(s.role || '')}" placeholder="Role">
             </div>
             <div>
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Base Salary (₹)</label>
               <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
                 <span class="text-slate-400 mr-1 font-bold text-xs">₹</span>
-                <input type="number" step="50" min="0" class="staff-edit-salary bg-transparent font-black text-xs w-full focus:outline-none" value="${s.baseSalary}">
+                <input type="number" step="any" min="0" inputmode="decimal" class="staff-edit-salary bg-transparent font-black text-xs w-full focus:outline-none" value="${s.baseSalary}">
               </div>
+              <p class="staff-err-salary field-error"></p>
             </div>
             <div>
               <label class="block text-[10px] font-black uppercase text-indigo-600 mb-0.5">Allowed Leaves</label>
-              <input type="number" min="0" max="31" class="staff-edit-leaves bg-indigo-50 border border-indigo-200 rounded-xl px-2 py-1 font-black text-xs text-indigo-900 w-full text-center" value="${s.allowedPaidLeaves ?? 4}">
+              <input type="number" min="0" max="31" inputmode="numeric" class="staff-edit-leaves bg-indigo-50 border border-indigo-200 rounded-xl px-2 py-1 font-black text-xs text-indigo-900 w-full text-center" value="${s.allowedPaidLeaves ?? 4}">
             </div>
             <div>
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Payday</label>
               <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
                 <span class="text-[10px] text-slate-400 font-bold mr-1">Day</span>
-                <input type="number" min="1" max="31" class="staff-edit-cycleday bg-transparent font-black text-xs w-full focus:outline-none" value="${s.billingCycleDay || 30}">
+                <input type="number" min="1" max="31" inputmode="numeric" class="staff-edit-cycleday bg-transparent font-black text-xs w-full focus:outline-none" value="${s.billingCycleDay || 30}">
               </div>
             </div>
           </div>
@@ -1837,34 +1944,36 @@
       billsTbody.innerHTML = config.recurringBills.map((b) => {
         const billAmt = Number(b.approxAmount !== undefined && b.approxAmount !== null ? b.approxAmount : (b.budgetedAmount !== undefined ? b.budgetedAmount : 0)) || 0;
         return `
-        <tr class="hover:bg-slate-50 transition border-b border-slate-100" data-bill-id="${b.id}">
+        <tr class="hover:bg-slate-50 transition border-b border-slate-100" data-bill-id="${esc(b.id)}">
           <td class="py-2.5 px-3">
-            <input type="text" class="bill-edit-icon bg-white border border-slate-200 rounded-lg px-1.5 py-1 text-xs w-10 text-center font-bold" value="${b.icon || '⚡'}">
+            <input type="text" class="bill-edit-icon bg-white border border-slate-200 rounded-lg px-1.5 py-1 text-xs w-10 text-center font-bold" value="${esc(b.icon || '⚡')}">
           </td>
           <td class="py-2.5 px-3">
-            <input type="text" class="bill-edit-name bg-white border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-xs w-full focus:border-indigo-500" value="${b.name}">
+            <input type="text" class="bill-edit-name bg-white border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-xs w-full focus:border-indigo-500" value="${esc(b.name)}">
+            <p class="bill-err-name field-error"></p>
           </td>
           <td class="py-2.5 px-3">
             <select class="bill-edit-cat bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold focus:border-indigo-500 w-full">
               ${(config.categories || []).map(c => `
-                <option value="${c.name}" ${c.name === b.category ? 'selected' : ''}>${c.name}</option>
+                <option value="${esc(c.name)}" ${c.name === b.category ? 'selected' : ''}>${esc(c.name)}</option>
               `).join('')}
             </select>
           </td>
           <td class="py-2.5 px-3">
             <div class="flex items-center space-x-1">
               <span class="text-[10px] text-slate-400 font-bold">Day</span>
-              <input type="number" min="1" max="31" class="bill-edit-dueday bg-white border-2 border-indigo-200 rounded-lg px-2 py-1 font-black text-xs text-indigo-700 w-16 text-center focus:border-indigo-500" value="${b.dueDay}">
+              <input type="number" min="1" max="31" inputmode="numeric" class="bill-edit-dueday bg-white border-2 border-indigo-200 rounded-lg px-2 py-1 font-black text-xs text-indigo-700 w-16 text-center focus:border-indigo-500" value="${b.dueDay}">
             </div>
           </td>
           <td class="py-2.5 px-3">
             <div class="flex items-center">
               <span class="text-slate-400 mr-1 font-bold">₹</span>
-              <input type="number" step="50" min="0" class="bill-edit-amount bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-28 focus:border-indigo-500" value="${billAmt}">
+              <input type="number" step="any" min="0" inputmode="decimal" class="bill-edit-amount bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-28 focus:border-indigo-500" value="${billAmt}">
             </div>
+            <p class="bill-err-amount field-error"></p>
           </td>
           <td class="py-2.5 px-3 text-right">
-            <button onclick="adminDeleteBill('${b.id}')" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition" title="Delete bill">
+            <button onclick="adminDeleteBill(${esc(JSON.stringify(b.id))})" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition" title="Delete bill" aria-label="Delete bill">
               <i class="fa-solid fa-trash text-xs"></i>
             </button>
           </td>
@@ -1878,13 +1987,13 @@
       billsMobile.innerHTML = config.recurringBills.map((b) => {
         const billAmt = Number(b.approxAmount !== undefined && b.approxAmount !== null ? b.approxAmount : (b.budgetedAmount !== undefined ? b.budgetedAmount : 0)) || 0;
         return `
-        <div class="bill-mobile-card p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 shadow-2xs" data-bill-id="${b.id}">
+        <div class="bill-mobile-card p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 shadow-2xs" data-bill-id="${esc(b.id)}">
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 flex-1">
-              <input type="text" class="bill-edit-icon bg-slate-50 border border-slate-200 rounded-xl px-1 py-1 text-center font-bold text-base w-9 shrink-0" value="${b.icon || '⚡'}">
-              <input type="text" class="bill-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 focus:bg-white focus:border-indigo-500" value="${b.name}" placeholder="Bill Name">
+              <input type="text" class="bill-edit-icon bg-slate-50 border border-slate-200 rounded-xl px-1 py-1 text-center font-bold text-base w-9 shrink-0" value="${esc(b.icon || '⚡')}">
+              <input type="text" class="bill-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 focus:bg-white focus:border-indigo-500" value="${esc(b.name)}" placeholder="Bill Name">
             </div>
-            <button onclick="adminDeleteBill('${b.id}')" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0" title="Delete bill">
+            <button onclick="adminDeleteBill(${esc(JSON.stringify(b.id))})" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" title="Delete bill" aria-label="Delete bill">
               <i class="fa-solid fa-trash text-xs"></i>
             </button>
           </div>
@@ -1893,7 +2002,7 @@
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Category</label>
               <select class="bill-edit-cat bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-semibold focus:bg-white focus:border-indigo-500 w-full">
                 ${(config.categories || []).map(c => `
-                  <option value="${c.name}" ${c.name === b.category ? 'selected' : ''}>${c.name}</option>
+                  <option value="${esc(c.name)}" ${c.name === b.category ? 'selected' : ''}>${esc(c.name)}</option>
                 `).join('')}
               </select>
             </div>
@@ -1901,15 +2010,16 @@
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Due Day</label>
               <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
                 <span class="text-[10px] text-slate-400 font-bold mr-1">Day</span>
-                <input type="number" min="1" max="31" class="bill-edit-dueday bg-transparent font-black text-xs text-indigo-700 w-full focus:outline-none" value="${b.dueDay}">
+                <input type="number" min="1" max="31" inputmode="numeric" class="bill-edit-dueday bg-transparent font-black text-xs text-indigo-700 w-full focus:outline-none" value="${b.dueDay}">
               </div>
             </div>
             <div>
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Approx Amount (₹)</label>
               <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
                 <span class="text-slate-400 mr-1 font-bold text-xs">₹</span>
-                <input type="number" step="50" min="0" class="bill-edit-amount bg-transparent font-black text-xs w-full focus:outline-none" value="${billAmt}">
+                <input type="number" step="any" min="0" inputmode="decimal" class="bill-edit-amount bg-transparent font-black text-xs w-full focus:outline-none" value="${billAmt}">
               </div>
+              <p class="bill-err-amount field-error"></p>
             </div>
           </div>
         </div>
@@ -1929,23 +2039,27 @@
         `;
       } else {
         catGrid.innerHTML = cats.map((c) => {
-          const safeName = (c.name || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-          const safeJsName = (c.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          const jsName = esc(JSON.stringify(c.name || ''));
           return `
-            <div class="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-slate-300 shadow-sm transition" data-cat-name="${safeName}">
+            <div class="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-slate-300 shadow-sm transition" data-cat-name="${esc(c.name || '')}">
               <div class="flex items-center space-x-2.5 min-w-0">
-                <span class="text-xl shrink-0">${c.icon || '🏷️'}</span>
+                <span class="text-xl shrink-0">${esc(c.icon || '🏷️')}</span>
                 <div class="min-w-0">
-                  <div class="text-xs font-black text-slate-900 truncate">${safeName}</div>
+                  <div class="text-xs font-black text-slate-900 truncate">${esc(c.name || '')}</div>
                   <div class="text-[10px] text-slate-500 flex items-center gap-1.5">
-                    <span class="px-1.5 py-0.2 rounded font-extrabold uppercase text-[9px] ${c.type === 'income' ? 'bg-emerald-100 text-emerald-800' : (c.type === 'transfer' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700')}">${c.type || 'expense'}</span>
-                    ${c.defaultPaidTo ? `<span class="truncate text-slate-400">→ ${c.defaultPaidTo}</span>` : ''}
+                    <span class="px-1.5 py-0.2 rounded font-extrabold uppercase text-[9px] ${c.type === 'income' ? 'bg-emerald-100 text-emerald-800' : (c.type === 'transfer' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700')}">${esc(c.type || 'expense')}</span>
+                    ${c.defaultPaidTo ? `<span class="truncate text-slate-400">→ ${esc(c.defaultPaidTo)}</span>` : ''}
                   </div>
                 </div>
               </div>
-              <button onclick="adminDeleteCategory('${safeJsName}')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition shrink-0" title="Delete category">
-                <i class="fa-solid fa-xmark text-xs"></i>
-              </button>
+              <div class="flex items-center gap-1 shrink-0">
+                <button onclick="adminEditCategory(${jsName})" class="cat-edit-btn p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition" title="Edit category" aria-label="Edit category ${esc(c.name || '')}">
+                  <i class="fa-solid fa-pen text-xs"></i>
+                </button>
+                <button onclick="adminDeleteCategory(${jsName})" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition" title="Delete category" aria-label="Delete category ${esc(c.name || '')}">
+                  <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+              </div>
             </div>
           `;
         }).join('');
@@ -1958,8 +2072,9 @@
       famList.innerHTML = config.familyMembers.map(m => `
         <span class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold bg-violet-50 text-violet-800 border border-violet-200 shadow-sm">
           <i class="fa-solid fa-user text-violet-500 mr-1.5 text-[10px]"></i>
-          <span>${m}</span>
-          <button onclick="adminRemoveFamilyMember('${m}')" class="ml-2 text-violet-400 hover:text-rose-600 transition font-black">&times;</button>
+          <span>${esc(m)}</span>
+          <button onclick="adminRenameEntity('familyMember', ${esc(JSON.stringify(m))})" class="ml-2 text-violet-400 hover:text-indigo-600 transition" title="Rename" aria-label="Rename ${esc(m)}"><i class="fa-solid fa-pen text-[10px]"></i></button>
+          <button onclick="adminRemoveFamilyMember(${esc(JSON.stringify(m))})" class="ml-1.5 text-violet-400 hover:text-rose-600 transition font-black" title="Remove" aria-label="Remove ${esc(m)}">&times;</button>
         </span>
       `).join('');
     }
@@ -1970,8 +2085,9 @@
       payList.innerHTML = config.paymentMethods.map(m => `
         <span class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200 shadow-sm">
           <i class="fa-solid fa-credit-card text-sky-500 mr-1.5 text-[10px]"></i>
-          <span>${m}</span>
-          <button onclick="adminRemovePaymentMethod('${m}')" class="ml-2 text-sky-400 hover:text-rose-600 transition font-black">&times;</button>
+          <span>${esc(m)}</span>
+          <button onclick="adminRenameEntity('paymentMethod', ${esc(JSON.stringify(m))})" class="ml-2 text-sky-400 hover:text-indigo-600 transition" title="Rename" aria-label="Rename ${esc(m)}"><i class="fa-solid fa-pen text-[10px]"></i></button>
+          <button onclick="adminRemovePaymentMethod(${esc(JSON.stringify(m))})" class="ml-1.5 text-sky-400 hover:text-rose-600 transition font-black" title="Remove" aria-label="Remove ${esc(m)}">&times;</button>
         </span>
       `).join('');
     }
@@ -1982,8 +2098,9 @@
       splitList.innerHTML = config.splitRules.map(r => `
         <span class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-50 text-purple-800 border border-purple-200 shadow-sm">
           <i class="fa-solid fa-arrows-split-up-and-left text-purple-500 mr-1.5 text-[10px]"></i>
-          <span>${r}</span>
-          <button onclick="adminRemoveSplitRule('${r.replace(/'/g, "\\'")}')" class="ml-2 text-purple-400 hover:text-rose-600 transition font-black">&times;</button>
+          <span>${esc(r)}</span>
+          <button onclick="adminRenameEntity('splitRule', ${esc(JSON.stringify(r))})" class="ml-2 text-purple-400 hover:text-indigo-600 transition" title="Rename" aria-label="Rename ${esc(r)}"><i class="fa-solid fa-pen text-[10px]"></i></button>
+          <button onclick="adminRemoveSplitRule(${esc(JSON.stringify(r))})" class="ml-1.5 text-purple-400 hover:text-rose-600 transition font-black" title="Remove" aria-label="Remove ${esc(r)}">&times;</button>
         </span>
       `).join('');
     }
@@ -2024,6 +2141,353 @@
   // ADMIN SAVE & UPDATE ACTIONS
   // ========================================================
 
+  // --- form reading helpers -------------------------------------------------
+  // These deliberately return null for "the user left it blank" instead of
+  // substituting a plausible-looking default. A silent `|| 0` or `|| 30` writes
+  // a number nobody chose straight into the household's records.
+
+
+  function indexById(list) {
+    const out = {};
+    (Array.isArray(list) ? list : []).forEach((item) => {
+      if (item && item.id != null) out[item.id] = item;
+    });
+    return out;
+  }
+
+  function fieldOf(scope, selector) {
+    if (!scope) return null;
+    return scope === document ? document.querySelector(selector) : scope.querySelector(selector);
+  }
+
+  function readText(scope, selector, fallback) {
+    const el = fieldOf(scope, selector);
+    if (!el) return fallback === undefined ? '' : (fallback || '');
+    return String(el.value == null ? '' : el.value).trim();
+  }
+
+  function readNumber(scope, selector, fallback) {
+    const el = fieldOf(scope, selector);
+    if (!el) return fallback === undefined ? null : fallback;
+    const raw = String(el.value == null ? '' : el.value).trim();
+    if (raw === '') return null;                       // blank is blank, not zero
+    const n = Number(raw.replace(/[^0-9.\-]/g, ''));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function readInt(scope, selector, fallback) {
+    const n = readNumber(scope, selector, fallback);
+    if (n === null) return null;
+    return Number.isInteger(n) ? n : Math.trunc(n);
+  }
+
+  function clearFieldErrors() {
+    document.querySelectorAll('.field-error').forEach((p) => {
+      p.textContent = '';
+      p.classList.remove('is-visible');
+    });
+    document.querySelectorAll('.has-field-error').forEach((el) => el.classList.remove('has-field-error'));
+  }
+
+  function fieldError(scope, selector, message) {
+    const slot = fieldOf(scope, selector);
+    if (slot) {
+      slot.textContent = message;
+      slot.classList.add('is-visible');
+      const row = slot.closest('tr, .staff-mobile-card, .bill-mobile-card, div');
+      if (row) row.classList.add('has-field-error');
+    }
+    return message;
+  }
+
+  // ========================================================
+  // RENAME / EDIT FOR CATEGORIES, MEMBERS, METHODS, SPLIT RULES
+  // Previously these could only be added and deleted. Renaming one has to
+  // carry the existing expenses with it, so the server does the cascade and
+  // tells us how much history is affected before anything moves.
+  // ========================================================
+
+  const ENTITY_LABEL = {
+    category: 'Category',
+    familyMember: 'Family Member',
+    paymentMethod: 'Payment Method',
+    splitRule: 'Split Rule'
+  };
+
+  async function configRequest(body) {
+    const activeHId = (typeof getActiveHouseholdId === 'function')
+      ? getActiveHouseholdId()
+      : ((window.currentSessionUser && window.currentSessionUser.householdId) || 'H001');
+    const res = await fetch(`/api/config?householdId=${encodeURIComponent(activeHId)}`, {
+      method: 'POST',
+      headers: getAdvanceAuthHeaders({ 'Cache-Control': 'no-cache, no-store, must-revalidate' }),
+      cache: 'no-store',
+      body: JSON.stringify({ ...body, householdId: activeHId })
+    });
+    let json = {};
+    try { json = await res.json(); } catch (e) {}
+    return { status: res.status, json };
+  }
+
+  async function entityUsageCount(entity, name) {
+    try {
+      const activeHId = (typeof getActiveHouseholdId === 'function')
+        ? getActiveHouseholdId()
+        : ((window.currentSessionUser && window.currentSessionUser.householdId) || 'H001');
+      const res = await fetch(
+        `/api/config?action=usage&entity=${encodeURIComponent(entity)}` +
+        `&name=${encodeURIComponent(name)}&householdId=${encodeURIComponent(activeHId)}&_t=${Date.now()}`,
+        { headers: getAdvanceAuthHeaders(), cache: 'no-store' });
+      if (!res.ok) return null;
+      const json = await res.json();
+      return typeof json.count === 'number' ? json.count : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function applyConfigResponse(json) {
+    if (!json || !json.data) return;
+    window.masterConfig = json.data;
+    if (window.updateGlobalsFromConfig) window.updateGlobalsFromConfig(json.data);
+    syncDropdownsWithConfig();
+    if (window.renderAdminView) window.renderAdminView();
+    if (window.renderAllViews) window.renderAllViews();
+  }
+
+  // Ask before a delete, and say how much history it affects. Deleting a
+  // category or member that expenses still refer to leaves those records
+  // pointing at something that no longer exists, so the count has to be in
+  // front of the owner before they decide.
+  async function confirmDeleteWithUsage(entity, name, whatItIs) {
+    const count = await entityUsageCount(entity, name);
+    if (count === null) {
+      return window.confirm(
+        `Remove ${whatItIs} "${name}"?\n\n` +
+        `The number of expenses using it could not be checked, so some records ` +
+        `may still refer to it.`);
+    }
+    if (count === 0) {
+      return window.confirm(`Remove ${whatItIs} "${name}"?\n\nNo expenses use it.`);
+    }
+    return window.confirm(
+      `"${name}" is used by ${count} expense${count === 1 ? '' : 's'}.\n\n` +
+      `Removing it from Master Settings keeps ${count === 1 ? 'that record' : 'those records'} ` +
+      `and ${count === 1 ? 'its' : 'their'} history intact, but ${count === 1 ? 'it' : 'they'} ` +
+      `will refer to a value that is no longer in the list.\n\n` +
+      `To keep everything consistent, cancel and rename it instead.\n\nRemove anyway?`);
+  }
+
+  // Rename one of the simple string lists, or a category's name.
+  window.adminRenameEntity = async function (entity, currentName) {
+    const label = ENTITY_LABEL[entity] || 'Item';
+    const next = window.prompt(`Rename ${label}\n\nCurrent name: ${currentName}`, currentName);
+    if (next === null) return false;                 // cancelled
+    const to = String(next).trim();
+    if (!to) {
+      if (window.showToast) window.showToast('error', 'Name required', `A ${label.toLowerCase()} needs a name.`);
+      return false;
+    }
+    if (to === currentName) return false;            // nothing to do
+
+    const affected = await entityUsageCount(entity, currentName);
+    if (affected && affected > 0) {
+      const ok = window.confirm(
+        `"${currentName}" is used by ${affected} expense${affected === 1 ? '' : 's'}.\n\n` +
+        `Renaming it to "${to}" will update ${affected === 1 ? 'that record' : 'all of them'} so no history is orphaned.\n\nContinue?`);
+      if (!ok) return false;
+    }
+
+    const { status, json } = await configRequest({
+      action: 'rename_entity', entity, from: currentName, to, cascade: true
+    });
+
+    if (status === 200 && json.success) {
+      applyConfigResponse(json);
+      if (window.showToast) {
+        window.showToast('success', `${label} renamed`,
+          json.updatedExpenses
+            ? `"${currentName}" is now "${to}". ${json.updatedExpenses} expense${json.updatedExpenses === 1 ? '' : 's'} updated.`
+            : `"${currentName}" is now "${to}".`);
+      }
+      return true;
+    }
+
+    if (window.showToast) {
+      window.showToast('error', 'Rename failed',
+        json.error || `Could not rename this ${label.toLowerCase()}.`);
+    }
+    return false;
+  };
+
+  // Categories carry more than a name, so they get their own small editor.
+  window.adminEditCategory = async function (categoryName) {
+    const config = window.masterConfig || {};
+    const cat = (config.categories || []).find(c => c.name === categoryName);
+    if (!cat) {
+      if (window.showToast) window.showToast('error', 'Not found', 'That category no longer exists.');
+      return false;
+    }
+
+    const modal = document.getElementById('adminEditCategoryModal');
+    if (!modal) {
+      // No modal in the DOM: fall back to a plain rename so the action still works.
+      return window.adminRenameEntity('category', categoryName);
+    }
+
+    modal.dataset.originalName = categoryName;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v == null ? '' : v; };
+    set('editCategoryName', cat.name);
+    set('editCategoryIcon', cat.icon || '🏷️');
+    set('editCategoryType', cat.type || 'expense');
+    set('editCategoryDefaultPaidTo', cat.defaultPaidTo || '');
+    const errSlot = document.getElementById('editCategoryError');
+    if (errSlot) { errSlot.textContent = ''; errSlot.classList.remove('is-visible'); }
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    return true;
+  };
+
+  window.closeAdminEditCategoryModal = function () {
+    const modal = document.getElementById('adminEditCategoryModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  };
+
+  window.submitAdminEditCategory = async function () {
+    const modal = document.getElementById('adminEditCategoryModal');
+    if (!modal) return false;
+    const originalName = modal.dataset.originalName || '';
+    const val = (id) => {
+      const el = document.getElementById(id);
+      return el ? String(el.value || '').trim() : '';
+    };
+    const newName = val('editCategoryName');
+    const errSlot = document.getElementById('editCategoryError');
+    const showErr = (m) => {
+      if (errSlot) { errSlot.textContent = m; errSlot.classList.add('is-visible'); }
+      else if (window.showToast) window.showToast('error', 'Cannot save', m);
+    };
+    if (errSlot) { errSlot.textContent = ''; errSlot.classList.remove('is-visible'); }
+
+    if (!newName) return showErr('Category name is required.'), false;
+
+    const btn = document.getElementById('btnSubmitEditCategory');
+    if (btn) btn.dataset.busy = '1';
+    try {
+      // 1. Rename first, so history moves with the name.
+      if (newName !== originalName) {
+        const affected = await entityUsageCount('category', originalName);
+        if (affected && affected > 0) {
+          const ok = window.confirm(
+            `"${originalName}" is used by ${affected} expense${affected === 1 ? '' : 's'}.\n\n` +
+            `Renaming to "${newName}" will update ${affected === 1 ? 'that record' : 'all of them'}.\n\nContinue?`);
+          if (!ok) return false;
+        }
+        const r = await configRequest({
+          action: 'rename_entity', entity: 'category',
+          from: originalName, to: newName, cascade: true
+        });
+        if (r.status !== 200 || !r.json.success) {
+          showErr(r.json.error || 'Could not rename the category.');
+          return false;
+        }
+        applyConfigResponse(r.json);
+      }
+
+      // 2. Then the other attributes, on the (possibly new) name.
+      const config = window.masterConfig || {};
+      const cats = (config.categories || []).map(c =>
+        c.name === newName
+          ? {
+              ...c,
+              icon: val('editCategoryIcon') || c.icon || '🏷️',
+              type: val('editCategoryType') || c.type || 'expense',
+              defaultPaidTo: val('editCategoryDefaultPaidTo')
+            }
+          : c);
+      const r2 = await configRequest({ categories: cats });
+      if (r2.status !== 200 || !r2.json.success) {
+        showErr(r2.json.error || 'Category renamed, but the other details could not be saved.');
+        return false;
+      }
+      applyConfigResponse(r2.json);
+
+      // 3. Read back and confirm before claiming success.
+      const check = (window.masterConfig.categories || []).find(c => c.name === newName);
+      if (!check) {
+        showErr('The server did not store the category under that name.');
+        return false;
+      }
+      const wantIcon = val('editCategoryIcon') || '🏷️';
+      const wantType = val('editCategoryType') || 'expense';
+      const wantPaidTo = val('editCategoryDefaultPaidTo');
+      if (check.icon !== wantIcon || check.type !== wantType || (check.defaultPaidTo || '') !== wantPaidTo) {
+        showErr('Saved values do not match what you entered. Please check and try again.');
+        return false;
+      }
+
+      window.closeAdminEditCategoryModal();
+      if (window.showToast) window.showToast('success', 'Category saved', `"${newName}" updated and verified.`);
+      return true;
+    } finally {
+      if (btn) delete btn.dataset.busy;
+    }
+  };
+
+  // --- unsaved-changes guard (C5) -------------------------------------------
+  // Staff and bill edits are typed into rows and only persisted by the one
+  // global Save. On a phone it is very easy to tap away and lose them silently,
+  // so track dirtiness and warn before the edits can disappear.
+  window.adminFormDirty = false;
+
+  const ADMIN_EDIT_SELECTOR =
+    '.staff-edit-name, .staff-edit-shortname, .staff-edit-role, .staff-edit-salary, ' +
+    '.staff-edit-leaves, .staff-edit-cycleday, .staff-edit-cycletype, .staff-edit-active, ' +
+    '.bill-edit-icon, .bill-edit-name, .bill-edit-cat, .bill-edit-dueday, .bill-edit-amount, ' +
+    '#adminMonthlyBudgetLimit, #adminCycleStartDay, #adminCycleEndDay, ' +
+    '#adminCycleTypeCustom, #adminCycleTypeCalendar';
+
+  function markAdminDirty(e) {
+    if (e.target && e.target.closest && e.target.closest(ADMIN_EDIT_SELECTOR)) {
+      window.adminFormDirty = true;
+      const banner = document.getElementById('adminUnsavedBanner');
+      if (banner) banner.classList.remove('hidden');
+    }
+  }
+  document.addEventListener('input', markAdminDirty, true);
+  document.addEventListener('change', markAdminDirty, true);
+
+  window.adminHasUnsavedChanges = () => window.adminFormDirty === true;
+
+  window.addEventListener('beforeunload', (e) => {
+    if (window.adminFormDirty) {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    }
+  });
+
+  // Leaving the admin tab with edits pending is the common way to lose them.
+  (function guardTabSwitch() {
+    const original = window.switchTab;
+    if (typeof original !== 'function') return;
+    window.switchTab = function (tab, ...rest) {
+      if (window.adminFormDirty && tab !== 'admin') {
+        const leave = window.confirm(
+          'You have unsaved master-settings changes.\n\nLeave this tab and discard them?'
+        );
+        if (!leave) return;
+        window.adminFormDirty = false;
+        const banner = document.getElementById('adminUnsavedBanner');
+        if (banner) banner.classList.add('hidden');
+      }
+      return original.call(this, tab, ...rest);
+    };
+  })();
+
   window.saveAdminConfigFromUI = async function () {
     const config = window.masterConfig || {};
 
@@ -2033,27 +2497,53 @@
       ? mobileStaffCards
       : document.querySelectorAll('#adminStaffTableBody tr');
 
+    clearFieldErrors();
+    const errors = [];
+    const existingStaffById = indexById(config.staff);
+
     const updatedStaff = [];
     staffElements.forEach((el, index) => {
       const id = el.dataset.staffId || `staff-${index + 1}`;
-      const name = el.querySelector('.staff-edit-name')?.value.trim() || 'Staff';
-      const role = el.querySelector('.staff-edit-role')?.value.trim() || '';
-      const baseSalary = parseFloat(el.querySelector('.staff-edit-salary')?.value) || 0;
-      const allowedPaidLeaves = parseInt(el.querySelector('.staff-edit-leaves')?.value, 10) || 0;
-      const billingCycleDay = parseInt(el.querySelector('.staff-edit-cycleday')?.value, 10) || 30;
-      const cycleType = el.querySelector('.staff-edit-cycletype')?.value || 'calendar_month';
-      const active = el.querySelector('.staff-edit-active')?.checked !== false;
+      // Start from the stored record so properties without an input on screen
+      // (shortName, and anything added later) survive the save. Rebuilding the
+      // object from the visible inputs silently deleted them.
+      const existing = existingStaffById[id] || {};
 
-      const shortName = name.includes(' - ') ? name.split(' - ')[1].trim() : name;
+      const name = readText(el, '.staff-edit-name', existing.name);
+      const shortName = readText(el, '.staff-edit-shortname', existing.shortName);
+      const role = readText(el, '.staff-edit-role', existing.role);
+      const salary = readNumber(el, '.staff-edit-salary', existing.baseSalary);
+      const leaves = readInt(el, '.staff-edit-leaves', existing.allowedPaidLeaves);
+      const cycleDay = readInt(el, '.staff-edit-cycleday', existing.billingCycleDay);
+      const cycleType = el.querySelector('.staff-edit-cycletype')?.value || existing.cycleType || 'calendar_month';
+      const activeEl = el.querySelector('.staff-edit-active');
+      const active = activeEl ? activeEl.checked : (existing.active !== false);
+
+      // Validate. Never invent a value the owner did not type.
+      if (!name) {
+        errors.push(fieldError(el, '.staff-err-name', 'Staff name is required.'));
+      }
+      if (salary === null || !Number.isFinite(salary) || salary < 0) {
+        errors.push(fieldError(el, '.staff-err-salary', 'Enter a salary of 0 or more.'));
+      }
+      if (leaves !== null && (!Number.isInteger(leaves) || leaves < 0 || leaves > 31)) {
+        errors.push(fieldError(el, '.staff-err-name', 'Allowed leaves must be between 0 and 31.'));
+      }
+      if (cycleDay !== null && (!Number.isInteger(cycleDay) || cycleDay < 1 || cycleDay > 31)) {
+        errors.push(fieldError(el, '.staff-err-name', 'Payday must be a day between 1 and 31.'));
+      }
 
       updatedStaff.push({
+        ...existing,
         id,
         name,
-        shortName,
+        // An empty short name means "same as name" for display, but we store the
+        // owner's choice as typed rather than overwriting it with the full name.
+        shortName: shortName || existing.shortName || '',
         role,
-        baseSalary,
-        allowedPaidLeaves,
-        billingCycleDay,
+        baseSalary: salary,
+        allowedPaidLeaves: leaves,
+        billingCycleDay: cycleDay,
         cycleType,
         active
       });
@@ -2065,17 +2555,31 @@
       ? mobileBillCards
       : document.querySelectorAll('#adminBillsTableBody tr');
 
+    const existingBillsById = indexById(config.recurringBills);
+
     const updatedBills = [];
     billElements.forEach((el, index) => {
       const id = el.dataset.billId || `bill-${index + 1}`;
-      const icon = el.querySelector('.bill-edit-icon')?.value.trim() || '⚡';
-      const name = el.querySelector('.bill-edit-name')?.value.trim() || 'Bill';
-      const category = el.querySelector('.bill-edit-cat')?.value || 'Electricity Bill';
-      const dueDay = parseInt(el.querySelector('.bill-edit-dueday')?.value, 10) || 10;
-      const rawAmt = el.querySelector('.bill-edit-amount')?.value;
-      const approxAmount = Number(String(rawAmt || '0').replace(/[^0-9.]/g, '')) || 0;
+      const existing = existingBillsById[id] || {};
+
+      const icon = readText(el, '.bill-edit-icon', existing.icon) || existing.icon || '⚡';
+      const name = readText(el, '.bill-edit-name', existing.name);
+      const category = el.querySelector('.bill-edit-cat')?.value || existing.category || '';
+      const dueDay = readInt(el, '.bill-edit-dueday', existing.dueDay);
+      const approxAmount = readNumber(el, '.bill-edit-amount', existing.approxAmount);
+
+      if (!name) {
+        errors.push(fieldError(el, '.bill-err-name', 'Bill name is required.'));
+      }
+      if (approxAmount === null || !Number.isFinite(approxAmount) || approxAmount < 0) {
+        errors.push(fieldError(el, '.bill-err-amount', 'Enter an amount of 0 or more.'));
+      }
+      if (dueDay === null || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) {
+        errors.push(fieldError(el, '.bill-err-name', 'Due day must be a day between 1 and 31.'));
+      }
 
       updatedBills.push({
+        ...existing,
         id,
         name,
         category,
@@ -2088,10 +2592,19 @@
 
     // 3. Gather Household Cycle
     const isCustom = document.getElementById('adminCycleTypeCustom')?.checked;
-    const startDay = parseInt(document.getElementById('adminCycleStartDay')?.value, 10) || 5;
-    const endDay = parseInt(document.getElementById('adminCycleEndDay')?.value, 10) || 5;
+    const prevCycle = config.householdCycle || {};
+    const startDay = readInt(document, '#adminCycleStartDay', prevCycle.cycleStartDay);
+    const endDay = readInt(document, '#adminCycleEndDay', prevCycle.cycleEndDay);
+
+    if (startDay === null || !Number.isInteger(startDay) || startDay < 1 || startDay > 31) {
+      errors.push(fieldError(document, '#adminCycleStartDayError', 'Cycle start day must be between 1 and 31.'));
+    }
+    if (endDay === null || !Number.isInteger(endDay) || endDay < 1 || endDay > 31) {
+      errors.push(fieldError(document, '#adminCycleEndDayError', 'Cycle end day must be between 1 and 31.'));
+    }
 
     const updatedCycle = {
+      ...prevCycle,
       type: isCustom ? 'custom' : 'calendar',
       cycleStartDay: startDay,
       cycleEndDay: endDay,
@@ -2099,7 +2612,23 @@
     };
 
     // 4. Gather Monthly Budget Target
-    const monthlyBudgetLimit = parseFloat(document.getElementById('adminMonthlyBudgetLimit')?.value) || 50000;
+    const monthlyBudgetLimit = readNumber(document, '#adminMonthlyBudgetLimit', config.monthlyBudgetLimit);
+    if (monthlyBudgetLimit === null || !Number.isFinite(monthlyBudgetLimit) || monthlyBudgetLimit < 0) {
+      errors.push(fieldError(document, '#adminMonthlyBudgetLimitError', 'Enter a monthly budget of 0 or more.'));
+    }
+
+    // Block the save rather than persisting invented values.
+    if (errors.length) {
+      if (window.showToast) {
+        window.showToast('error', 'Nothing saved',
+          `${errors.length} field${errors.length === 1 ? '' : 's'} need${errors.length === 1 ? 's' : ''} attention. Your changes are still on screen.`);
+      }
+      const firstBad = document.querySelector('.field-error.is-visible');
+      if (firstBad && firstBad.scrollIntoView) {
+        firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return false;
+    }
 
     const payload = {
       ...config,
@@ -2115,7 +2644,35 @@
       ]
     };
 
-    await saveMasterConfig(payload);
+    // Busy state: the owner must be able to see the save is in flight, and a
+    // double tap must not fire a second write.
+    const saveButtons = [
+      document.getElementById('btnSaveAdminConfig'),
+      document.getElementById('btnSaveAdminConfigMobile')
+    ].filter(Boolean);
+    saveButtons.forEach((b) => {
+      b.dataset.busy = '1';
+      b.dataset.prevHtml = b.innerHTML;
+      b.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i><span>Saving...</span>';
+    });
+
+    let ok = false;
+    try {
+      ok = await saveMasterConfig(payload);
+    } finally {
+      saveButtons.forEach((b) => {
+        delete b.dataset.busy;
+        if (b.dataset.prevHtml) b.innerHTML = b.dataset.prevHtml;
+        delete b.dataset.prevHtml;
+      });
+    }
+
+    if (ok) {
+      window.adminFormDirty = false;
+      const banner = document.getElementById('adminUnsavedBanner');
+      if (banner) banner.classList.add('hidden');
+    }
+    return ok;
   };
 
   window.adminSaveBudget = async function () {
@@ -2169,6 +2726,7 @@
   };
 
   window.adminRemoveSplitRule = async function (ruleName) {
+    if (!await confirmDeleteWithUsage('splitRule', ruleName, 'split rule')) return;
     const config = window.masterConfig || {};
     const current = config.splitRules || [];
     const updated = current.filter(r => r !== ruleName);
@@ -2483,7 +3041,7 @@
   };
 
   window.adminDeleteCategory = async function (catName) {
-    if (!confirm(`Are you sure you want to remove the category "${catName}"?`)) return;
+    if (!await confirmDeleteWithUsage('category', catName, 'the category')) return;
     const currentCats = (window.masterConfig && window.masterConfig.categories) ? [...window.masterConfig.categories] : [];
     const filtered = currentCats.filter(c => c.name !== catName);
     await saveMasterConfig({ categories: filtered });
@@ -2506,7 +3064,7 @@
   };
 
   window.adminRemoveFamilyMember = async function (memberName) {
-    if (!confirm(`Remove family member "${memberName}"?`)) return;
+    if (!await confirmDeleteWithUsage('familyMember', memberName, 'family member')) return;
     const currentMembers = (window.masterConfig && window.masterConfig.familyMembers) ? [...window.masterConfig.familyMembers] : [];
     const filtered = currentMembers.filter(m => m !== memberName);
     await saveMasterConfig({ familyMembers: filtered });
@@ -2529,7 +3087,7 @@
   };
 
   window.adminRemovePaymentMethod = async function (methodName) {
-    if (!confirm(`Remove payment method "${methodName}"?`)) return;
+    if (!await confirmDeleteWithUsage('paymentMethod', methodName, 'payment method')) return;
     const currentMethods = (window.masterConfig && window.masterConfig.paymentMethods) ? [...window.masterConfig.paymentMethods] : [];
     const filtered = currentMethods.filter(m => m !== methodName);
     await saveMasterConfig({ paymentMethods: filtered });
@@ -2770,8 +3328,8 @@
       let contextHtml = '<span class="text-slate-400 text-xs">—</span>';
       if (meta.amount || meta.category) {
         contextHtml = `
-          <div class="font-black text-slate-900 text-xs">${meta.amount ? '₹' + Number(meta.amount).toLocaleString('en-IN') : ''} <span class="font-normal text-slate-500">(${meta.category || 'General'})</span></div>
-          <div class="text-[10px] text-slate-500">Paid: <strong class="text-slate-700">${meta.paidBy || '—'}</strong>${meta.splitBetween ? ' • <span class="text-purple-700 font-semibold">' + meta.splitBetween + '</span>' : ''}</div>
+          <div class="font-black text-slate-900 text-xs">${meta.amount ? '₹' + Number(meta.amount).toLocaleString('en-IN') : ''} <span class="font-normal text-slate-500">(${esc(meta.category || 'General')})</span></div>
+          <div class="text-[10px] text-slate-500">Paid: <strong class="text-slate-700">${esc(meta.paidBy || '—')}</strong>${esc(meta.splitBetween ? ' • <span class="text-purple-700 font-semibold">' + meta.splitBetween + '</span>' : '')}</div>
         `;
       } else if (item.action === 'UPDATE_CONFIG') {
         contextHtml = '<div class="font-bold text-purple-700 text-xs">Master Settings</div><div class="text-[10px] text-slate-500">Configuration & Rules</div>';
@@ -2847,7 +3405,7 @@
               <div class="flex items-center gap-2">
                 <span class="text-[11px] font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">${relTime}</span>
                 <span class="text-xs text-slate-400 font-medium">${fullTime}</span>
-                <button onclick="window.toggleAuditInspect('${timelineInspectId}')" class="p-1 px-2.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition text-[11px] font-bold" title="Inspect Raw Payload">
+                <button onclick="window.toggleAuditInspect(${esc(JSON.stringify(timelineInspectId))})" class="p-1 px-2.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition text-[11px] font-bold" title="Inspect Raw Payload">
                   <i class="fa-solid fa-code mr-1"></i>Inspect
                 </button>
               </div>
@@ -2887,7 +3445,7 @@
           <td class="py-3 px-3 min-w-[150px]">${contextHtml}</td>
           <td class="py-3 px-4">${changeHtml}</td>
           <td class="py-3 px-3 text-center whitespace-nowrap">
-            <button onclick="window.toggleAuditInspect('${tableInspectId}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition" title="Inspect Raw Payload">
+            <button onclick="window.toggleAuditInspect(${esc(JSON.stringify(tableInspectId))})" class="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition" title="Inspect Raw Payload">
               <i class="fa-solid fa-code text-xs"></i>
             </button>
           </td>
@@ -3068,7 +3626,7 @@
       const isActive = (currentPersonalFilter === m);
       const cls = isActive ? 'bg-purple-600 text-white shadow-sm font-black' : 'text-slate-300 hover:text-white font-semibold';
       html += `
-        <button onclick="setPersonalViewFilter('${m}')" id="btnPersonalFilter_${m.replace(/\s+/g, '_')}" class="px-3 py-1.5 rounded-lg transition ${cls}">
+        <button onclick="setPersonalViewFilter(${esc(JSON.stringify(m))})" id="btnPersonalFilter_${m.replace(/\s+/g, '_')}" class="px-3 py-1.5 rounded-lg transition ${cls}">
           ${icon} ${m} Only
         </button>
       `;
@@ -3525,8 +4083,8 @@
       const payer = getPersonalPayer(item);
       const isSecondMember = members.length > 1 && payer.toLowerCase() === (members[1] || '').toLowerCase();
       const badge = isSecondMember
-        ? `<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-black bg-pink-50 text-pink-700 border border-pink-200">${payer.toLowerCase().includes('pallavi') ? '🌸' : '👤'} ${payer}</span>`
-        : `<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">👤 ${payer}</span>`;
+        ? `<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-black bg-pink-50 text-pink-700 border border-pink-200">${esc(payer.toLowerCase().includes('pallavi') ? '🌸' : '👤')} ${esc(payer)}</span>`
+        : `<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">👤 ${esc(payer)}</span>`;
 
       const d = item.date ? new Date(item.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 
@@ -3534,15 +4092,15 @@
         <tr class="hover:bg-purple-50/40 transition">
           <td class="py-2.5 px-3 whitespace-nowrap text-slate-600 font-semibold">${d}</td>
           <td class="py-2.5 px-3 whitespace-nowrap">${badge}</td>
-          <td class="py-2.5 px-3 font-bold text-slate-900">${item.category || '-'}</td>
-          <td class="py-2.5 px-3 text-slate-500 text-[11px]">${item.paymentMethod || 'UPI / Cash'}</td>
-          <td class="py-2.5 px-3 text-slate-600 max-w-[200px] truncate" title="${item.notes || item.description || item.paidTo || ''}">${item.notes || item.description || item.paidTo || '-'}</td>
+          <td class="py-2.5 px-3 font-bold text-slate-900">${esc(item.category || '-')}</td>
+          <td class="py-2.5 px-3 text-slate-500 text-[11px]">${esc(item.paymentMethod || 'UPI / Cash')}</td>
+          <td class="py-2.5 px-3 text-slate-600 max-w-[200px] truncate" title="${esc(item.notes || item.description || item.paidTo || '')}">${esc(item.notes || item.description || item.paidTo || '-')}</td>
           <td class="py-2.5 px-3 text-right font-black text-purple-900 font-mono text-sm">${window.formatINR ? window.formatINR(item.amount) : '₹' + item.amount.toLocaleString('en-IN')}</td>
           <td class="py-2.5 px-3 text-center whitespace-nowrap">
-            <button onclick="editExpense('${item.id}')" class="p-1 text-slate-400 hover:text-indigo-600 transition" title="Edit expense">
+            <button onclick="editExpense(${esc(JSON.stringify(item.id))})" class="p-1 text-slate-400 hover:text-indigo-600 transition" title="Edit expense">
               <i class="fa-solid fa-pen-to-square"></i>
             </button>
-            <button onclick="deleteExpense('${item.id}')" class="p-1 ml-1 text-slate-400 hover:text-rose-600 transition" title="Delete expense">
+            <button onclick="deleteExpense(${esc(JSON.stringify(item.id))})" class="p-1 ml-1 text-slate-400 hover:text-rose-600 transition" title="Delete expense">
               <i class="fa-solid fa-trash"></i>
             </button>
           </td>
@@ -3647,7 +4205,7 @@
               <td class="py-2.5 px-3 whitespace-nowrap">${badge}</td>
               <td class="py-2.5 px-3 text-slate-500 font-mono">${sizeKb}</td>
               <td class="py-2.5 px-3 text-right whitespace-nowrap">
-                <button onclick="restoreSnapshotPrompt('${s.filename}')" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-lg text-[11px] transition shadow-xs inline-flex items-center space-x-1">
+                <button onclick="restoreSnapshotPrompt(${esc(JSON.stringify(s.filename))})" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-lg text-[11px] transition shadow-xs inline-flex items-center space-x-1">
                   <i class="fa-solid fa-clock-rotate-left"></i>
                   <span>Restore</span>
                 </button>
@@ -4380,18 +4938,18 @@
         <div class="p-3 rounded-2xl border ${borderClass} space-y-2 text-xs">
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-start space-x-2.5">
-              <span class="text-lg shrink-0">${item.icon}</span>
+              <span class="text-lg shrink-0">${esc(item.icon)}</span>
               <div>
-                <div class="font-black text-slate-900 leading-tight">${item.title}</div>
-                <div class="text-[11px] text-slate-600 font-medium mt-0.5">${item.description}</div>
+                <div class="font-black text-slate-900 leading-tight">${esc(item.title)}</div>
+                <div class="text-[11px] text-slate-600 font-medium mt-0.5">${esc(item.description)}</div>
               </div>
             </div>
-            <button onclick="dismissNotificationItem('${item.id}')" class="text-slate-400 hover:text-slate-600 p-1 text-xs" title="Dismiss">
+            <button onclick="dismissNotificationItem(${esc(JSON.stringify(item.id))})" class="text-slate-400 hover:text-slate-600 p-1 text-xs" title="Dismiss">
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
           <div class="flex justify-end space-x-2 pt-1">
-            <button onclick="triggerNotificationAction('${item.id}')" class="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-[11px] shadow-xs transition">
+            <button onclick="triggerNotificationAction(${esc(JSON.stringify(item.id))})" class="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-[11px] shadow-xs transition">
               ${item.actionLabel}
             </button>
           </div>

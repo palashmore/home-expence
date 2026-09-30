@@ -9,3 +9,7 @@ data/backups/
 data/push_subscriptions.json
 data/households/_archived_*
 scratch/
+
+# Python bytecode from the audit harness
+__pycache__/
+*.pyc

@@ -1155,3 +1155,168 @@ select:focus, input:focus, textarea:focus {
 .sidebar-link.active i {
     color: #ffffff !important;
 }
+
+/* ==========================================================================
+   FIELD-LEVEL VALIDATION MESSAGES
+   Shown next to the input that is wrong, so the owner can see on a phone
+   exactly which field blocked the save instead of guessing why nothing
+   happened. Hidden until a save actually fails.
+   ========================================================================== */
+.field-error {
+    display: none;
+    margin-top: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: #e11d48;
+}
+.field-error.is-visible {
+    display: block;
+}
+.has-field-error input,
+.has-field-error select {
+    border-color: #e11d48 !important;
+}
+
+/* ==========================================================================
+   MOBILE TAP TARGETS
+   The owner uses this app on a phone. Anything tappable has to be reachable
+   with a thumb: 44x44 px is the WCAG 2.5.5 / Apple HIG floor. Before this
+   rule, 34 of 42 visible controls at 390px were smaller than that, and some
+   icon buttons were 8x8.
+
+   Scoped to phone widths so the desktop table density is untouched. Opt out
+   with .tap-exempt only for genuinely non-interactive decoration.
+   ========================================================================== */
+@media (max-width: 767px) {
+    button:not(.tap-exempt),
+    a[role="button"]:not(.tap-exempt),
+    [role="button"]:not(.tap-exempt),
+    select:not(.tap-exempt),
+    [onclick]:not(.tap-exempt),
+    .bnav-btn,
+    .sidebar-link {
+        min-height: 44px;
+    }
+    button:not(.tap-exempt),
+    a[role="button"]:not(.tap-exempt),
+    [role="button"]:not(.tap-exempt),
+    select:not(.tap-exempt),
+    .bnav-btn {
+        min-width: 44px;
+    }
+
+    /* Destructive confirmations: full width, unmistakably separated, and
+       large enough that a mis-tap is unlikely. */
+    #deleteConfirmModal button {
+        min-height: 48px;
+    }
+
+    /* The theme palette is an invisible <select> stretched over an icon tile;
+       the tile is the tap target, so it has to carry the full 44px. */
+    .theme-trigger {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* Icon-only buttons centre their glyph in the enlarged box. */
+    button:not(.tap-exempt) {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Buttons that were laid out as blocks keep filling their row. */
+    button.w-full:not(.tap-exempt) {
+        width: 100%;
+    }
+
+    /* A checkbox stays visually small but its label carries the tap area. */
+    label:has(> input[type="checkbox"]),
+    label:has(> input[type="radio"]) {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    input[type="checkbox"],
+    input[type="radio"] {
+        width: 22px;
+        height: 22px;
+    }
+
+    /* 16px is the threshold below which iOS Safari zooms the page on focus. */
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+        font-size: 16px;
+    }
+
+    /* Keep at least 8px between adjacent targets in the common flex rows. */
+    .flex > button + button {
+        margin-left: 0.5rem;
+    }
+}
+
+/* ==========================================================================
+   STICKY SAVE BAR  (mobile)
+   Inline row edits are only persisted by the single global Save. On a phone
+   that button is far above the fold, so a bar pinned above the bottom nav
+   keeps it reachable and makes pending changes impossible to miss. Sits above
+   the home indicator via env(safe-area-inset-bottom).
+   ========================================================================== */
+.sticky-save-bar {
+    position: sticky;
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    z-index: 30;
+    padding: 0 0.25rem;
+}
+.sticky-save-bar-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    background: #1e1b4b;
+    border: 1px solid #4338ca;
+    border-radius: 1rem;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.45);
+}
+.sticky-save-bar-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #fcd34d;
+}
+.sticky-save-bar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0 1.25rem;
+    border: 0;
+    border-radius: 0.75rem;
+    background: linear-gradient(135deg, #6366f1, #7c3aed);
+    color: #fff;
+    font-size: 0.8125rem;
+    font-weight: 900;
+    cursor: pointer;
+}
+.sticky-save-bar-btn:disabled {
+    opacity: 0.65;
+    cursor: progress;
+}
+
+/* Desktop keeps the header Save; the sticky bar is a phone affordance. */
+@media (min-width: 768px) {
+    .sticky-save-bar { display: none !important; }
+}
+
+/* A save in flight cannot be double-tapped. */
+button[data-busy="1"] {
+    opacity: 0.65;
+    pointer-events: none;
+}

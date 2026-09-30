@@ -1631,7 +1631,7 @@ function renderActiveFilterTags() {
         container.classList.remove("hidden");
         container.innerHTML = `<span class="text-slate-400 font-bold mr-1">Active:</span>` + tags.map((t, idx) => `
             <span class="active-filter-tag">
-                <span>${t.label}</span>
+                <span>${escapeHtml(t.label)}</span>
                 <button type="button" onclick="activeTagRemove(${idx})" title="Remove filter">&times;</button>
             </span>
         `).join("");
@@ -1660,10 +1660,10 @@ function renderDashboard(filtered) {
     }
 
     if (dashboardFilters.paidBy !== "all") {
-        periodTitleStr += ` &bull; <span class="text-violet-300 font-extrabold">${dashboardFilters.paidBy}</span>`;
+        periodTitleStr += ` &bull; <span class="text-violet-300 font-extrabold">${escapeHtml(dashboardFilters.paidBy)}</span>`;
     }
     if (dashboardFilters.category !== "all") {
-        periodTitleStr += ` &bull; <span class="text-emerald-300 font-extrabold">${dashboardFilters.category}</span>`;
+        periodTitleStr += ` &bull; <span class="text-emerald-300 font-extrabold">${escapeHtml(dashboardFilters.category)}</span>`;
     }
 
     const titleEl = document.getElementById("dashboardPeriodTitle");
@@ -2002,7 +2002,7 @@ function renderCategoryPieChart(filteredData) {
                 const amt = catTotals[cat];
                 const pct = totalSpent > 0 ? ((amt / totalSpent) * 100).toFixed(1) : 0;
                 return `
-                    <div onclick="filterByCategory('${cat}')" class="flex items-center space-x-1.5 cursor-pointer hover:bg-slate-100 p-1 rounded-lg transition" title="Click to filter by ${cat}">
+                    <div onclick="filterByCategory(${escapeHtml(JSON.stringify(cat))})" class="flex items-center space-x-1.5 cursor-pointer hover:bg-slate-100 p-1 rounded-lg transition" title="Click to filter by ${cat}">
                         <span class="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style="background-color: ${colors[idx % colors.length]}"></span>
                         <span class="truncate font-semibold text-slate-700">${cat}:</span>
                         <span class="font-bold text-slate-900">${pct}%</span>
@@ -2097,7 +2097,7 @@ function renderPaidByChart(filteredData) {
             const count = memberCounts[m] || 0;
             const isSelected = dashboardFilters.paidBy === m;
             return `
-                <div onclick="quickFilterPaidBy('${m}')" class="p-2 rounded-xl border ${isSelected ? 'border-violet-500 bg-violet-50' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'} cursor-pointer transition text-center">
+                <div onclick="quickFilterPaidBy(${escapeHtml(JSON.stringify(m))})" class="p-2 rounded-xl border ${isSelected ? 'border-violet-500 bg-violet-50' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'} cursor-pointer transition text-center">
                     <span class="block text-[11px] font-black text-slate-700 truncate">${m}</span>
                     <span class="block text-sm font-black text-slate-900 mt-0.5">${formatINR(amt)}</span>
                     <span class="block text-[10px] text-slate-500 font-bold">${pct}% &bull; ${count} tx</span>
@@ -2401,7 +2401,7 @@ function renderHouseholdSpendingMatrix(filteredData) {
         return `
             <tr class="hover:bg-indigo-50/50 transition">
                 <td class="py-2.5 px-3 font-black text-slate-900 whitespace-nowrap">
-                    <span class="cursor-pointer hover:text-indigo-600" onclick="quickFilterPaidBy('${m}')">
+                    <span class="cursor-pointer hover:text-indigo-600" onclick="quickFilterPaidBy(${escapeHtml(JSON.stringify(m))})">
                         ${m}
                     </span>
                 </td>
@@ -2594,16 +2594,16 @@ function renderTopExpensesTable(expenseItems) {
     }
 
     tbody.innerHTML = sorted.map(i => `
-        <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="openTransactionDetailModal('${i.id}')">
+        <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="openTransactionDetailModal(${escapeHtml(JSON.stringify(i.id))})">
             <td class="py-2.5 px-3 text-slate-500 text-[11px] whitespace-nowrap">${formatDisplayDate(i.date)}</td>
-            <td class="py-2.5 px-3 font-bold text-slate-900">${i.category}</td>
-            <td class="py-2.5 px-3 text-slate-600 truncate max-w-[130px]">${i.paidTo || i.notes || '-'}</td>
+            <td class="py-2.5 px-3 font-bold text-slate-900">${escapeHtml(i.category)}</td>
+            <td class="py-2.5 px-3 text-slate-600 truncate max-w-[130px]">${escapeHtml(i.paidTo || i.notes || '-')}</td>
             <td class="py-2.5 px-3">
-                <span class="px-2 py-0.5 rounded text-[10px] font-black bg-violet-100 text-violet-800">${i.paidBy || 'Not Specified'}</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-black bg-violet-100 text-violet-800">${escapeHtml(i.paidBy || 'Not Specified')}</span>
             </td>
             <td class="py-2.5 px-3 text-right font-black text-slate-900">${formatINR(i.amount)}</td>
             <td class="py-2.5 px-3 text-center" onclick="event.stopPropagation()">
-                <button onclick="editExpense('${i.id}')" class="p-1 text-slate-400 hover:text-indigo-600"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button onclick="editExpense(${escapeHtml(JSON.stringify(i.id))})" class="p-1 text-slate-400 hover:text-indigo-600"><i class="fa-solid fa-pen text-xs"></i></button>
             </td>
         </tr>
     `).join("");
@@ -2623,16 +2623,16 @@ function renderRecentTransactionsTable(filteredData) {
     tbody.innerHTML = sorted.map(i => {
         const isIncome = i.category === "Accepted Payments (Income)";
         return `
-            <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="openTransactionDetailModal('${i.id}')">
+            <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="openTransactionDetailModal(${escapeHtml(JSON.stringify(i.id))})">
                 <td class="py-2.5 px-3 text-slate-500 text-[11px] whitespace-nowrap">${formatDisplayDate(i.date)}</td>
-                <td class="py-2.5 px-3 font-bold text-slate-900 truncate max-w-[120px]">${i.category}</td>
+                <td class="py-2.5 px-3 font-bold text-slate-900 truncate max-w-[120px]">${escapeHtml(i.category)}</td>
                 <td class="py-2.5 px-3">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-700">${i.paidBy || 'Not Specified'}</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-700">${escapeHtml(i.paidBy || 'Not Specified')}</span>
                 </td>
-                <td class="py-2.5 px-3 text-slate-500 text-[11px]">${i.paymentMethod || 'UPI'}</td>
+                <td class="py-2.5 px-3 text-slate-500 text-[11px]">${escapeHtml(i.paymentMethod || 'UPI')}</td>
                 <td class="py-2.5 px-3 text-right font-black ${isIncome ? 'text-emerald-600' : 'text-slate-900'}">${formatINR(i.amount)}</td>
                 <td class="py-2.5 px-3 text-center" onclick="event.stopPropagation()">
-                    ${i.receipt ? `<button onclick="viewReceiptFull('${i.receipt}')" class="text-indigo-600 hover:text-indigo-800"><i class="fa-solid fa-paperclip"></i></button>` : '<span class="text-slate-300">-</span>'}
+                    ${i.receipt ? `<button onclick="viewReceiptFull(${escapeHtml(JSON.stringify(i.receipt))})" class="text-indigo-600 hover:text-indigo-800"><i class="fa-solid fa-paperclip"></i></button>` : '<span class="text-slate-300">-</span>'}
                 </td>
             </tr>
         `;
@@ -2662,19 +2662,19 @@ function renderExpenseTable(filteredData) {
         return `
             <tr class="hover:bg-indigo-50/40 transition">
                 <td class="py-3 px-4 text-slate-600 text-xs font-semibold whitespace-nowrap">${formatDisplayDate(item.date)}</td>
-                <td class="py-3 px-4 font-bold text-slate-900">${item.category}</td>
-                <td class="py-3 px-4 text-slate-600 max-w-xs truncate text-xs">${item.notes || item.description || '-'}</td>
+                <td class="py-3 px-4 font-bold text-slate-900">${escapeHtml(item.category)}</td>
+                <td class="py-3 px-4 text-slate-600 max-w-xs truncate text-xs">${escapeHtml(item.notes || item.description || '-')}</td>
                 <td class="py-3 px-4">
-                    <span class="px-2.5 py-1 rounded-full text-xs font-black bg-violet-100 text-violet-800">${item.paidBy || 'Not Specified'}</span>
+                    <span class="px-2.5 py-1 rounded-full text-xs font-black bg-violet-100 text-violet-800">${escapeHtml(item.paidBy || 'Not Specified')}</span>
                 </td>
-                <td class="py-3 px-4 font-semibold text-slate-800 whitespace-nowrap text-xs">${item.paidTo || item.vendor || '-'}</td>
-                <td class="py-3 px-4 text-slate-500 text-xs whitespace-nowrap">${item.paymentMethod || 'UPI'}</td>
+                <td class="py-3 px-4 font-semibold text-slate-800 whitespace-nowrap text-xs">${escapeHtml(item.paidTo || item.vendor || '-')}</td>
+                <td class="py-3 px-4 text-slate-500 text-xs whitespace-nowrap">${escapeHtml(item.paymentMethod || 'UPI')}</td>
                 <td class="py-3 px-4 text-right font-black ${isIncome ? 'text-emerald-600' : 'text-slate-900'}">${formatINR(item.amount)}</td>
                 <td class="py-3 px-4 text-center whitespace-nowrap">
                     <div class="flex items-center justify-center space-x-2">
-                        <button onclick="openTransactionDetailModal('${item.id}')" title="View details" class="p-1.5 text-slate-400 hover:text-indigo-600 transition"><i class="fa-solid fa-eye text-xs"></i></button>
-                        <button onclick="editExpense('${item.id}')" title="Edit" class="p-1.5 text-slate-400 hover:text-indigo-600 transition"><i class="fa-solid fa-pen text-xs"></i></button>
-                        <button onclick="confirmDeleteExpense('${item.id}')" title="Delete" class="p-1.5 text-slate-400 hover:text-rose-600 transition"><i class="fa-solid fa-trash text-xs"></i></button>
+                        <button onclick="openTransactionDetailModal(${escapeHtml(JSON.stringify(item.id))})" title="View details" class="p-1.5 text-slate-400 hover:text-indigo-600 transition"><i class="fa-solid fa-eye text-xs"></i></button>
+                        <button onclick="editExpense(${escapeHtml(JSON.stringify(item.id))})" title="Edit" class="p-1.5 text-slate-400 hover:text-indigo-600 transition"><i class="fa-solid fa-pen text-xs"></i></button>
+                        <button onclick="confirmDeleteExpense(${escapeHtml(JSON.stringify(item.id))})" title="Delete" class="p-1.5 text-slate-400 hover:text-rose-600 transition"><i class="fa-solid fa-trash text-xs"></i></button>
                     </div>
                 </td>
             </tr>
@@ -2698,7 +2698,7 @@ function renderExpenseTable(filteredData) {
                                 ${catIcon}
                             </div>
                             <div class="min-w-0">
-                                <h4 class="text-xs font-black text-slate-900 truncate">${item.category}</h4>
+                                <h4 class="text-xs font-black text-slate-900 truncate">${escapeHtml(item.category)}</h4>
                                 <p class="text-[11px] font-semibold text-slate-400">${formatDisplayDate(item.date)}</p>
                             </div>
                         </div>
@@ -2710,8 +2710,8 @@ function renderExpenseTable(filteredData) {
                     <!-- Details Bar: Notes & Vendor -->
                     ${(notes || recipient) ? `
                         <div class="bg-slate-50/80 rounded-xl p-2.5 text-xs text-slate-600 space-y-1 border border-slate-100">
-                            ${notes ? `<p class="line-clamp-2"><span class="font-bold text-slate-700">Note:</span> ${notes}</p>` : ''}
-                            ${recipient ? `<p><span class="font-bold text-slate-700">To:</span> ${recipient}</p>` : ''}
+                            ${notes ? `<p class="line-clamp-2"><span class="font-bold text-slate-700">Note:</span> ${escapeHtml(notes)}</p>` : ''}
+                            ${recipient ? `<p><span class="font-bold text-slate-700">To:</span> ${escapeHtml(recipient)}</p>` : ''}
                         </div>
                     ` : ''}
 
@@ -2719,22 +2719,22 @@ function renderExpenseTable(filteredData) {
                     <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 text-xs">
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">
-                                <i class="fa-solid fa-user text-[9px] mr-1 text-indigo-400"></i> ${item.paidBy || 'Not Specified'}
+                                <i class="fa-solid fa-user text-[9px] mr-1 text-indigo-400"></i> ${escapeHtml(item.paidBy || 'Not Specified')}
                             </span>
                             <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600">
-                                ${item.paymentMethod || 'UPI'}
+                                ${escapeHtml(item.paymentMethod || 'UPI')}
                             </span>
                         </div>
 
                         <!-- Action Buttons (Touch targets >= 44px) -->
                         <div class="flex items-center gap-1">
-                            <button type="button" onclick="openTransactionDetailModal('${item.id}')" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition" title="View details">
+                            <button type="button" onclick="openTransactionDetailModal(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition" title="View details">
                                 <i class="fa-solid fa-eye text-sm"></i>
                             </button>
-                            <button type="button" onclick="editExpense('${item.id}')" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition" title="Edit">
+                            <button type="button" onclick="editExpense(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition" title="Edit">
                                 <i class="fa-solid fa-pen text-sm"></i>
                             </button>
-                            <button type="button" onclick="confirmDeleteExpense('${item.id}')" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition" title="Delete">
+                            <button type="button" onclick="confirmDeleteExpense(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition" title="Delete">
                                 <i class="fa-solid fa-trash text-sm"></i>
                             </button>
                         </div>
@@ -2784,11 +2784,11 @@ function renderStaffView(filteredData) {
     tbody.innerHTML = sorted.map(i => `
         <tr class="hover:bg-slate-50 transition">
             <td class="py-3 px-4 font-semibold text-xs text-slate-600 whitespace-nowrap">${formatDisplayDate(i.date)}</td>
-            <td class="py-3 px-4 font-bold text-slate-900">${i.category.replace(" - ", " ")}</td>
+            <td class="py-3 px-4 font-bold text-slate-900">${escapeHtml(i.category.replace(" - ", " "))}</td>
             <td class="py-3 px-4 text-xs text-slate-500">${i.billingCycle || 'Monthly Cycle'}</td>
-            <td class="py-3 px-4 font-black text-xs text-violet-800">${i.paidBy || 'Not Specified'}</td>
-            <td class="py-3 px-4 text-xs text-slate-600">${i.paymentMethod || 'UPI'}</td>
-            <td class="py-3 px-4 text-xs text-slate-500">${i.notes || i.description || '-'}</td>
+            <td class="py-3 px-4 font-black text-xs text-violet-800">${escapeHtml(i.paidBy || 'Not Specified')}</td>
+            <td class="py-3 px-4 text-xs text-slate-600">${escapeHtml(i.paymentMethod || 'UPI')}</td>
+            <td class="py-3 px-4 text-xs text-slate-500">${escapeHtml(i.notes || i.description || '-')}</td>
             <td class="py-3 px-4 text-right font-black text-slate-900">${formatINR(i.amount)}</td>
         </tr>
     `).join("");
@@ -2881,7 +2881,7 @@ function showToast(type, title, message = "") {
     toast.innerHTML = `
         ${iconHtml}
         <div class="flex-1 min-w-0 pt-0.5">
-            <h4 class="text-xs font-black tracking-wide text-white leading-tight">${title}</h4>
+            <h4 class="text-xs font-black tracking-wide text-white leading-tight">${escapeHtml(title)}</h4>
             ${message ? `<p class="text-[11px] text-slate-300 font-bold mt-0.5 truncate">${message}</p>` : ''}
         </div>
         <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white transition p-1 text-xs">
@@ -3327,9 +3327,9 @@ function handleExpenseConflict(draft, serverRecord) {
                     const isDiff = String(f.draft).trim() !== String(f.server).trim();
                     return `
                         <tr class="${isDiff ? 'bg-amber-50/30 font-semibold' : ''}">
-                            <td class="p-2 text-slate-500 font-medium">${f.label}</td>
-                            <td class="p-2 text-slate-800 ${isDiff ? 'text-amber-800' : ''}">${f.draft}</td>
-                            <td class="p-2 text-slate-800 ${isDiff ? 'text-indigo-800 font-bold' : ''}">${f.server}</td>
+                            <td class="p-2 text-slate-500 font-medium">${escapeHtml(f.label)}</td>
+                            <td class="p-2 text-slate-800 ${isDiff ? 'text-amber-800' : ''}">${escapeHtml(f.draft)}</td>
+                            <td class="p-2 text-slate-800 ${isDiff ? 'text-indigo-800 font-bold' : ''}">${escapeHtml(f.server)}</td>
                         </tr>
                     `;
                 }).join('')}
@@ -3426,11 +3426,11 @@ function confirmDeleteExpense(id) {
 
     if (detailsContainer) {
         detailsContainer.innerHTML = `
-            <p><strong>Category:</strong> ${item.category}</p>
+            <p><strong>Category:</strong> ${escapeHtml(item.category)}</p>
             <p><strong>Amount:</strong> ${formatINR(item.amount)}</p>
             <p><strong>Date:</strong> ${formatDisplayDate(item.date)}</p>
-            <p><strong>Paid By:</strong> ${item.paidBy || 'Not Specified'}</p>
-            <p><strong>Paid To:</strong> ${item.paidTo || item.vendor || '-'}</p>
+            <p><strong>Paid By:</strong> ${escapeHtml(item.paidBy || 'Not Specified')}</p>
+            <p><strong>Paid To:</strong> ${escapeHtml(item.paidTo || item.vendor || '-')}</p>
         `;
     }
 
@@ -3662,10 +3662,10 @@ function openQuickFillModal() {
     ];
 
     container.innerHTML = items.map(i => `
-        <button onclick="quickPayItem('${i.name}', ${i.amount}, '${i.paidTo}')" class="p-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-left transition flex items-center justify-between">
+        <button onclick="quickPayItem(${escapeHtml(JSON.stringify(i.name))}, ${i.amount}, ${escapeHtml(JSON.stringify(i.paidTo))})" class="p-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-left transition flex items-center justify-between">
             <div>
-                <span class="block font-black text-slate-900">${i.name}</span>
-                <span class="text-xs text-slate-500 font-semibold">${formatINR(i.amount)} &bull; ${i.paidTo}</span>
+                <span class="block font-black text-slate-900">${escapeHtml(i.name)}</span>
+                <span class="text-xs text-slate-500 font-semibold">${formatINR(i.amount)} &bull; ${escapeHtml(i.paidTo)}</span>
             </div>
             <i class="fa-solid fa-arrow-right text-indigo-600"></i>
         </button>
@@ -4061,7 +4061,7 @@ function renderAdminDirectoryUI() {
                     <td class="py-2.5 px-2.5 text-right">
                         <div class="flex items-center justify-end gap-1.5">
                             ${!isActive && userRole === 'ADMIN' ? `
-                                <button onclick="switchActiveHousehold('${h.householdId}')" class="px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-[11px] font-black rounded-lg transition" title="Switch active workspace to this household">
+                                <button onclick="switchActiveHousehold(${escapeHtml(JSON.stringify(h.householdId))})" class="px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-[11px] font-black rounded-lg transition" title="Switch active workspace to this household">
                                     Switch
                                 </button>
                             ` : ''}
@@ -4071,12 +4071,12 @@ function renderAdminDirectoryUI() {
                                 </span>
                             ` : ''}
                             ${userRole === 'ADMIN' || (userRole === 'OWNER' && isActive) ? `
-                                <button onclick="openEditHouseholdModal('${h.householdId}')" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Edit Household Details">
+                                <button onclick="openEditHouseholdModal(${escapeHtml(JSON.stringify(h.householdId))})" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Edit Household Details">
                                     <i class="fa-solid fa-pen-to-square text-xs"></i>
                                 </button>
                             ` : ''}
                             ${userRole === 'ADMIN' && h.householdId !== 'H001' ? `
-                                <button onclick="confirmDeleteHousehold('${h.householdId}', '${escapeHtml(h.householdName)}')" class="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Delete Household">
+                                <button onclick="confirmDeleteHousehold(${escapeHtml(JSON.stringify(h.householdId))}, ${escapeHtml(JSON.stringify(h.householdName))})" class="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Delete Household">
                                     <i class="fa-solid fa-trash text-xs"></i>
                                 </button>
                             ` : ''}
@@ -4108,7 +4108,7 @@ function renderAdminDirectoryUI() {
                     <td class="py-2 px-2.5">
                         <div class="flex items-center space-x-2">
                             <div class="w-6 h-6 rounded-md bg-slate-200 text-slate-700 font-black text-[10px] flex items-center justify-center shrink-0">
-                                ${(u.name || u.username).charAt(0).toUpperCase()}
+                                ${escapeHtml((u.name || u.username).charAt(0).toUpperCase())}
                             </div>
                             <div>
                                 <span class="font-bold text-slate-900 block truncate max-w-[100px] sm:max-w-[120px]">${escapeHtml(u.name)}</span>
@@ -4120,7 +4120,7 @@ function renderAdminDirectoryUI() {
                         <span class="text-[11px] font-medium text-slate-600 block truncate max-w-[110px]">${escapeHtml(u.householdName || u.householdId)}</span>
                     </td>
                     <td class="py-2 px-2.5 text-center">
-                        <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${roleBadgeClass}">${u.role}</span>
+                        <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${roleBadgeClass}">${escapeHtml(u.role)}</span>
                     </td>
                     <td class="py-2 px-2.5 text-center">
                         <span class="text-[10px] font-bold ${u.status === 'disabled' ? 'text-rose-500' : 'text-emerald-600'}">${u.status === 'disabled' ? 'Disabled' : 'Active'}</span>
@@ -4128,12 +4128,12 @@ function renderAdminDirectoryUI() {
                     <td class="py-2 px-2.5 text-right">
                         <div class="flex items-center justify-end gap-1.5">
                             ${canEditUser ? `
-                                <button onclick="openEditUserModal('${u.userId}')" class="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition" title="Edit User & Permissions">
+                                <button onclick="openEditUserModal(${escapeHtml(JSON.stringify(u.userId))})" class="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition" title="Edit User & Permissions">
                                     <i class="fa-solid fa-user-pen text-xs"></i>
                                 </button>
                             ` : ''}
                             ${canDeleteUser ? `
-                                <button onclick="confirmDeleteUser('${u.userId}', '${escapeHtml(u.username)}')" class="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Delete User Account">
+                                <button onclick="confirmDeleteUser(${escapeHtml(JSON.stringify(u.userId))}, ${escapeHtml(JSON.stringify(u.username))})" class="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Delete User Account">
                                     <i class="fa-solid fa-trash text-xs"></i>
                                 </button>
                             ` : ''}

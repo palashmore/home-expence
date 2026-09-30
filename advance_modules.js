@@ -11,6 +11,10 @@
  */
 
 (function () {
+  // Every user-supplied string rendered into innerHTML goes through this.
+  // Defined first so it is available to every renderer in this module.
+  const esc = (v) => (window.escapeHtml ? window.escapeHtml(v) : String(v == null ? '' : v));
+
   'use strict';
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -279,7 +283,7 @@
       warningBox.innerHTML = `
         <div class="flex items-center gap-1.5 text-amber-800">
           <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
-          <span><strong>Potential Duplicate Detected:</strong> A payment of <strong>₹${amount.toLocaleString('en-IN')}</strong> to <em>"${dup.paidTo}"</em> was already recorded on <strong>${dup.date}</strong> (within 24 hrs). Check to prevent duplicate entry.</span>
+          <span><strong>Potential Duplicate Detected:</strong> A payment of <strong>₹${amount.toLocaleString('en-IN')}</strong> to <em>"${esc(dup.paidTo)}"</em> was already recorded on <strong>${esc(dup.date)}</strong> (within 24 hrs). Check to prevent duplicate entry.</span>
         </div>
       `;
       return;
@@ -350,7 +354,7 @@
       badge.textContent = `${duplicates.length} Alert${duplicates.length > 1 ? 's' : ''}`;
       listContent.innerHTML = duplicates.map(d => `
         <div class="flex items-center gap-2">
-          <span>• Potential duplicate entry: <strong>₹${Number(d.exp2.amount).toLocaleString('en-IN')}</strong> to <em>${d.exp2.paidTo}</em> on ${d.exp2.date}.</span>
+          <span>• Potential duplicate entry: <strong>₹${Number(d.exp2.amount).toLocaleString('en-IN')}</strong> to <em>${esc(d.exp2.paidTo)}</em> on ${d.exp2.date}.</span>
         </div>
       `).join('');
     } else {
@@ -683,7 +687,7 @@
 
     container.innerHTML = chips.map(c => `
       <button type="button" onclick="setSettleAmount(${c.val})" class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 transition active:scale-95">
-        ${c.label}
+        ${esc(c.label)}
       </button>
     `).join('');
   };
@@ -1380,10 +1384,10 @@
             <tbody class="divide-y divide-slate-100">
               ${topTxs.map(t => `
                 <tr>
-                  <td class="py-1 text-slate-600">${t.date}</td>
-                  <td class="py-1 font-semibold text-slate-900">${t.paidTo || t.vendor || '-'}</td>
-                  <td class="py-1 text-slate-600">${t.category || '-'}</td>
-                  <td class="py-1 text-slate-600">${t.paidBy || '-'}</td>
+                  <td class="py-1 text-slate-600">${esc(t.date)}</td>
+                  <td class="py-1 font-semibold text-slate-900">${esc(t.paidTo || t.vendor || '-')}</td>
+                  <td class="py-1 text-slate-600">${esc(t.category || '-')}</td>
+                  <td class="py-1 text-slate-600">${esc(t.paidBy || '-')}</td>
                   <td class="py-1 text-right font-black text-slate-900">₹${Number(t.amount).toLocaleString('en-IN')}</td>
                 </tr>
               `).join('')}
@@ -1737,7 +1741,7 @@
         const colorClass = chipColors[idx % chipColors.length];
         const isSelected = (typeof dashboardFilters !== 'undefined' && dashboardFilters.paidBy === m);
         const activeClass = isSelected ? 'ring-2 ring-indigo-500 font-black' : '';
-        return `<button onclick="quickFilterPaidBy('${m}')" class="quick-chip px-2.5 py-1 rounded-lg font-bold ${colorClass} ${activeClass} border transition shadow-xs text-xs">${icon} ${m}</button>`;
+        return `<button onclick="quickFilterPaidBy(${esc(JSON.stringify(m))})" class="quick-chip px-2.5 py-1 rounded-lg font-bold ${colorClass} ${activeClass} border transition shadow-xs text-xs">${icon} ${m}</button>`;
       }).join('');
     }
 
@@ -1803,7 +1807,7 @@
       if (attSelect) {
         const currentVal = attSelect.value;
         attSelect.innerHTML = config.staff.filter(s => s.active !== false).map(s => 
-          `<option value="${s.name}">${s.name} (${s.role || s.shortName})</option>`
+          `<option value="${s.name}">${s.name} (${esc(s.role || s.shortName)})</option>`
         ).join('');
         if (currentVal && config.staff.some(s => s.name === currentVal)) {
           attSelect.value = currentVal;
@@ -2142,7 +2146,6 @@
   // substituting a plausible-looking default. A silent `|| 0` or `|| 30` writes
   // a number nobody chose straight into the household's records.
 
-  const esc = (v) => (window.escapeHtml ? window.escapeHtml(v) : String(v == null ? '' : v));
 
   function indexById(list) {
     const out = {};
@@ -3301,8 +3304,8 @@
       let contextHtml = '<span class="text-slate-400 text-xs">—</span>';
       if (meta.amount || meta.category) {
         contextHtml = `
-          <div class="font-black text-slate-900 text-xs">${meta.amount ? '₹' + Number(meta.amount).toLocaleString('en-IN') : ''} <span class="font-normal text-slate-500">(${meta.category || 'General'})</span></div>
-          <div class="text-[10px] text-slate-500">Paid: <strong class="text-slate-700">${meta.paidBy || '—'}</strong>${meta.splitBetween ? ' • <span class="text-purple-700 font-semibold">' + meta.splitBetween + '</span>' : ''}</div>
+          <div class="font-black text-slate-900 text-xs">${meta.amount ? '₹' + Number(meta.amount).toLocaleString('en-IN') : ''} <span class="font-normal text-slate-500">(${esc(meta.category || 'General')})</span></div>
+          <div class="text-[10px] text-slate-500">Paid: <strong class="text-slate-700">${esc(meta.paidBy || '—')}</strong>${esc(meta.splitBetween ? ' • <span class="text-purple-700 font-semibold">' + meta.splitBetween + '</span>' : '')}</div>
         `;
       } else if (item.action === 'UPDATE_CONFIG') {
         contextHtml = '<div class="font-bold text-purple-700 text-xs">Master Settings</div><div class="text-[10px] text-slate-500">Configuration & Rules</div>';
@@ -3378,7 +3381,7 @@
               <div class="flex items-center gap-2">
                 <span class="text-[11px] font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">${relTime}</span>
                 <span class="text-xs text-slate-400 font-medium">${fullTime}</span>
-                <button onclick="window.toggleAuditInspect('${timelineInspectId}')" class="p-1 px-2.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition text-[11px] font-bold" title="Inspect Raw Payload">
+                <button onclick="window.toggleAuditInspect(${esc(JSON.stringify(timelineInspectId))})" class="p-1 px-2.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition text-[11px] font-bold" title="Inspect Raw Payload">
                   <i class="fa-solid fa-code mr-1"></i>Inspect
                 </button>
               </div>
@@ -3418,7 +3421,7 @@
           <td class="py-3 px-3 min-w-[150px]">${contextHtml}</td>
           <td class="py-3 px-4">${changeHtml}</td>
           <td class="py-3 px-3 text-center whitespace-nowrap">
-            <button onclick="window.toggleAuditInspect('${tableInspectId}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition" title="Inspect Raw Payload">
+            <button onclick="window.toggleAuditInspect(${esc(JSON.stringify(tableInspectId))})" class="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition" title="Inspect Raw Payload">
               <i class="fa-solid fa-code text-xs"></i>
             </button>
           </td>
@@ -3599,7 +3602,7 @@
       const isActive = (currentPersonalFilter === m);
       const cls = isActive ? 'bg-purple-600 text-white shadow-sm font-black' : 'text-slate-300 hover:text-white font-semibold';
       html += `
-        <button onclick="setPersonalViewFilter('${m}')" id="btnPersonalFilter_${m.replace(/\s+/g, '_')}" class="px-3 py-1.5 rounded-lg transition ${cls}">
+        <button onclick="setPersonalViewFilter(${esc(JSON.stringify(m))})" id="btnPersonalFilter_${m.replace(/\s+/g, '_')}" class="px-3 py-1.5 rounded-lg transition ${cls}">
           ${icon} ${m} Only
         </button>
       `;
@@ -4056,8 +4059,8 @@
       const payer = getPersonalPayer(item);
       const isSecondMember = members.length > 1 && payer.toLowerCase() === (members[1] || '').toLowerCase();
       const badge = isSecondMember
-        ? `<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-black bg-pink-50 text-pink-700 border border-pink-200">${payer.toLowerCase().includes('pallavi') ? '🌸' : '👤'} ${payer}</span>`
-        : `<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">👤 ${payer}</span>`;
+        ? `<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-black bg-pink-50 text-pink-700 border border-pink-200">${esc(payer.toLowerCase().includes('pallavi') ? '🌸' : '👤')} ${esc(payer)}</span>`
+        : `<span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">👤 ${esc(payer)}</span>`;
 
       const d = item.date ? new Date(item.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 
@@ -4065,15 +4068,15 @@
         <tr class="hover:bg-purple-50/40 transition">
           <td class="py-2.5 px-3 whitespace-nowrap text-slate-600 font-semibold">${d}</td>
           <td class="py-2.5 px-3 whitespace-nowrap">${badge}</td>
-          <td class="py-2.5 px-3 font-bold text-slate-900">${item.category || '-'}</td>
-          <td class="py-2.5 px-3 text-slate-500 text-[11px]">${item.paymentMethod || 'UPI / Cash'}</td>
-          <td class="py-2.5 px-3 text-slate-600 max-w-[200px] truncate" title="${item.notes || item.description || item.paidTo || ''}">${item.notes || item.description || item.paidTo || '-'}</td>
+          <td class="py-2.5 px-3 font-bold text-slate-900">${esc(item.category || '-')}</td>
+          <td class="py-2.5 px-3 text-slate-500 text-[11px]">${esc(item.paymentMethod || 'UPI / Cash')}</td>
+          <td class="py-2.5 px-3 text-slate-600 max-w-[200px] truncate" title="${esc(item.notes || item.description || item.paidTo || '')}">${esc(item.notes || item.description || item.paidTo || '-')}</td>
           <td class="py-2.5 px-3 text-right font-black text-purple-900 font-mono text-sm">${window.formatINR ? window.formatINR(item.amount) : '₹' + item.amount.toLocaleString('en-IN')}</td>
           <td class="py-2.5 px-3 text-center whitespace-nowrap">
-            <button onclick="editExpense('${item.id}')" class="p-1 text-slate-400 hover:text-indigo-600 transition" title="Edit expense">
+            <button onclick="editExpense(${esc(JSON.stringify(item.id))})" class="p-1 text-slate-400 hover:text-indigo-600 transition" title="Edit expense">
               <i class="fa-solid fa-pen-to-square"></i>
             </button>
-            <button onclick="deleteExpense('${item.id}')" class="p-1 ml-1 text-slate-400 hover:text-rose-600 transition" title="Delete expense">
+            <button onclick="deleteExpense(${esc(JSON.stringify(item.id))})" class="p-1 ml-1 text-slate-400 hover:text-rose-600 transition" title="Delete expense">
               <i class="fa-solid fa-trash"></i>
             </button>
           </td>
@@ -4178,7 +4181,7 @@
               <td class="py-2.5 px-3 whitespace-nowrap">${badge}</td>
               <td class="py-2.5 px-3 text-slate-500 font-mono">${sizeKb}</td>
               <td class="py-2.5 px-3 text-right whitespace-nowrap">
-                <button onclick="restoreSnapshotPrompt('${s.filename}')" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-lg text-[11px] transition shadow-xs inline-flex items-center space-x-1">
+                <button onclick="restoreSnapshotPrompt(${esc(JSON.stringify(s.filename))})" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-lg text-[11px] transition shadow-xs inline-flex items-center space-x-1">
                   <i class="fa-solid fa-clock-rotate-left"></i>
                   <span>Restore</span>
                 </button>
@@ -4911,18 +4914,18 @@
         <div class="p-3 rounded-2xl border ${borderClass} space-y-2 text-xs">
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-start space-x-2.5">
-              <span class="text-lg shrink-0">${item.icon}</span>
+              <span class="text-lg shrink-0">${esc(item.icon)}</span>
               <div>
-                <div class="font-black text-slate-900 leading-tight">${item.title}</div>
-                <div class="text-[11px] text-slate-600 font-medium mt-0.5">${item.description}</div>
+                <div class="font-black text-slate-900 leading-tight">${esc(item.title)}</div>
+                <div class="text-[11px] text-slate-600 font-medium mt-0.5">${esc(item.description)}</div>
               </div>
             </div>
-            <button onclick="dismissNotificationItem('${item.id}')" class="text-slate-400 hover:text-slate-600 p-1 text-xs" title="Dismiss">
+            <button onclick="dismissNotificationItem(${esc(JSON.stringify(item.id))})" class="text-slate-400 hover:text-slate-600 p-1 text-xs" title="Dismiss">
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
           <div class="flex justify-end space-x-2 pt-1">
-            <button onclick="triggerNotificationAction('${item.id}')" class="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-[11px] shadow-xs transition">
+            <button onclick="triggerNotificationAction(${esc(JSON.stringify(item.id))})" class="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-[11px] shadow-xs transition">
               ${item.actionLabel}
             </button>
           </div>

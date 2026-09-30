@@ -728,6 +728,206 @@ def audit_rename_flows(page, audit, api):
     page.evaluate("closeAdminEditCategoryModal()")
 
 
+def audit_expense_round_trip(page, audit, api):
+    """Section D, row 1: the flow the owner uses every day. Every field must be
+    enterable on a phone, saved exactly, visible in the API, still right after a
+    reload, pre-filled on edit, changeable, and correct after a second save."""
+    print("\n[D] expense round-trip through the mobile UI")
+    goto_tab(page, "expenses")
+    page.wait_for_timeout(800)
+
+    cfg = read_config(api)
+    categories = [c["name"] for c in (cfg.get("categories") or [])]
+    members = cfg.get("familyMembers") or []
+    methods = cfg.get("paymentMethods") or []
+    if not (categories and members and methods):
+        audit.record("D expense round-trip", False,
+                     "household config has no categories/members/payment methods")
+        return
+
+    # Deliberately awkward values: paise, an apostrophe, and an amount that the
+    # old step attributes would have rejected outright.
+    # Today's date: the ledger filters by the active period, so a record dated
+    # months back would legitimately not be listed and the reload check below
+    # would prove nothing.
+    today = page.evaluate("() => new Date().toISOString().slice(0, 10)")
+    first = {
+        "date": today,
+        "amount": "2805.55",
+        "category": categories[0],
+        "paidBy": members[0],
+        "paidTo": "O'Brien & Co <QA>",
+        "paymentMethod": methods[0],
+        "notes": 'Audit round-trip "quoted" & <tagged>',
+    }
+
+    page.evaluate("openExpenseModal()")
+    page.wait_for_timeout(700)
+    audit.record(
+        "D the expense form opens on a phone viewport",
+        page.is_visible("#inputAmount"),
+        "amount field is not visible after opening the form",
+    )
+
+    def fill_form(values):
+        page.fill("#inputDate", values["date"])
+        page.fill("#inputAmount", values["amount"])
+        page.select_option("#inputCategory", values["category"])
+        page.select_option("#inputPaidBy", values["paidBy"])
+        page.fill("#inputPaidTo", values["paidTo"])
+        page.select_option("#inputPaymentMethod", values["paymentMethod"])
+        page.fill("#inputNotes", values["notes"])
+
+    fill_form(first)
+
+    audit.record(
+        "D the amount field accepts paise",
+        page.evaluate("() => document.getElementById('inputAmount').checkValidity()"),
+        page.evaluate("() => document.getElementById('inputAmount').validationMessage"),
+    )
+
+    page.evaluate("""() => {
+        const f = document.getElementById('expenseForm');
+        f.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
+    }""")
+    page.wait_for_timeout(2500)
+
+    def find_saved(marker):
+        res = api("GET", "/api/expenses")
+        rows = [e for e in (res.get("data") or [])
+                if not e.get("isDeleted") and marker in str(e.get("notes", ""))]
+        return rows[0] if rows else None
+
+    saved = find_saved("Audit round-trip")
+    audit.record("D the expense is saved and visible in the API", saved is not None,
+                 "no expense with the audit marker came back from /api/expenses")
+    if not saved:
+        return
+
+    audit.record(
+        "D the amount is stored as an exact number, not a formatted string",
+        saved.get("amount") == 2805.55 and isinstance(saved.get("amount"), (int, float)),
+        f"amount is {saved.get('amount')!r} ({type(saved.get('amount')).__name__})",
+    )
+    for field, want in (("category", first["category"]),
+                        ("paidBy", first["paidBy"]),
+                        ("paymentMethod", first["paymentMethod"])):
+        audit.record(f"D {field} is stored as entered",
+                     saved.get(field) == want,
+                     f"{field} is {saved.get(field)!r}, expected {want!r}")
+    audit.record(
+        "D paidTo keeps punctuation exactly as typed",
+        saved.get("paidTo") == first["paidTo"] or saved.get("vendor") == first["paidTo"],
+        f"paidTo={saved.get('paidTo')!r} vendor={saved.get('vendor')!r}",
+    )
+    audit.record(
+        "D the date is stored as entered",
+        str(saved.get("date", "")).startswith(today),
+        f"date is {saved.get('date')!r}",
+    )
+
+    expense_id = saved["id"]
+
+    # --- survives a reload, and the ledger does not execute the notes --------
+    reload_app(page)
+    goto_tab(page, "expenses")
+    page.wait_for_timeout(1200)
+
+    audit.record(
+        "D the new expense is listed after a reload",
+        page.evaluate("(id) => !!document.querySelector(`[data-expense-id='${id}'], [data-id='${id}']`) "
+                      "|| document.body.innerText.includes('Audit round-trip')", expense_id),
+        "the saved expense is not on screen after reloading",
+    )
+    audit.record(
+        "D user text is escaped, not rendered as markup",
+        page.evaluate("""() => document.querySelectorAll('tagged, injected').length === 0"""),
+        "a tag typed into notes became a real element - unescaped interpolation",
+    )
+    audit.record(
+        "D the escaped text is still displayed correctly to the user",
+        page.evaluate("() => document.body.innerText.includes('<tagged>')"),
+        "the notes text is not shown, or was mangled by escaping",
+    )
+
+    # --- re-open pre-filled --------------------------------------------------
+    page.evaluate("(id) => (window.editExpense || window.openExpenseModal)(id)", expense_id)
+    page.wait_for_timeout(1000)
+    prefill = page.evaluate("""() => ({
+        amount: document.getElementById('inputAmount').value,
+        category: document.getElementById('inputCategory').value,
+        paidBy: document.getElementById('inputPaidBy').value,
+        paidTo: document.getElementById('inputPaidTo').value,
+        notes: document.getElementById('inputNotes').value,
+        date: document.getElementById('inputDate').value
+    })""")
+    audit.record(
+        "D editing pre-fills every field from the stored record",
+        (Number(prefill["amount"]) == 2805.55
+         and prefill["category"] == first["category"]
+         and prefill["paidBy"] == first["paidBy"]
+         and prefill["paidTo"] == first["paidTo"]
+         and first["notes"] in prefill["notes"]
+         and prefill["date"] == first["date"]),
+        f"form shows {prefill}",
+    )
+
+    # --- change and save again ----------------------------------------------
+    second = dict(first)
+    second["amount"] = "199.05"
+    second["category"] = categories[1] if len(categories) > 1 else categories[0]
+    second["paidBy"] = members[1] if len(members) > 1 else members[0]
+    second["paidTo"] = "Second Vendor"
+    second["notes"] = "Audit round-trip second save"
+    fill_form(second)
+    page.evaluate("""() => {
+        const f = document.getElementById('expenseForm');
+        f.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
+    }""")
+    page.wait_for_timeout(2500)
+
+    res = api("GET", "/api/expenses")
+    again = next((e for e in (res.get("data") or []) if e.get("id") == expense_id), None)
+    audit.record("D the edited expense still exists under the same id", again is not None,
+                 "the record disappeared after the second save")
+    if again:
+        audit.record(
+            "D the second save stores the changed amount exactly",
+            again.get("amount") == 199.05,
+            f"amount is {again.get('amount')!r}, expected 199.05",
+        )
+        audit.record(
+            "D the second save stores the changed category",
+            again.get("category") == second["category"],
+            f"category is {again.get('category')!r}, expected {second['category']!r}",
+        )
+        audit.record(
+            "D editing does not create a duplicate record",
+            len([e for e in (res.get("data") or [])
+                 if not e.get("isDeleted") and "Audit round-trip" in str(e.get("notes", ""))]) == 1,
+            "more than one expense carries the audit marker",
+        )
+
+    # --- clean up: soft-delete the fixture ----------------------------------
+    api("DELETE", f"/api/expenses?id={quote(expense_id)}")
+    page.wait_for_timeout(800)
+    res2 = api("GET", "/api/expenses")
+    leftover = [e for e in (res2.get("data") or [])
+                if not e.get("isDeleted") and "Audit round-trip" in str(e.get("notes", ""))]
+    audit.record(
+        "D deleting the expense removes it from the active ledger",
+        len(leftover) == 0,
+        f"{len(leftover)} audit expense(s) still active after delete",
+    )
+
+
+def Number(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--headed", action="store_true")
@@ -782,7 +982,8 @@ def main():
         for fn, label in ((audit_staff_shortname, "C2 staff round-trip"),
                           (audit_no_silent_defaults, "C3 blank fields blocked"),
                           (audit_unsaved_guard, "C5 unsaved-changes guard"),
-                          (audit_rename_flows, "D rename round-trip")):
+                          (audit_rename_flows, "D rename round-trip"),
+                          (audit_expense_round_trip, "D expense round-trip")):
             try:
                 fn(page, audit, api)
             except Exception as e:

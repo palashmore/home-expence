@@ -51,6 +51,9 @@ class Audit:
         # None everywhere else, where a dialog is a bug. Exactly one handler
         # answers every dialog - leaving one unanswered hangs the page.
         self.dialog_action = None
+        # True only while the logout test has deliberately ended the session,
+        # where "Unauthorized" from the app is the correct behaviour.
+        self.signed_out_on_purpose = False
 
     def record(self, name, ok, detail=""):
         self.checks.append({"name": name, "ok": bool(ok), "detail": detail})
@@ -82,6 +85,10 @@ def attach_listeners(page, audit):
             # Browser policy notice, not an app fault: Chrome refuses vibrate()
             # until the frame has had a real tap. A phone user always has.
             if "navigator.vibrate" in text:
+                return
+            # While the logout test has the session deliberately ended, the app
+            # is supposed to be refused by the API. Anywhere else this counts.
+            if audit.signed_out_on_purpose and ("Unauthorized" in text or "401" in text):
                 return
             audit.console_errors.append(text)
 
@@ -989,6 +996,90 @@ def Number(v):
         return None
 
 
+def audit_logout(page, audit, api):
+    """Section E: signing out must actually end the session. A token left in
+    localStorage, or household data still cached after logout, means the next
+    person to pick up the phone can reach it."""
+    print("\n[E] logout clears the session and cached household data")
+
+    before = page.evaluate("() => !!localStorage.getItem('household_auth_token')")
+    audit.record("E a session token exists while signed in", before,
+                 "no token in localStorage even though the app is signed in")
+
+    audit.dialog_action = "accept"        # some builds confirm the sign-out
+    audit.signed_out_on_purpose = True
+    try:
+        page.evaluate("() => (window.signOut ? window.signOut() : null)")
+        page.wait_for_timeout(2000)
+    finally:
+        audit.dialog_action = None
+
+    state = page.evaluate("""() => {
+        const keys = Object.keys(localStorage);
+        return {
+            token: localStorage.getItem('household_auth_token'),
+            loginVisible: !!document.querySelector('#loginForm') &&
+                          !document.querySelector('#loginForm').closest('.hidden'),
+            // The offline queue holds the owner's own unsent entries and no
+            // server data; the theme is a device preference. Everything else
+            // under these prefixes is cached household data.
+            residualKeys: keys.filter(k => /expense|household|config|master/i.test(k)
+                                           && k !== 'homeexpenses_offline_queue'
+                                           && k !== 'household_app_theme')
+        };
+    }""")
+
+    audit.record(
+        "E signing out removes the auth token from localStorage",
+        not state["token"],
+        f"token still present after sign out: {str(state['token'])[:24]}...",
+    )
+    audit.record(
+        "E signing out returns the app to the login screen",
+        state["loginVisible"],
+        "the login form is not shown after signing out",
+    )
+    audit.record(
+        "E no household data is left cached in localStorage",
+        not state["residualKeys"],
+        f"left behind: {state['residualKeys']}",
+    )
+
+    # The API must reject the old token, not just hide it in the UI.
+    stale = page.evaluate("""async () => {
+        const r = await fetch('/api/expenses?_t=' + Date.now(), {cache: 'no-store'});
+        return r.status;
+    }""")
+    audit.record(
+        "E the API refuses requests once signed out",
+        stale in (401, 403),
+        f"/api/expenses returned {stale} after sign out",
+    )
+
+    # Going back must not re-expose the previous session's screens. If history
+    # has nowhere to go the browser lands on about:blank, where localStorage is
+    # inaccessible - that is not a finding, so treat it as "nothing exposed".
+    page.go_back()
+    page.wait_for_timeout(1500)
+    try:
+        after_back = page.evaluate("""() => ({
+            token: localStorage.getItem('household_auth_token'),
+            showsLedger: !!document.querySelector('#view-expenses:not(.hidden)'),
+            readable: true
+        })""")
+    except PWError:
+        after_back = {"token": None, "showsLedger": False, "readable": False}
+    audit.record(
+        "E the back button does not restore a signed-out session",
+        not after_back["token"] and not after_back["showsLedger"],
+        f"after going back: {after_back}",
+    )
+
+    # Leave the browser signed in again for anything that runs after this.
+    login(page)
+    audit.signed_out_on_purpose = False
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--headed", action="store_true")
@@ -1056,6 +1147,12 @@ def main():
             goto_tab(page, tab)
             audit_tap_targets(page, audit, tab)
             audit_no_overflow(page, audit, tab)
+
+        # Runs last: it ends the session, then signs back in.
+        try:
+            audit_logout(page, audit, api)
+        except Exception as e:
+            audit.record("E logout", False, f"audit error: {type(e).__name__}: {e}")
 
         print("\n[general] runtime health")
         audit.record(

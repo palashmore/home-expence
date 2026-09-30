@@ -1030,6 +1030,21 @@ function signOut() {
     localStorage.removeItem("household_auth_token");
     localStorage.removeItem("household_session_user");
 
+    // Clear every cached copy of household data, not just the token. Leaving
+    // the ledger, budgets and attendance in localStorage means the next person
+    // to pick up the phone can read the household's finances after a sign-out.
+    // The offline queue is deliberately kept: it holds the owner's own unsent
+    // entries, which would otherwise be lost, and carries no server data.
+    try {
+        const keep = new Set(['homeexpenses_offline_queue', 'household_app_theme']);
+        Object.keys(localStorage)
+            .filter(k => !keep.has(k) &&
+                /^(household_|homeexpenses_)/i.test(k))
+            .forEach(k => localStorage.removeItem(k));
+    } catch (e) {
+        console.warn('Sign out: could not fully clear cached data:', e.message);
+    }
+
     fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

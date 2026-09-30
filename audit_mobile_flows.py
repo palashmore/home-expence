@@ -54,6 +54,9 @@ class Audit:
         # True only while the logout test has deliberately ended the session,
         # where "Unauthorized" from the app is the correct behaviour.
         self.signed_out_on_purpose = False
+        # True only while the sync test deliberately sends an outdated write,
+        # where a 409 from the server is the behaviour being verified.
+        self.expecting_conflict = False
 
     def record(self, name, ok, detail=""):
         self.checks.append({"name": name, "ok": bool(ok), "detail": detail})
@@ -89,6 +92,8 @@ def attach_listeners(page, audit):
             # While the logout test has the session deliberately ended, the app
             # is supposed to be refused by the API. Anywhere else this counts.
             if audit.signed_out_on_purpose and ("Unauthorized" in text or "401" in text):
+                return
+            if audit.expecting_conflict and "409" in text:
                 return
             audit.console_errors.append(text)
 
@@ -1080,6 +1085,476 @@ def audit_logout(page, audit, api):
     audit.signed_out_on_purpose = False
 
 
+def make_api(page):
+    """Bind an API caller to one page's session."""
+    def api(method, path, body=None):
+        return page.evaluate(
+            """async ([m, p, b]) => {
+                const t = localStorage.getItem('household_auth_token');
+                const r = await fetch(p + (p.includes('?') ? '&' : '?') + '_t=' + Date.now(), {
+                    method: m,
+                    headers: {'Content-Type': 'application/json',
+                              'Authorization': 'Bearer ' + t},
+                    body: b ? JSON.stringify(b) : undefined
+                });
+                try { return await r.json(); } catch (e) { return {status: r.status}; }
+            }""",
+            [method, path, body],
+        )
+    return api
+
+
+def audit_two_device_sync(browser, audit):
+    """Section E: two devices in the same household, each in its own browser
+    context with its own storage and session - the real situation when the owner
+    uses a phone and a laptop. BroadcastChannel does not cross contexts, so this
+    exercises the polling/visibility path that a second device actually relies on.
+    """
+    print("\n[E] two-device sync within a household")
+
+    ctx_a = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+    ctx_b = browser.new_context(viewport={"width": 1280, "height": 900})
+    page_a = ctx_a.new_page()          # phone, owner
+    page_b = ctx_b.new_page()          # laptop, second member of H001
+    attach_listeners(page_a, audit)
+    attach_listeners(page_b, audit)
+
+    try:
+        login(page_a, "palash", "Household123!")
+        login(page_b, "pallavi", "Household123!")
+        api_a = make_api(page_a)
+        api_b = make_api(page_b)
+
+        audit.record(
+            "E both devices are signed into the same household",
+            (page_a.evaluate("() => (window.currentSessionUser||{}).householdId")
+             == page_b.evaluate("() => (window.currentSessionUser||{}).householdId")
+             == "H001"),
+            "the two sessions are not both in H001",
+        )
+
+        # --- device A creates an expense through the UI ---------------------
+        today = page_a.evaluate("() => new Date().toISOString().slice(0, 10)")
+        cfg = read_config(api_a)
+        category = (cfg.get("categories") or [{}])[0].get("name")
+        member = (cfg.get("familyMembers") or ["Palash"])[0]
+        method = (cfg.get("paymentMethods") or ["UPI"])[0]
+
+        marker = "Two-device sync probe"
+        page_a.evaluate("openExpenseModal()")
+        page_a.wait_for_timeout(700)
+        page_a.fill("#inputDate", today)
+        page_a.fill("#inputAmount", "3456.78")
+        page_a.select_option("#inputCategory", category)
+        page_a.select_option("#inputPaidBy", member)
+        page_a.fill("#inputPaidTo", "Device A Vendor")
+        page_a.select_option("#inputPaymentMethod", method)
+        page_a.fill("#inputNotes", marker)
+        page_a.evaluate("""() => document.getElementById('expenseForm')
+            .dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}))""")
+        page_a.wait_for_timeout(2500)
+
+        created = [e for e in (api_a("GET", "/api/expenses").get("data") or [])
+                   if not e.get("isDeleted") and marker in str(e.get("notes", ""))]
+        audit.record("E device A can create an expense", len(created) == 1,
+                     f"{len(created)} matching expenses after the save")
+        if len(created) != 1:
+            return
+        expense_id = created[0]["id"]
+
+        # --- device B must see it without a manual reload --------------------
+        # Poll is 7s; a focus event also triggers a refresh, which is what
+        # happens when the owner picks the other device up.
+        page_b.bring_to_front()
+        page_b.evaluate("() => window.dispatchEvent(new Event('focus'))")
+        page_b.wait_for_timeout(3000)
+
+        seen_b = page_b.evaluate(
+            """(id) => {
+                const list = window.expensesData || window.expenses || [];
+                return list.some(e => e && e.id === id && !e.isDeleted);
+            }""",
+            expense_id,
+        )
+        audit.record(
+            "E device B sees device A's new expense after a refresh trigger",
+            seen_b,
+            "the second device's in-memory ledger does not contain the new record",
+        )
+        audit.record(
+            "E device B reads the same amount",
+            any(e.get("id") == expense_id and e.get("amount") == 3456.78
+                for e in (api_b("GET", "/api/expenses").get("data") or [])),
+            "device B's API response has a different amount",
+        )
+
+        # --- device B edits, device A must pick it up ------------------------
+        edited = dict(created[0])
+        edited["amount"] = 4567.89
+        edited["paidTo"] = "Device B Vendor"
+        api_b("POST", "/api/expenses", edited)
+        page_a.wait_for_timeout(500)
+        page_a.evaluate("() => window.dispatchEvent(new Event('focus'))")
+        page_a.wait_for_timeout(3000)
+
+        a_amount = page_a.evaluate(
+            """(id) => {
+                const list = window.expensesData || window.expenses || [];
+                const hit = list.find(e => e && e.id === id);
+                return hit ? hit.amount : null;
+            }""",
+            expense_id,
+        )
+        audit.record(
+            "E device A picks up device B's edit",
+            a_amount == 4567.89,
+            f"device A still shows {a_amount!r}, expected 4567.89",
+        )
+
+        # --- a stale write must be refused, not silently overwrite -----------
+        stale = dict(created[0])           # still carries the pre-edit version
+        stale["amount"] = 1.0
+        stale["paidTo"] = "Stale Overwrite"
+        audit.expecting_conflict = True
+        try:
+            res = api_a("POST", "/api/expenses", stale)
+        finally:
+            audit.expecting_conflict = False
+        conflict = (res.get("status") == 409) or (res.get("success") is False)
+        audit.record(
+            "E a stale edit is refused rather than silently overwriting",
+            conflict,
+            f"the outdated write was accepted: {str(res)[:140]}",
+        )
+        current = next((e for e in (api_b("GET", "/api/expenses").get("data") or [])
+                        if e.get("id") == expense_id), {})
+        audit.record(
+            "E the newer value survives the stale write",
+            current.get("amount") == 4567.89,
+            f"stored amount is now {current.get('amount')!r}, expected 4567.89",
+        )
+
+        # --- delete on one device disappears on the other --------------------
+        api_b("DELETE", f"/api/expenses?id={quote(expense_id)}")
+        page_a.wait_for_timeout(500)
+        page_a.evaluate("() => window.dispatchEvent(new Event('focus'))")
+        page_a.wait_for_timeout(3000)
+        gone = page_a.evaluate(
+            """(id) => {
+                const list = window.expensesData || window.expenses || [];
+                return !list.some(e => e && e.id === id && !e.isDeleted);
+            }""",
+            expense_id,
+        )
+        audit.record(
+            "E a delete on one device clears it on the other",
+            gone,
+            "device A still shows the deleted expense as active",
+        )
+
+        # --- tenant isolation across devices ---------------------------------
+        ctx_c = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+        page_c = ctx_c.new_page()
+        try:
+            login(page_c, "sanjay", "Household123!")          # owner of H002
+            api_c = make_api(page_c)
+            other = api_c("GET", "/api/expenses").get("data") or []
+            audit.record(
+                "E a device in another household never receives H001 records",
+                all(e.get("id") != expense_id for e in other),
+                "an H002 session can see an H001 expense",
+            )
+        finally:
+            ctx_c.close()
+
+    finally:
+        ctx_a.close()
+        ctx_b.close()
+
+
+def audit_admin_management(browser, audit):
+    """Section D/E: creating and editing households and users through the real
+    admin UI on a phone - not through the API the existing suites already cover.
+    Every change is verified against the API and by signing in as the user."""
+    print("\n[E] admin household and user management through the UI")
+
+    ctx = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+    page = ctx.new_page()
+    attach_listeners(page, audit)
+    stamp = str(int(time.time()))[-6:]
+    new_username = f"qa{stamp}"
+
+    try:
+        login(page, "admin", "Admin@123")
+        api = make_api(page)
+        audit.record(
+            "E the admin signs in as SYSTEM_ADMIN",
+            page.evaluate("() => (window.currentSessionUser||{}).role") == "SYSTEM_ADMIN",
+            "the admin session does not carry the SYSTEM_ADMIN role",
+        )
+
+        goto_tab(page, "admin")
+        page.wait_for_timeout(1500)
+
+        # The tenant-management card used to be gated on role === 'ADMIN', which
+        # hid it from SYSTEM_ADMIN entirely - the admin console was unreachable.
+        audit.record(
+            "E the tenant management card is visible to the admin",
+            page.evaluate("""() => {
+                const c = document.getElementById('adminTenantManagementCard');
+                return !!c && !c.classList.contains('hidden') && c.offsetHeight > 0;
+            }"""),
+            "the household/user management card is hidden from SYSTEM_ADMIN",
+        )
+        audit.record(
+            "E the admin directory is populated",
+            page.evaluate("""() => (typeof adminDirectoryData !== 'undefined'
+                && adminDirectoryData.households
+                && adminDirectoryData.households.length > 0)"""),
+            "adminDirectoryData.households is empty, so every row action is dead",
+        )
+
+        def overview():
+            return api("GET", "/api/auth?action=admin_overview")
+
+        # --- create a household ---------------------------------------------
+        before = overview()
+        page.evaluate("() => (window.openCreateHouseholdModal ? openCreateHouseholdModal() : null)")
+        page.wait_for_timeout(600)
+        household_name = f"QA Household {stamp}"
+        page.fill("#createHouseholdName", household_name)
+        page.fill("#createHouseholdBudget", "64250")     # would have failed the old step=1000 min=5000
+        page.evaluate("submitCreateHousehold()")
+        page.wait_for_timeout(2500)
+
+        after = overview()
+        made = next((h for h in (after.get("households") or [])
+                     if h.get("householdName") == household_name), None)
+        audit.record("E a household can be created from the admin UI", made is not None,
+                     f"no household named {household_name!r} after submitting")
+        audit.record(
+            "E the household count went up by exactly one",
+            len(after.get("households") or []) == len(before.get("households") or []) + 1,
+            f"{len(before.get('households') or [])} -> {len(after.get('households') or [])}",
+        )
+        if not made:
+            return
+        household_id = made.get("householdId")
+        # The budget lives in the household's own config, not on the household
+        # record in the directory listing.
+        new_cfg = api("GET", f"/api/config?householdId={quote(household_id)}")
+        new_budget = (new_cfg.get("data") or {}).get("monthlyBudgetLimit")
+        audit.record(
+            "E the household budget is stored exactly as entered",
+            new_budget == 64250,
+            f"stored budget is {new_budget!r}, expected 64250",
+        )
+
+        # --- edit the household ---------------------------------------------
+        page.evaluate("(id) => openEditHouseholdModal(id)", household_id)
+        page.wait_for_timeout(800)
+        audit.record(
+            "E the edit-household form is pre-filled",
+            page.input_value("#editHouseholdName") == household_name,
+            f"name field shows {page.input_value('#editHouseholdName')!r}",
+        )
+        # The budget shown must belong to THIS household. It used to be read
+        # from whichever household was active, so saving overwrote the target's
+        # budget with an unrelated number.
+        shown_budget = page.input_value("#editHouseholdBudget")
+        audit.record(
+            "E the edit form shows the budget of the household being edited",
+            Number(shown_budget) == 64250,
+            f"form shows {shown_budget!r}, but this household's budget is 64250",
+        )
+        renamed = f"{household_name} Renamed"
+        page.fill("#editHouseholdName", renamed)
+        page.fill("#editHouseholdBudget", "2805.5")
+        page.evaluate("submitEditHousehold()")
+        page.wait_for_timeout(2500)
+
+        edited = next((h for h in (overview().get("households") or [])
+                       if h.get("householdId") == household_id), {})
+        audit.record("E the household rename is saved", edited.get("householdName") == renamed,
+                     f"name is {edited.get('householdName')!r}")
+        edited_cfg = api("GET", f"/api/config?householdId={quote(household_id)}")
+        edited_budget = (edited_cfg.get("data") or {}).get("monthlyBudgetLimit")
+        audit.record(
+            "E the household budget accepts paise",
+            edited_budget == 2805.5,
+            f"budget is {edited_budget!r}, expected 2805.5",
+        )
+        # Editing one household must never disturb another's budget.
+        h001 = api("GET", "/api/config?householdId=H001")
+        audit.record(
+            "E editing one household leaves another household's budget alone",
+            (h001.get("data") or {}).get("monthlyBudgetLimit") != 2805.5,
+            "H001's budget changed while a different household was being edited",
+        )
+
+        # --- create a user in that household ---------------------------------
+        page.evaluate("() => (window.openCreateUserModal ? openCreateUserModal() : null)")
+        page.wait_for_timeout(800)
+        page.fill("#createUserName", f"QA User {stamp}")
+        page.fill("#createUserUsername", new_username)
+        page.fill("#createUserPassword", "QaUser@12345")
+        page.fill("#createUserEmail", f"{new_username}@example.test")
+        page.select_option("#createUserHouseholdSelect", household_id)
+        page.select_option("#createUserRoleSelect", "MEMBER")
+        page.evaluate("submitCreateUser()")
+        page.wait_for_timeout(2500)
+
+        made_user = next((u for u in (overview().get("users") or [])
+                          if u.get("username") == new_username), None)
+        audit.record("E a user can be created from the admin UI", made_user is not None,
+                     f"no user {new_username!r} in the admin overview")
+        if not made_user:
+            return
+        user_id = made_user.get("userId") or made_user.get("id")
+        audit.record("E the new user lands in the chosen household",
+                     made_user.get("householdId") == household_id,
+                     f"user household is {made_user.get('householdId')!r}, expected {household_id!r}")
+        audit.record("E the new user has the chosen role",
+                     made_user.get("role") == "MEMBER",
+                     f"role is {made_user.get('role')!r}")
+
+        # The user must actually be able to sign in, in their own context.
+        probe = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+        ppage = probe.new_page()
+        try:
+            login(ppage, new_username, "QaUser@12345")
+            audit.record(
+                "E the created user can sign in and is scoped to their household",
+                ppage.evaluate("() => (window.currentSessionUser||{}).householdId") == household_id,
+                "the new user signed in with the wrong household context",
+            )
+        except PWError as e:
+            audit.record("E the created user can sign in and is scoped to their household",
+                         False, f"login failed: {str(e)[:120]}")
+        finally:
+            probe.close()
+
+        # --- edit the user ----------------------------------------------------
+        page.evaluate("(id) => openEditUserModal(id)", user_id)
+        page.wait_for_timeout(800)
+        audit.record(
+            "E the edit-user form is pre-filled",
+            page.input_value("#editUserUsername") == new_username,
+            f"username field shows {page.input_value('#editUserUsername')!r}",
+        )
+        page.fill("#editUserName", f"QA User {stamp} Edited")
+        page.select_option("#editUserRoleSelect", "VIEWER")
+        page.evaluate("submitEditUser()")
+        page.wait_for_timeout(2500)
+
+        edited_user = next((u for u in (overview().get("users") or [])
+                            if (u.get("userId") or u.get("id")) == user_id), {})
+        audit.record("E the user's display name is updated",
+                     edited_user.get("name") == f"QA User {stamp} Edited",
+                     f"name is {edited_user.get('name')!r}")
+        audit.record("E the user's role is updated",
+                     edited_user.get("role") == "VIEWER",
+                     f"role is {edited_user.get('role')!r}")
+
+        # A VIEWER must be refused writes - the role change has to have teeth.
+        probe2 = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+        ppage2 = probe2.new_page()
+        try:
+            login(ppage2, new_username, "QaUser@12345")
+            papi = make_api(ppage2)
+            res = papi("POST", "/api/expenses", {
+                "date": ppage2.evaluate("() => new Date().toISOString().slice(0,10)"),
+                "amount": 10, "category": "Misc", "paidBy": "QA", "notes": "viewer write probe"
+            })
+            audit.record(
+                "E demoting a user to VIEWER actually blocks their writes",
+                res.get("success") is False or res.get("status") in (401, 403),
+                f"the VIEWER write was accepted: {str(res)[:120]}",
+            )
+        finally:
+            probe2.close()
+
+        # --- password reset ---------------------------------------------------
+        page.evaluate("(id) => openEditUserModal(id)", user_id)
+        page.wait_for_timeout(800)
+        page.fill("#editUserPassword", "QaReset@98765")
+        page.evaluate("submitEditUser()")
+        page.wait_for_timeout(2500)
+
+        probe3 = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+        ppage3 = probe3.new_page()
+        try:
+            login(ppage3, new_username, "QaReset@98765")
+            audit.record("E an admin password reset lets the user sign in with the new password",
+                         True)
+        except PWError as e:
+            audit.record("E an admin password reset lets the user sign in with the new password",
+                         False, f"login with the new password failed: {str(e)[:120]}")
+        finally:
+            probe3.close()
+
+        probe4 = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+        ppage4 = probe4.new_page()
+        try:
+            ppage4.goto(BASE_URL, wait_until="domcontentloaded")
+            ppage4.wait_for_selector("#loginForm", timeout=20000)
+            ppage4.fill("#loginUsername", new_username)
+            ppage4.fill("#loginPassword", "QaUser@12345")      # the old one
+            ppage4.click("#btnLoginSubmit")
+            ppage4.wait_for_timeout(2500)
+            still_in = ppage4.evaluate("() => !!localStorage.getItem('household_auth_token')")
+            audit.record("E the old password stops working after a reset", not still_in,
+                         "the previous password still signs the user in")
+        finally:
+            probe4.close()
+
+        # --- deactivate ---------------------------------------------------------
+        page.evaluate("(id) => openEditUserModal(id)", user_id)
+        page.wait_for_timeout(800)
+        page.select_option("#editUserStatusSelect", "disabled")
+        page.evaluate("submitEditUser()")
+        page.wait_for_timeout(2500)
+
+        deactivated = next((u for u in (overview().get("users") or [])
+                            if (u.get("userId") or u.get("id")) == user_id), {})
+        audit.record("E a user can be deactivated from the admin UI",
+                     deactivated.get("status") in ("disabled", "inactive"),
+                     f"status is {deactivated.get('status')!r}")
+
+        probe5 = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+        ppage5 = probe5.new_page()
+        try:
+            ppage5.goto(BASE_URL, wait_until="domcontentloaded")
+            ppage5.wait_for_selector("#loginForm", timeout=20000)
+            ppage5.fill("#loginUsername", new_username)
+            ppage5.fill("#loginPassword", "QaReset@98765")
+            ppage5.click("#btnLoginSubmit")
+            ppage5.wait_for_timeout(2500)
+            got_in = ppage5.evaluate("() => !!localStorage.getItem('household_auth_token')")
+            audit.record("E a deactivated user cannot sign in", not got_in,
+                         "a deactivated user was still able to sign in")
+        finally:
+            probe5.close()
+
+        # --- non-admins must not reach any of this ------------------------------
+        probe6 = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+        ppage6 = probe6.new_page()
+        try:
+            login(ppage6, "palash", "Household123!")          # OWNER, not admin
+            papi6 = make_api(ppage6)
+            ov = papi6("GET", "/api/auth?action=admin_overview")
+            audit.record(
+                "E a household owner cannot read the admin overview",
+                ov.get("success") is False or ov.get("status") in (401, 403),
+                f"an OWNER received the admin overview: {str(ov)[:120]}",
+            )
+        finally:
+            probe6.close()
+
+    finally:
+        ctx.close()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--headed", action="store_true")
@@ -1147,6 +1622,18 @@ def main():
             goto_tab(page, tab)
             audit_tap_targets(page, audit, tab)
             audit_no_overflow(page, audit, tab)
+
+        # Multi-context scenarios run in their own browser contexts, which are
+        # closed again afterwards.
+        try:
+            audit_two_device_sync(browser, audit)
+        except Exception as e:
+            audit.record("E two-device sync", False, f"audit error: {type(e).__name__}: {e}")
+
+        try:
+            audit_admin_management(browser, audit)
+        except Exception as e:
+            audit.record("E admin management", False, f"audit error: {type(e).__name__}: {e}")
 
         # Runs last: it ends the session, then signs back in.
         try:

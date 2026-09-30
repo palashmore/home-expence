@@ -894,7 +894,7 @@ function updateUserProfileUI() {
     // Restrict Section 0: Household & User Access Management STRICTLY to System Admin
     const adminCard = document.getElementById("adminTenantManagementCard");
     if (adminCard) {
-        if (currentSessionUser && currentSessionUser.role === 'ADMIN') {
+        if (isAdminRole(currentSessionUser && currentSessionUser.role)) {
             adminCard.classList.remove("hidden");
         } else {
             adminCard.classList.add("hidden");
@@ -3952,6 +3952,15 @@ window.updateGlobalsFromConfig = function(config) {
 // ============================================================
 // ADMIN CONSOLE: MULTI-HOUSEHOLD & USER DIRECTORY ENGINE
 // ============================================================
+// The seeded system administrator has the role SYSTEM_ADMIN, but several UI
+// checks tested only for 'ADMIN'. That hid the tenant-management card and its
+// row actions from the one account allowed to use them. This mirrors what the
+// server enforces on /api/auth?action=admin_overview.
+function isAdminRole(role) {
+    return role === 'ADMIN' || role === 'SYSTEM_ADMIN';
+}
+window.isAdminRole = isAdminRole;
+
 function escapeHtml(str) {
     if (str == null) return '';
     return String(str)
@@ -3967,7 +3976,12 @@ let adminDirectoryData = { households: [], users: [], activeHouseholdId: '' };
 
 async function loadAdminConsoleData(showFeedback = false) {
     const card = document.getElementById("adminTenantManagementCard");
-    const canManage = currentSessionUser && (currentSessionUser.role === 'ADMIN' || currentSessionUser.role === 'OWNER');
+    // Must match what /api/auth?action=admin_overview actually allows:
+    // ADMIN or SYSTEM_ADMIN. This used to test for ADMIN or OWNER, which hid
+    // the whole tenant-management card from SYSTEM_ADMIN - the one account that
+    // can use it - while showing it to OWNER, who the server then refuses.
+    const canManage = currentSessionUser &&
+        (currentSessionUser.role === 'ADMIN' || currentSessionUser.role === 'SYSTEM_ADMIN');
     if (!authToken || !canManage) {
         if (card) card.classList.add("hidden");
         return;
@@ -4008,8 +4022,8 @@ function renderAdminDirectoryUI() {
     // 1. Role Badge & Active Household Display
     const roleBadge = document.getElementById("adminRoleBadge");
     if (roleBadge) {
-        roleBadge.textContent = userRole === 'ADMIN' ? "SYSTEM ADMINISTRATOR" : "HOUSEHOLD OWNER";
-        roleBadge.className = userRole === 'ADMIN'
+        roleBadge.textContent = isAdminRole(userRole) ? "SYSTEM ADMINISTRATOR" : "HOUSEHOLD OWNER";
+        roleBadge.className = isAdminRole(userRole)
             ? "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200"
             : "text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200";
     }
@@ -4038,7 +4052,7 @@ function renderAdminDirectoryUI() {
     // 3. Populate Household Dropdown in Create User Modal
     const userModalHSelect = document.getElementById("createUserHouseholdSelect");
     if (userModalHSelect) {
-        const selectableHouseholds = userRole === 'ADMIN' ? households : households.filter(h => h.householdId === activeHId);
+        const selectableHouseholds = isAdminRole(userRole) ? households : households.filter(h => h.householdId === activeHId);
         userModalHSelect.innerHTML = selectableHouseholds.map(h =>
             `<option value="${h.householdId}" ${h.householdId === activeHId ? 'selected' : ''}>${escapeHtml(h.householdName)} (${h.householdId})</option>`
         ).join('');
@@ -4075,7 +4089,7 @@ function renderAdminDirectoryUI() {
                     </td>
                     <td class="py-2.5 px-2.5 text-right">
                         <div class="flex items-center justify-end gap-1.5">
-                            ${!isActive && userRole === 'ADMIN' ? `
+                            ${!isActive && isAdminRole(userRole) ? `
                                 <button onclick="switchActiveHousehold(${escapeHtml(JSON.stringify(h.householdId))})" class="px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-[11px] font-black rounded-lg transition" title="Switch active workspace to this household">
                                     Switch
                                 </button>
@@ -4085,12 +4099,12 @@ function renderAdminDirectoryUI() {
                                     <i class="fa-solid fa-check"></i> Current
                                 </span>
                             ` : ''}
-                            ${userRole === 'ADMIN' || (userRole === 'OWNER' && isActive) ? `
+                            ${isAdminRole(userRole) || (userRole === 'OWNER' && isActive) ? `
                                 <button onclick="openEditHouseholdModal(${escapeHtml(JSON.stringify(h.householdId))})" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Edit Household Details">
                                     <i class="fa-solid fa-pen-to-square text-xs"></i>
                                 </button>
                             ` : ''}
-                            ${userRole === 'ADMIN' && h.householdId !== 'H001' ? `
+                            ${isAdminRole(userRole) && h.householdId !== 'H001' ? `
                                 <button onclick="confirmDeleteHousehold(${escapeHtml(JSON.stringify(h.householdId))}, ${escapeHtml(JSON.stringify(h.householdName))})" class="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Delete Household">
                                     <i class="fa-solid fa-trash text-xs"></i>
                                 </button>
@@ -4111,8 +4125,8 @@ function renderAdminDirectoryUI() {
         } else {
             uTableBody.innerHTML = users.map(u => {
                 const isCurrent = currentSessionUser && currentSessionUser.userId === u.userId;
-                const canEditUser = userRole === 'ADMIN' || (userRole === 'OWNER' && u.householdId === activeHId);
-                const canDeleteUser = (userRole === 'ADMIN' || (userRole === 'OWNER' && u.householdId === activeHId)) && u.userId !== 'U000' && u.userId !== 'U001' && (!currentSessionUser || u.userId !== currentSessionUser.userId) && (userRole === 'ADMIN' || u.role !== 'OWNER');
+                const canEditUser = isAdminRole(userRole) || (userRole === 'OWNER' && u.householdId === activeHId);
+                const canDeleteUser = (isAdminRole(userRole) || (userRole === 'OWNER' && u.householdId === activeHId)) && u.userId !== 'U000' && u.userId !== 'U001' && (!currentSessionUser || u.userId !== currentSessionUser.userId) && (isAdminRole(userRole) || u.role !== 'OWNER');
                 const roleBadgeClass = u.role === 'ADMIN' 
                     ? 'bg-purple-100 text-purple-800 border-purple-200'
                     : (u.role === 'OWNER' 
@@ -4189,7 +4203,7 @@ async function submitCreateHousehold() {
     const btn = document.getElementById("btnSubmitCreateHousehold");
 
     const householdName = (nameInput?.value || '').trim();
-    const initialBudget = Number(budgetInput?.value) || 50000;
+    const rawBudget = (budgetInput?.value || '').trim();
 
     if (!householdName || householdName.length < 2) {
         if (errEl) {
@@ -4197,6 +4211,20 @@ async function submitCreateHousehold() {
             errEl.classList.remove("hidden");
         }
         return;
+    }
+
+    // Blank falls back to the documented default; a typed value must be real
+    // rather than quietly replaced by 50000.
+    let initialBudget = 50000;
+    if (rawBudget !== '') {
+        initialBudget = Number(rawBudget);
+        if (!Number.isFinite(initialBudget) || initialBudget < 0) {
+            if (errEl) {
+                errEl.textContent = "Enter a starting budget of 0 or more, or leave it blank for the default.";
+                errEl.classList.remove("hidden");
+            }
+            return;
+        }
     }
 
     if (btn) {
@@ -4398,10 +4426,25 @@ window.switchActiveHousehold = switchActiveHousehold;
 // ==========================================
 // EDIT & DELETE HOUSEHOLD HANDLERS
 // ==========================================
-function openEditHouseholdModal(householdId) {
+async function openEditHouseholdModal(householdId) {
     if (typeof triggerHaptic === 'function') triggerHaptic('light');
-    const h = adminDirectoryData.households.find(x => x.householdId === householdId);
-    if (!h) return;
+
+    let h = adminDirectoryData.households.find(x => x.householdId === householdId);
+    if (!h) {
+        // The directory can be stale straight after a household is created.
+        // Refreshing beats returning silently, which looked like a dead button.
+        try {
+            await loadAdminConsoleData();
+            h = adminDirectoryData.households.find(x => x.householdId === householdId);
+        } catch (e) { /* fall through to the message below */ }
+    }
+    if (!h) {
+        if (typeof showToast === 'function') {
+            showToast('error', 'Household not found',
+                'Could not load that household. Refresh and try again.');
+        }
+        return;
+    }
 
     const modal = document.getElementById("modalEditHousehold");
     const err = document.getElementById("editHouseholdError");
@@ -4412,9 +4455,38 @@ function openEditHouseholdModal(householdId) {
     document.getElementById("editHouseholdName").value = h.householdName;
     document.getElementById("editHouseholdStatus").value = h.status || 'active';
 
+    // Load the budget of the household being edited, not of whichever household
+    // happens to be active. Saving sends this value to the target household, so
+    // pre-filling it from window.masterConfig meant renaming household B quietly
+    // overwrote B's budget with A's.
     const budgetInput = document.getElementById("editHouseholdBudget");
     if (budgetInput) {
-        budgetInput.value = (window.masterConfig && window.masterConfig.monthlyBudgetLimit) || 50000;
+        budgetInput.value = '';
+        budgetInput.disabled = true;
+        try {
+            const res = await fetch(
+                `/api/config?householdId=${encodeURIComponent(h.householdId)}&_t=${Date.now()}`,
+                { headers: getAuthHeaders(), cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            const cfg = json.data || json.config || {};
+            if (cfg.monthlyBudgetLimit === undefined || cfg.monthlyBudgetLimit === null) {
+                throw new Error('no budget on the household config');
+            }
+            budgetInput.value = cfg.monthlyBudgetLimit;
+        } catch (e) {
+            // Better to show the field empty and say so than to prefill a number
+            // from somewhere else that Save would then write to this household.
+            budgetInput.value = '';
+            if (err) {
+                err.textContent =
+                    "Could not load this household's current budget. " +
+                    "Leave the field blank to keep it unchanged.";
+                err.classList.remove("hidden");
+            }
+        } finally {
+            budgetInput.disabled = false;
+        }
     }
 
     if (modal) modal.classList.remove("hidden");
@@ -4430,7 +4502,7 @@ window.closeEditHouseholdModal = closeEditHouseholdModal;
 async function submitEditHousehold() {
     const householdId = document.getElementById("editHouseholdId")?.value;
     const householdName = (document.getElementById("editHouseholdName")?.value || '').trim();
-    const monthlyBudgetLimit = Number(document.getElementById("editHouseholdBudget")?.value) || 50000;
+    const rawBudget = (document.getElementById("editHouseholdBudget")?.value || '').trim();
     const status = document.getElementById("editHouseholdStatus")?.value || 'active';
     const errEl = document.getElementById("editHouseholdError");
     const btn = document.getElementById("btnSubmitEditHousehold");
@@ -4441,6 +4513,20 @@ async function submitEditHousehold() {
             errEl.classList.remove("hidden");
         }
         return;
+    }
+
+    // A blank budget means "leave it alone", not "set it to 50000". A value
+    // that is present must be a real number - never silently substituted.
+    let monthlyBudgetLimit;
+    if (rawBudget !== '') {
+        monthlyBudgetLimit = Number(rawBudget);
+        if (!Number.isFinite(monthlyBudgetLimit) || monthlyBudgetLimit < 0) {
+            if (errEl) {
+                errEl.textContent = "Enter a monthly budget of 0 or more, or leave it blank to keep the current one.";
+                errEl.classList.remove("hidden");
+            }
+            return;
+        }
     }
 
     if (btn) {
@@ -4456,7 +4542,9 @@ async function submitEditHousehold() {
                 action: 'edit_household',
                 householdId,
                 householdName,
-                monthlyBudgetLimit,
+                // omitted entirely when left blank, so the server keeps the
+                // household's existing budget
+                ...(monthlyBudgetLimit === undefined ? {} : { monthlyBudgetLimit }),
                 status
             })
         });
@@ -4554,7 +4642,7 @@ function openEditUserModal(userId) {
     const userRole = currentSessionUser?.role || 'MEMBER';
     if (hSelect) {
         const households = adminDirectoryData.households || [];
-        const selectableHouseholds = userRole === 'ADMIN' ? households : households.filter(h => h.householdId === currentSessionUser.householdId);
+        const selectableHouseholds = isAdminRole(userRole) ? households : households.filter(h => h.householdId === currentSessionUser.householdId);
         hSelect.innerHTML = selectableHouseholds.map(h =>
             `<option value="${h.householdId}" ${h.householdId === u.householdId ? 'selected' : ''}>${escapeHtml(h.householdName)} (${h.householdId})</option>`
         ).join('');

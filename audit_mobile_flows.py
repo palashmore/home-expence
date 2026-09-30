@@ -257,6 +257,72 @@ def audit_tap_targets(page, audit, screen):
     return audit.record(f"F tap targets >= {MIN_TAP}px on {screen}", not small, detail)
 
 
+CLIPPED_CONTROLS_JS = """
+() => {
+  // `html, body { overflow-x: hidden }` means a row that is too wide is simply
+  // cut off instead of growing scrollWidth, so a scrollWidth check cannot see
+  // it. Measure the controls themselves: anything that starts on screen but
+  // ends past the right edge is partly unreachable.
+  const out = [];
+  const sel = 'button, a[href], select, [role=button]';
+  for (const el of document.querySelectorAll(sel)) {
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0') continue;
+    if (el.closest('.hidden, [hidden]')) continue;
+    if (cs.position === 'fixed' || cs.position === 'absolute') continue;  // drawers park off-screen
+    if (el.closest('[class*="translate-x"]')) continue;                   // slide-in panels
+
+    // Inside a horizontally scrollable strip (the tab bar, chip rows) content
+    // beyond the edge is reachable by swiping - that is the design, not a bug.
+    // Only content clipped by an ancestor that cannot scroll is unreachable.
+    let scrollable = false;
+    for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+      const pcs = getComputedStyle(p);
+      if (pcs.overflowX === 'auto' || pcs.overflowX === 'scroll') { scrollable = true; break; }
+    }
+    if (scrollable) continue;
+
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+    if (r.left >= window.innerWidth) continue;        // fully off-screen, e.g. a closed sheet
+    if (r.right > window.innerWidth + 1) {
+      out.push({
+        id: el.id || null,
+        tag: el.tagName.toLowerCase(),
+        cls: String(el.className || '').slice(0, 40),
+        right: Math.round(r.right),
+        viewport: window.innerWidth
+      });
+    }
+  }
+  return out;
+}
+"""
+
+
+def audit_no_clipped_controls(page, audit, screen):
+    """A control cut off by the right edge is unusable even when the page does
+    not scroll sideways."""
+    ok_all = True
+    for w in PHONE_WIDTHS:
+        page.set_viewport_size({"width": w, "height": 844})
+        page.wait_for_timeout(250)
+        clipped = page.evaluate(CLIPPED_CONTROLS_JS)
+        if clipped:
+            ok_all = False
+            sample = "; ".join(
+                f"{c['id'] or c['tag'] + '.' + c['cls'][:18]!r} ends at {c['right']}px"
+                for c in clipped[:4]
+            )
+            audit.record(f"F no control is cut off on {screen} @{w}px", False,
+                         f"{len(clipped)} clipped past {w}px: {sample}")
+        else:
+            audit.record(f"F no control is cut off on {screen} @{w}px", True)
+    page.set_viewport_size(PHONE)
+    page.wait_for_timeout(200)
+    return ok_all
+
+
 def audit_no_overflow(page, audit, screen):
     ok_all = True
     for w in PHONE_WIDTHS:
@@ -1622,6 +1688,7 @@ def main():
             goto_tab(page, tab)
             audit_tap_targets(page, audit, tab)
             audit_no_overflow(page, audit, tab)
+            audit_no_clipped_controls(page, audit, tab)
 
         # Multi-context scenarios run in their own browser contexts, which are
         # closed again afterwards.

@@ -1889,7 +1889,7 @@
       staffMobile.innerHTML = config.staff.map((s) => `
         <div class="staff-mobile-card p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 shadow-2xs" data-staff-id="${esc(s.id)}">
           <div class="flex items-center justify-between gap-2">
-            <input type="text" class="staff-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 focus:bg-white focus:border-indigo-500" value="${esc(s.name)}" placeholder="Staff Name">
+            <input type="text" class="staff-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 min-w-0 focus:bg-white focus:border-indigo-500" value="${esc(s.name)}" placeholder="Staff Name">
             <button onclick="adminDeleteStaff(${esc(JSON.stringify(s.id))})" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" title="Delete staff member" aria-label="Delete staff member">
               <i class="fa-solid fa-trash text-xs"></i>
             </button>
@@ -1989,9 +1989,9 @@
         return `
         <div class="bill-mobile-card p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 shadow-2xs" data-bill-id="${esc(b.id)}">
           <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2 flex-1">
+            <div class="flex items-center gap-2 flex-1 min-w-0">
               <input type="text" class="bill-edit-icon bg-slate-50 border border-slate-200 rounded-xl px-1 py-1 text-center font-bold text-base w-9 shrink-0" value="${esc(b.icon || '⚡')}">
-              <input type="text" class="bill-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 focus:bg-white focus:border-indigo-500" value="${esc(b.name)}" placeholder="Bill Name">
+              <input type="text" class="bill-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 min-w-0 focus:bg-white focus:border-indigo-500" value="${esc(b.name)}" placeholder="Bill Name">
             </div>
             <button onclick="adminDeleteBill(${esc(JSON.stringify(b.id))})" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" title="Delete bill" aria-label="Delete bill">
               <i class="fa-solid fa-trash text-xs"></i>

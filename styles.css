@@ -1220,7 +1220,11 @@ select:focus, input:focus, textarea:focus {
     }
 
     /* Icon-only buttons centre their glyph in the enlarged box. */
-    button:not(.tap-exempt) {
+    /* `:not(.hidden):not([hidden])` matters: this rule is more specific than
+       Tailwind's `.hidden { display: none }`, so without it every button the app
+       hides stays on screen and keeps taking up 44px. That is what pushed the
+       mobile header controls past the right edge. */
+    button:not(.tap-exempt):not(.hidden):not([hidden]) {
         display: inline-flex;
         align-items: center;
         justify-content: center;

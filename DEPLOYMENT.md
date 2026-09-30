@@ -163,9 +163,32 @@ GIST_ID=<your own gist id>
 ```
 
 Create the token at **GitHub → Settings → Developer settings → Personal access
-tokens**, with only the `gist` scope. Create a secret gist with the files it will
-manage (`expenses.json`, `config.json`, `users.json`, `households.json`,
-`audit_log.json`) and use its id.
+tokens**, with only the `gist` scope. Create a **secret** gist seeded with the
+five files the app actually syncs — copy each from your local `data/`:
+
+| File | Contents |
+|---|---|
+| `expenses.json` | the H001 ledger |
+| `config.json` | categories, staff, bills, budget, members |
+| `staff_attendance.json` | attendance marks |
+| `audit_log.json` | change history |
+| `push_subscriptions.json` | device push registrations |
+
+Then set `GIST_ID` to that gist's id (the hex string at the end of its URL).
+
+### What still does not persist on Vercel
+
+`users.json` and `households.json` are **never written to the gist** — only to
+`/tmp` and to the read-only `data/` directory. On Vercel that means:
+
+- creating a user, changing a role, resetting a password or deactivating an
+  account **does not survive a cold start**
+- creating a household does not survive either
+- any household after `H001` has no durable storage for its expenses at all
+
+So the admin console works, but on Vercel its results are temporary. The seeded
+accounts keep working because they are committed in `data/users.json`; anything
+added on top of them is not.
 
 If you leave `GIST_ID` unset, the app falls back to a gist id that is hardcoded
 in `api/_cloud_sync.js` and visible to anyone reading this repository. Set your

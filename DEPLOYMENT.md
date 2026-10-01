@@ -176,6 +176,22 @@ five files the app actually syncs — copy each from your local `data/`:
 
 Then set `GIST_ID` to that gist's id (the hex string at the end of its URL).
 
+### Seeding the gist in one command
+
+Rather than creating each file by hand, build and upload the whole set straight
+from `data/`:
+
+```powershell
+$env:GITHUB_TOKEN = "<token with the gist scope>"
+$env:GIST_ID      = "<the id from your gist URL>"
+node scripts/upload_gist_seed.js          # or: npm.cmd run seed-gist
+```
+
+Add `--dry-run` to see exactly what would be sent without uploading. The token is
+read from the environment, never printed and never written to disk. It uploads
+all seven files, then reads the gist back to confirm each one arrived and warns
+if the gist is public.
+
 ### What persists on Vercel
 
 Everything the app writes for household `H001` now goes to the Gist and is read

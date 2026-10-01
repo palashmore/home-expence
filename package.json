@@ -8,7 +8,8 @@
     "start": "node server.js",
     "keys": "node scripts/generate_keys.js",
     "test": "bash ./run_tests.sh",
-    "audit": "bash ./run_audit.sh"
+    "audit": "bash ./run_audit.sh",
+    "seed-gist": "node scripts/upload_gist_seed.js"
   },
   "dependencies": {
     "cookie": "^0.6.0",

@@ -928,6 +928,51 @@ async function saveHouseholdConfig(householdId, newConfig, actorUser = 'System')
 // ==========================================
 // HOUSEHOLD-SCOPED ATTENDANCE REPOSITORY
 // ==========================================
+/**
+ * Combine two attendance objects, month by month, keeping whichever copy was
+ * written last.
+ *
+ * Attendance is shaped { staffName: { months: { "2026-09": { days, updatedAt } } } }.
+ * A plain object spread would drop whole months, so this merges at the month
+ * level and uses the updatedAt stamp that /api/attendance writes on every save.
+ * When neither side has a stamp, a month that has marks beats an empty one, and
+ * local wins ties - local is where the most recent write landed first.
+ */
+function mergeAttendance(local, cloud) {
+    const base = (local && typeof local === 'object') ? local : {};
+    const other = (cloud && typeof cloud === 'object') ? cloud : {};
+    const out = {};
+
+    for (const staff of new Set([...Object.keys(base), ...Object.keys(other)])) {
+        const a = base[staff] || {};
+        const b = other[staff] || {};
+        const months = {};
+
+        const aMonths = (a.months && typeof a.months === 'object') ? a.months : {};
+        const bMonths = (b.months && typeof b.months === 'object') ? b.months : {};
+
+        for (const key of new Set([...Object.keys(aMonths), ...Object.keys(bMonths)])) {
+            const mA = aMonths[key];
+            const mB = bMonths[key];
+            if (!mA) { months[key] = mB; continue; }
+            if (!mB) { months[key] = mA; continue; }
+
+            const tA = Date.parse(mA.updatedAt || '');
+            const tB = Date.parse(mB.updatedAt || '');
+            if (Number.isFinite(tA) && Number.isFinite(tB)) {
+                months[key] = tB > tA ? mB : mA;
+            } else {
+                const aHasMarks = Object.keys(mA.days || {}).length > 0;
+                const bHasMarks = Object.keys(mB.days || {}).length > 0;
+                months[key] = (!aHasMarks && bHasMarks) ? mB : mA;
+            }
+        }
+
+        out[staff] = { ...b, ...a, months };
+    }
+    return out;
+}
+
 async function getHouseholdAttendance(householdId, forceFresh = true) {
     const cleanHId = sanitizeId(householdId);
     if (!cleanHId) throw new Error('Unauthorized: Invalid Household context.');
@@ -938,6 +983,21 @@ async function getHouseholdAttendance(householdId, forceFresh = true) {
         if (!attendance && cleanHId === 'H001') {
             attendance = readJsonFile(path.join(DATA_DIR, 'staff_attendance.json'), {});
         }
+
+        // Attendance was written to the Gist but never read back from it. On a
+        // serverless host /tmp is wiped when the instance goes cold, so a read
+        // then fell through to the committed baseline in data/ and every mark
+        // made since appeared to have been lost. The Gist is the durable copy,
+        // so it has to be consulted here the same way expenses and config are.
+        if (cleanHId === 'H001') {
+            try {
+                const cloudAttendance = await cloudSync.readJson('staff_attendance.json');
+                if (cloudAttendance && typeof cloudAttendance === 'object') {
+                    attendance = mergeAttendance(attendance, cloudAttendance);
+                }
+            } catch (e) {}
+        }
+
         memoryStore.attendance[cleanHId] = attendance || {};
     }
     return memoryStore.attendance[cleanHId];
@@ -971,6 +1031,25 @@ async function getHouseholdAuditLogs(householdId, limit = 100, forceFresh = true
         if (!logs && cleanHId === 'H001') {
             logs = readJsonFile(path.join(DATA_DIR, 'audit_log.json'), []);
         }
+
+        // Same write-only gap as attendance had: entries were pushed to the Gist
+        // but never read back, so history recorded since the last cold start
+        // disappeared from the Audit tab. Union by entry id, newest first.
+        if (cleanHId === 'H001') {
+            try {
+                const cloudLogs = await cloudSync.readJson('audit_log.json');
+                if (Array.isArray(cloudLogs) && cloudLogs.length) {
+                    const byId = new Map();
+                    for (const entry of [...(Array.isArray(logs) ? logs : []), ...cloudLogs]) {
+                        if (entry && entry.id && !byId.has(entry.id)) byId.set(entry.id, entry);
+                    }
+                    logs = [...byId.values()].sort(
+                        (a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)
+                    );
+                }
+            } catch (e) {}
+        }
+
         memoryStore.audit[cleanHId] = Array.isArray(logs) ? logs : [];
     }
     return memoryStore.audit[cleanHId].slice(0, limit);

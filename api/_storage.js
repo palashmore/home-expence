@@ -314,15 +314,37 @@ function createHousehold(data, actor = 'System') {
         // Zero records initially copied - clean independent ledger
         writeJsonFile(path.join(dir, 'expenses.json'), []);
         
+        // The key names here must match what the app reads, or the new
+        // household silently starts with pieces missing. `staffMembers` and
+        // `paymentModes` were never read by anything - the app looks for
+        // `staff` and `paymentMethods` - so Master Settings showed an empty
+        // staff table while the Staff tab still displayed the hardcoded
+        // placeholder names from index.html. The cycle was stored as three
+        // loose keys while the app reads `householdCycle`.
+        const memberLabel = ownerName || 'Family Member';
+        const cycleStartDay = Number(data.cycleStartDay) || 1;
+        const cycleEndDay = Number(data.cycleEndDay) || 31;
+
         const initialConfig = {
             monthlyBudgetLimit: Number(data.initialBudget) || 50000,
-            cycleType: data.cycleType || "calendar",
-            cycleStartDay: Number(data.cycleStartDay) || 1,
-            cycleEndDay: Number(data.cycleEndDay) || 31,
-            familyMembers: ownerName ? [ownerName] : ["Family Member"],
-            paymentModes: ["UPI", "Credit Card", "Debit Card", "Net Banking", "Cash"],
-            splitRules: ["50/50 Split", "100% Personal", "Shared Household"],
-            staffMembers: [],
+            householdCycle: {
+                type: data.cycleType || 'calendar',
+                cycleStartDay: cycleStartDay,
+                cycleEndDay: cycleEndDay,
+                description: (data.cycleType === 'custom')
+                    ? `${cycleStartDay}th of current month to ${cycleEndDay}th of next month`
+                    : 'Standard Calendar Month (1st to month end)'
+            },
+            familyMembers: [memberLabel],
+            paymentMethods: ["UPI / GPay / PhonePe", "Credit Card", "Debit Card", "Net Banking", "Cash"],
+            // Named after this household's own member, never after whoever
+            // happened to own the first household.
+            splitRules: [
+                "Household Expense",
+                `Personal Expense (${memberLabel})`,
+                "Equal (50/50)"
+            ],
+            staff: [],
             recurringBills: [],
             categories: [
                 { "name": "Grocery & Vegetables", "icon": "🛒", "type": "expense", "defaultPaidTo": "Blinkit" },

@@ -19,10 +19,10 @@
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
   // In-memory state
-  let staffAttendanceState = {
-    'Maid - Madhuri': { baseSalary: 800, billingCycleDay: 21, months: {} },
-    'Chef - Nilima Nikose': { baseSalary: 4500, billingCycleDay: 30, months: {} }
-  };
+  // Starts empty and is filled from the household's own config and saved
+  // attendance. Seeding it with two named staff meant every household, however
+  // new, appeared to employ the first household's chef and maid.
+  let staffAttendanceState = {};
 
   let deferredPrompt = null;
   let currentNetSettleAmount = 0;
@@ -1075,7 +1075,19 @@
 
     if (!grid || !staffSelect) return;
 
-    const staffName = staffSelect.value || 'Chef - Nilima Nikose';
+    // A household with no staff gets an honest empty state rather than a
+    // calendar for someone it does not employ.
+    const staffName = staffSelect.value;
+    if (!staffName) {
+      grid.innerHTML = `
+        <div class="col-span-7 py-8 text-center text-slate-400 font-semibold text-xs bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+          No staff configured yet. Add a staff member in Master Settings to start tracking attendance.
+        </div>`;
+      delete grid.dataset.monthKey;
+      if (monthTitle) monthTitle.textContent = 'Staff Attendance';
+      return;
+    }
+
     const period = getAttendanceViewPeriod();
     const curYear = period.year;
     const curMonth = period.month;
@@ -1091,9 +1103,14 @@
     }
 
     if (!staffAttendanceState[staffName]) {
+      // Take the salary and cycle from this household's own configuration
+      // rather than guessing from the name.
+      const staffConf = (window.masterConfig && Array.isArray(window.masterConfig.staff))
+        ? window.masterConfig.staff.find(s => s && s.name === staffName)
+        : null;
       staffAttendanceState[staffName] = {
-        baseSalary: staffName.includes('Nilima') ? 4500 : 800,
-        billingCycleDay: staffName.includes('Nilima') ? 30 : 21,
+        baseSalary: Number(staffConf && staffConf.baseSalary) || 0,
+        billingCycleDay: Number(staffConf && staffConf.billingCycleDay) || 30,
         months: {}
       };
     }
@@ -1278,6 +1295,27 @@
     window.open(waUrl, '_blank');
   };
 
+  // Defaults for an auto-recorded payroll expense, resolved from the household
+  // that is actually open rather than from the first household ever created.
+  function payrollDefaultPayer() {
+    const cfg = window.masterConfig || {};
+    if (Array.isArray(cfg.familyMembers) && cfg.familyMembers.length) return cfg.familyMembers[0];
+    const u = window.currentSessionUser;
+    return (u && (u.name || u.username)) || 'Household';
+  }
+  function payrollDefaultPaymentMethod() {
+    const cfg = window.masterConfig || {};
+    return (Array.isArray(cfg.paymentMethods) && cfg.paymentMethods.length)
+      ? cfg.paymentMethods[0]
+      : 'UPI / GPay / PhonePe';
+  }
+  function payrollDefaultSplitRule() {
+    const cfg = window.masterConfig || {};
+    return (Array.isArray(cfg.splitRules) && cfg.splitRules.length)
+      ? cfg.splitRules[0]
+      : 'Household Expense';
+  }
+
   window.quickPayCalculatedSalary = async function () {
     const calc = window.currentStaffCalc;
     if (!calc || calc.netPayable <= 0) {
@@ -1290,13 +1328,16 @@
       date: new Date().toISOString().split('T')[0],
       amount: calc.netPayable,
       category: calc.staff,
-      paidBy: 'Palash',
+      // Taken from this household's own configuration. Hardcoding "Palash" and
+      // the first household's split rule filed every payroll payment against a
+      // person and a rule that may not exist in the household being used.
+      paidBy: payrollDefaultPayer(),
       paidTo: shortStaff,
       vendor: shortStaff,
-      paymentMethod: 'UPI / GPay / PhonePe',
+      paymentMethod: payrollDefaultPaymentMethod(),
       notes: `Payroll for ${calc.month} (${calc.staff}) recorded via Attendance Suite`,
       description: `Payroll for ${calc.month} (${calc.staff}) recorded via Attendance Suite`,
-      splitBetween: 'Household Expense (Palash Reimburses Pallavi 100%)',
+      splitBetween: payrollDefaultSplitRule(),
       receipt: null
     };
 
@@ -1847,16 +1888,28 @@
     }
 
     // 4. Staff Select in Attendance Suite
-    if (config.staff && Array.isArray(config.staff)) {
-      const attSelect = document.getElementById('attendanceStaffSelect');
-      if (attSelect) {
-        const currentVal = attSelect.value;
-        attSelect.innerHTML = config.staff.filter(s => s.active !== false).map(s => 
-          `<option value="${s.name}">${s.name} (${esc(s.role || s.shortName)})</option>`
+    //
+    // This runs unconditionally. It used to be skipped when config.staff was
+    // missing, which left the placeholder names hardcoded in index.html on
+    // screen - so a brand new household saw "Chef - Nilima Nikose" in the Staff
+    // tab while Master Settings correctly showed no staff at all.
+    const attSelect = document.getElementById('attendanceStaffSelect');
+    if (attSelect) {
+      const staffList = Array.isArray(config.staff)
+        ? config.staff.filter(s => s && s.name && s.active !== false)
+        : [];
+      const currentVal = attSelect.value;
+
+      if (staffList.length === 0) {
+        attSelect.innerHTML = '<option value="">No staff configured yet</option>';
+        attSelect.value = '';
+      } else {
+        attSelect.innerHTML = staffList.map(s =>
+          `<option value="${esc(s.name)}">${esc(s.name)} (${esc(s.role || s.shortName || '')})</option>`
         ).join('');
-        if (currentVal && config.staff.some(s => s.name === currentVal)) {
-          attSelect.value = currentVal;
-        }
+        attSelect.value = staffList.some(s => s.name === currentVal)
+          ? currentVal
+          : staffList[0].name;
       }
     }
   }
@@ -2533,6 +2586,21 @@
     };
   })();
 
+  // Split rules for a household that has none yet, derived from its own members.
+  // These used to be a hardcoded list naming Palash and Pallavi, so pressing
+  // Save in Master Settings wrote the first household's people into whichever
+  // household you were actually in.
+  function defaultSplitRulesFor(config) {
+    const members = (config && Array.isArray(config.familyMembers) && config.familyMembers.length)
+      ? config.familyMembers
+      : [];
+    return [
+      'Household Expense',
+      ...members.map(m => `Personal Expense (${m})`),
+      'Equal (50/50)'
+    ];
+  }
+
   window.saveAdminConfigFromUI = async function () {
     const config = window.masterConfig || {};
 
@@ -2681,12 +2749,9 @@
       recurringBills: updatedBills,
       householdCycle: updatedCycle,
       monthlyBudgetLimit: monthlyBudgetLimit,
-      splitRules: config.splitRules || [
-        "Household Expense (Palash Reimburses Pallavi 100%)",
-        "Personal Expense (Pallavi - Not Reimbursed)",
-        "Personal Expense (Palash)",
-        "Equal (50/50)"
-      ]
+      splitRules: (Array.isArray(config.splitRules) && config.splitRules.length)
+        ? config.splitRules
+        : defaultSplitRulesFor(config)
     };
 
     // Busy state: the owner must be able to see the save is in flight, and a
@@ -2754,12 +2819,9 @@
     const val = input ? input.value.trim() : '';
     if (!val) return;
     const config = window.masterConfig || {};
-    const current = config.splitRules || [
-      "Household Expense (Palash Reimburses Pallavi 100%)",
-      "Personal Expense (Pallavi - Not Reimbursed)",
-      "Personal Expense (Palash)",
-      "Equal (50/50)"
-    ];
+    const current = (Array.isArray(config.splitRules) && config.splitRules.length)
+      ? config.splitRules
+      : defaultSplitRulesFor(config);
     if (current.includes(val)) {
       if (window.showToast) window.showToast('info', 'Already Exists', 'This split rule is already in the list.');
       return;
@@ -2781,46 +2843,43 @@
 
   window.resetAdminConfigToDefaults = async function () {
     if (!confirm('Are you sure you want to reset all master configuration settings to application defaults?')) return;
+
+    // These are APPLICATION defaults, so they must not carry one particular
+    // household's people, staff or bills. Previously this wrote the first
+    // household's chef, maid, "Palash" and "Pallavi" into whichever household
+    // was open. Family members are kept: they belong to this household.
+    const cfg = window.masterConfig || {};
+    const members = (Array.isArray(cfg.familyMembers) && cfg.familyMembers.length)
+      ? cfg.familyMembers
+      : [payrollDefaultPayer()];
+
     try {
       const headers = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders() : { 'Content-Type': 'application/json' };
       const res = await fetch('/api/config', {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({
-          staff: [
-            { id: "staff-1", name: "Chef - Nilima Nikose", shortName: "Nilima", role: "Chef / Cook", baseSalary: 4500, allowedPaidLeaves: 4, billingCycleDay: 30, cycleType: "calendar_month", active: true },
-            { id: "staff-2", name: "Maid - Madhuri", shortName: "Madhuri", role: "Housemaid", baseSalary: 800, allowedPaidLeaves: 2, billingCycleDay: 21, cycleType: "custom_cycle", cycleStartDay: 21, active: true }
-          ],
+          staff: [],
           categories: [
-            { name: "Grocery & Vegetables", icon: "🛒", type: "expense", defaultPaidTo: "Blinkit" },
-            { name: "Electricity Bill", icon: "⚡", type: "expense", defaultPaidTo: "MSCB / MSEDCL" },
-            { name: "Flat Maintenance", icon: "🏢", type: "expense", defaultPaidTo: "Society Office" },
-            { name: "Chef - Nilima Nikose", icon: "👩‍🍳", type: "expense", defaultPaidTo: "Nilima Nikose" },
-            { name: "Maid - Madhuri", icon: "🧹", type: "expense", defaultPaidTo: "Madhuri" },
-            { name: "Wifi & Internet", icon: "📶", type: "expense", defaultPaidTo: "Airtel" },
-            { name: "Dish Bill (DTH)", icon: "📺", type: "expense", defaultPaidTo: "Tata Play" },
-            { name: "Shopping & Miscellaneous", icon: "🛍️", type: "expense", defaultPaidTo: "Amazon" },
-            { name: "Accepted Payments (Income)", icon: "💰", type: "income", defaultPaidTo: "" },
-            { name: "Settlement / Transfer", icon: "🤝", type: "transfer", defaultPaidTo: "Pallavi" }
+            { name: "Grocery & Vegetables", icon: "\u{1F6D2}", type: "expense", defaultPaidTo: "" },
+            { name: "Electricity Bill", icon: "⚡", type: "expense", defaultPaidTo: "" },
+            { name: "Flat Maintenance", icon: "\u{1F3E2}", type: "expense", defaultPaidTo: "" },
+            { name: "Wifi & Internet", icon: "\u{1F4F6}", type: "expense", defaultPaidTo: "" },
+            { name: "Dish Bill (DTH)", icon: "\u{1F4FA}", type: "expense", defaultPaidTo: "" },
+            { name: "Shopping & Miscellaneous", icon: "\u{1F6CD}", type: "expense", defaultPaidTo: "" },
+            { name: "Accepted Payments (Income)", icon: "\u{1F4B0}", type: "income", defaultPaidTo: "" },
+            { name: "Settlement / Transfer", icon: "\u{1F91D}", type: "transfer", defaultPaidTo: "" }
           ],
-          recurringBills: [
-            { id: "bill-1", name: "MSCB Electricity Bill", category: "Electricity Bill", dueDay: 10, approxAmount: 2200, icon: "⚡" },
-            { id: "bill-2", name: "Society Flat Maintenance", category: "Flat Maintenance", dueDay: 5, approxAmount: 3500, icon: "🏢" },
-            { id: "bill-3", name: "Airtel Broadband / Wifi", category: "Wifi & Internet", dueDay: 15, approxAmount: 999, icon: "📶" },
-            { id: "bill-4", name: "Tata Play / Dish Bill", category: "Dish Bill (DTH)", dueDay: 20, approxAmount: 450, icon: "📺" },
-            { id: "bill-5", name: "Maid - Madhuri Salary", category: "Maid - Madhuri", dueDay: 21, approxAmount: 800, icon: "🧹" },
-            { id: "bill-6", name: "Chef - Nilima Salary", category: "Chef - Nilima Nikose", dueDay: 30, approxAmount: 4500, icon: "👩‍🍳" }
-          ],
-          familyMembers: ["Palash", "Pallavi"],
+          recurringBills: [],
+          familyMembers: members,
           monthlyBudgetLimit: 50000,
           splitRules: [
-            "Household Expense (Palash Reimburses Pallavi 100%)",
-            "Personal Expense (Pallavi - Not Reimbursed)",
-            "Personal Expense (Palash)",
-            "Equal (50/50)"
+            'Household Expense',
+            ...members.map(m => `Personal Expense (${m})`),
+            'Equal (50/50)'
           ],
-          paymentMethods: ["UPI / GPay / PhonePe", "Credit Card", "Net Banking", "Cash"],
-          householdCycle: { type: "custom", cycleStartDay: 5, cycleEndDay: 5, description: "5th of current month to 5th of next month" }
+          paymentMethods: ["UPI / GPay / PhonePe", "Credit Card", "Debit Card", "Net Banking", "Cash"],
+          householdCycle: { type: "calendar", cycleStartDay: 1, cycleEndDay: 31, description: "Standard Calendar Month (1st to month end)" }
         })
       });
       if (res.ok) {

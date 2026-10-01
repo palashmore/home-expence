@@ -1036,7 +1036,13 @@ function signOut() {
     // The offline queue is deliberately kept: it holds the owner's own unsent
     // entries, which would otherwise be lost, and carries no server data.
     try {
-        const keep = new Set(['homeexpenses_offline_queue', 'household_app_theme']);
+        // Device preferences, not household data: keeping them across a sign-out
+        // leaks nothing and avoids resetting the UI for the next sign-in.
+        const keep = new Set([
+            'homeexpenses_offline_queue',
+            'household_app_theme',
+            'homeexpenses_expense_view'
+        ]);
         Object.keys(localStorage)
             .filter(k => !keep.has(k) &&
                 /^(household_|homeexpenses_)/i.test(k))
@@ -2661,7 +2667,66 @@ function renderRecentTransactionsTable(filteredData) {
 }
 
 // ================= TAB 2: DAILY EXPENSES LOG TABLE =================
+// ================= EXPENSE LEDGER VIEW SWITCHER =================
+// "auto" means follow the screen size, which is what the app did before this
+// existed. An explicit "table" or "timeline" overrides that at every width.
+const EXPENSE_VIEW_KEY = "homeexpenses_expense_view";
+const EXPENSE_VIEWS = ["auto", "timeline", "table"];
+
+function getStoredExpenseView() {
+    try {
+        const v = localStorage.getItem(EXPENSE_VIEW_KEY);
+        return EXPENSE_VIEWS.includes(v) ? v : "auto";
+    } catch (e) {
+        return "auto";   // private mode, or site data blocked
+    }
+}
+
+function applyExpenseView(mode) {
+    const container = document.getElementById("expenseLedgerContainer");
+    if (!container) return;
+
+    const resolved = EXPENSE_VIEWS.includes(mode) ? mode : "auto";
+    container.dataset.expenseView = resolved;
+
+    // With "auto" neither button is pressed - the layout is following the
+    // screen, and claiming otherwise would be misleading.
+    const effective = resolved === "auto"
+        ? (window.matchMedia("(min-width: 768px)").matches ? "table" : "timeline")
+        : resolved;
+
+    const btnTimeline = document.getElementById("btnExpenseViewTimeline");
+    const btnTable = document.getElementById("btnExpenseViewTable");
+    if (btnTimeline) btnTimeline.setAttribute("aria-pressed", String(effective === "timeline"));
+    if (btnTable) btnTable.setAttribute("aria-pressed", String(effective === "table"));
+}
+
+function setExpenseView(mode) {
+    if (typeof triggerHaptic === "function") triggerHaptic("light");
+    const resolved = EXPENSE_VIEWS.includes(mode) ? mode : "auto";
+    try {
+        localStorage.setItem(EXPENSE_VIEW_KEY, resolved);
+    } catch (e) {
+        // Not fatal: the view still switches for this session.
+    }
+    applyExpenseView(resolved);
+}
+window.setExpenseView = setExpenseView;
+window.applyExpenseView = applyExpenseView;
+
+// Keep the pressed state honest when "auto" is in effect and the window is
+// resized or the phone is rotated across the breakpoint.
+if (typeof window !== "undefined" && window.matchMedia) {
+    try {
+        window.matchMedia("(min-width: 768px)").addEventListener("change", () => {
+            if (getStoredExpenseView() === "auto") applyExpenseView("auto");
+        });
+    } catch (e) {}
+}
+
 function renderExpenseTable(filteredData) {
+    applyExpenseView(getStoredExpenseView());
+
     const tbody = document.getElementById("expenseTableBody");
     const emptyState = document.getElementById("emptyExpenseState");
     const mobileCards = document.getElementById("mobileExpenseCardList");

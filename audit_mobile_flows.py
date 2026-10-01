@@ -1202,6 +1202,107 @@ def audit_attendance_follows_period(page, audit, api):
     )
 
 
+def audit_expense_view_toggle(page, audit, api):
+    """The expenses tab must offer Timeline and Table on a phone, switch between
+    them, and remember the choice."""
+    print("\n[D] expenses tab offers a Timeline / Table choice")
+    goto_tab(page, "expenses")
+    page.wait_for_timeout(1000)
+
+    # Show the whole ledger. The default filter is the current month, which is
+    # legitimately empty at the start of a month, and an empty list would make
+    # the "has rows" checks below prove nothing.
+    page.evaluate("""() => {
+        const m = document.getElementById('filterMonth');
+        if (m) m.value = 'all';
+        onFilterChange();
+    }""")
+    page.wait_for_timeout(1200)
+
+    def shown():
+        return page.evaluate(
+            """() => {
+                const vis = (id) => {
+                    const el = document.getElementById(id);
+                    if (!el) return false;
+                    return getComputedStyle(el).display !== 'none' && el.offsetHeight > 0;
+                };
+                const c = document.getElementById('expenseLedgerContainer');
+                return {
+                    mode: c ? c.dataset.expenseView : null,
+                    table: vis('expenseTableView'),
+                    timeline: vis('mobileExpenseCardList')
+                };
+            }"""
+        )
+
+    audit.record(
+        "D both view buttons exist",
+        page.query_selector("#btnExpenseViewTimeline") is not None
+        and page.query_selector("#btnExpenseViewTable") is not None,
+        "the Timeline/Table switcher is missing",
+    )
+
+    start = shown()
+    audit.record(
+        "D a phone defaults to the timeline view",
+        start["timeline"] and not start["table"],
+        f"state is {start}",
+    )
+
+    # Switch to Table.
+    page.click("#btnExpenseViewTable")
+    page.wait_for_timeout(700)
+    table_state = shown()
+    audit.record(
+        "D choosing Table shows the table and hides the timeline",
+        table_state["table"] and not table_state["timeline"],
+        f"state is {table_state}",
+    )
+    audit.record(
+        "D the Table button reports itself as selected",
+        page.get_attribute("#btnExpenseViewTable", "aria-pressed") == "true"
+        and page.get_attribute("#btnExpenseViewTimeline", "aria-pressed") == "false",
+        "aria-pressed does not reflect the active view",
+    )
+    audit.record(
+        "D the table actually has rows in table view",
+        page.evaluate("() => document.querySelectorAll('#expenseTableBody tr').length") > 0,
+        "the table is visible but empty",
+    )
+
+    # The choice must survive a reload.
+    reload_app(page)
+    goto_tab(page, "expenses")
+    page.evaluate("""() => {
+        const m = document.getElementById('filterMonth');
+        if (m) m.value = 'all';
+        onFilterChange();
+    }""")
+    page.wait_for_timeout(1200)
+    after_reload = shown()
+    audit.record(
+        "D the Table choice is remembered after a reload",
+        after_reload["mode"] == "table" and after_reload["table"] and not after_reload["timeline"],
+        f"state after reload is {after_reload}",
+    )
+
+    # Switch back to Timeline.
+    page.click("#btnExpenseViewTimeline")
+    page.wait_for_timeout(700)
+    back = shown()
+    audit.record(
+        "D switching back to Timeline restores the cards",
+        back["timeline"] and not back["table"],
+        f"state is {back}",
+    )
+    audit.record(
+        "D the timeline actually has cards",
+        page.evaluate("() => document.querySelectorAll('#mobileExpenseCardList > div').length") > 0,
+        "the timeline is visible but empty",
+    )
+
+
 def audit_logout(page, audit, api):
     """Section E: signing out must actually end the session. A token left in
     localStorage, or household data still cached after logout, means the next
@@ -1231,7 +1332,8 @@ def audit_logout(page, audit, api):
             // under these prefixes is cached household data.
             residualKeys: keys.filter(k => /expense|household|config|master/i.test(k)
                                            && k !== 'homeexpenses_offline_queue'
-                                           && k !== 'household_app_theme')
+                                           && k !== 'household_app_theme'
+                                           && k !== 'homeexpenses_expense_view')
         };
     }""")
 
@@ -1813,7 +1915,8 @@ def main():
                           (audit_rename_flows, "D rename round-trip"),
                           (audit_delete_warnings, "D delete warning"),
                           (audit_expense_round_trip, "D expense round-trip"),
-                          (audit_attendance_follows_period, "D attendance calendar")):
+                          (audit_attendance_follows_period, "D attendance calendar"),
+                          (audit_expense_view_toggle, "D expense view toggle")):
             try:
                 fn(page, audit, api)
             except Exception as e:

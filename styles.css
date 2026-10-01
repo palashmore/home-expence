@@ -1339,3 +1339,52 @@ button[data-busy="1"] {
         min-width: 44px;   /* short names like "Palash" are only 38px wide */
     }
 }
+
+/* ==========================================================================
+   EXPENSE LEDGER VIEW SWITCHER
+   "auto" reproduces the original behaviour exactly - timeline cards on phones,
+   table on desktop - so nothing changes until the owner picks a view. An
+   explicit choice then wins at every width, which is the point: a table is
+   genuinely useful on a phone for scanning many rows, and the cards are nicer
+   on a laptop when reading a few.
+
+   Driven by an attribute rather than JS toggling classes, so the correct view
+   still shows if the script has not run yet.
+   ========================================================================== */
+#expenseLedgerContainer[data-expense-view="auto"] #expenseTableView { display: none; }
+#expenseLedgerContainer[data-expense-view="auto"] #mobileExpenseCardList { display: block; }
+
+@media (min-width: 768px) {
+    #expenseLedgerContainer[data-expense-view="auto"] #expenseTableView { display: block; }
+    #expenseLedgerContainer[data-expense-view="auto"] #mobileExpenseCardList { display: none; }
+}
+
+#expenseLedgerContainer[data-expense-view="table"] #expenseTableView { display: block; }
+#expenseLedgerContainer[data-expense-view="table"] #mobileExpenseCardList { display: none; }
+
+#expenseLedgerContainer[data-expense-view="timeline"] #expenseTableView { display: none; }
+#expenseLedgerContainer[data-expense-view="timeline"] #mobileExpenseCardList { display: block; }
+
+/* Segmented control states */
+.expense-view-btn {
+    color: #475569;
+    background: transparent;
+    min-height: 44px;
+}
+.expense-view-btn:hover {
+    color: #1e293b;
+    background: rgba(255, 255, 255, 0.7);
+}
+.expense-view-btn[aria-pressed="true"] {
+    color: #ffffff;
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+}
+
+/* On a phone the table has to scroll sideways rather than squeeze every
+   column into 390px. */
+@media (max-width: 767px) {
+    #expenseLedgerContainer[data-expense-view="table"] #expenseTableView table {
+        min-width: 720px;
+    }
+}

@@ -231,6 +231,39 @@ function run() {
                 const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
                 assert(cfg.monthlyBudgetLimit === 64250,
                     `the starting budget is stored exactly (got ${cfg.monthlyBudgetLimit})`);
+
+                // The seeded keys must be the ones the app reads. `staffMembers`
+                // and `paymentModes` were never read by anything, so a new
+                // household started with an empty staff table in Master Settings
+                // and no payment methods, while the Staff tab still showed the
+                // placeholder names hardcoded in index.html.
+                assert(Array.isArray(cfg.staff),
+                    `a new household seeds config.staff, not staffMembers (keys: ${Object.keys(cfg).join(', ')})`);
+                assert(cfg.staffMembers === undefined,
+                    'the unread staffMembers key is gone');
+                assert(Array.isArray(cfg.paymentMethods) && cfg.paymentMethods.length > 0,
+                    'a new household seeds config.paymentMethods, not paymentModes');
+                assert(cfg.paymentModes === undefined,
+                    'the unread paymentModes key is gone');
+                assert(cfg.householdCycle && typeof cfg.householdCycle === 'object'
+                    && Number.isInteger(cfg.householdCycle.cycleStartDay),
+                    'the cycle is seeded as householdCycle, not three loose keys');
+
+                // Nothing belonging to another household may leak in.
+                const blob = JSON.stringify(cfg);
+                for (const name of ['Palash', 'Pallavi', 'Nilima', 'Madhuri']) {
+                    assert(!blob.includes(name),
+                        `a new household's defaults do not mention "${name}"`);
+                }
+
+                assert(Array.isArray(cfg.splitRules) && cfg.splitRules.length >= 2,
+                    'split rules are seeded');
+                assert(cfg.splitRules.some(r => r.includes('Household Expense')),
+                    'the split rules include a household option');
+                assert(Array.isArray(cfg.familyMembers) && cfg.familyMembers.length === 1,
+                    `exactly one family member is seeded (got ${JSON.stringify(cfg.familyMembers)})`);
+                assert(cfg.splitRules.some(r => r.includes(cfg.familyMembers[0])),
+                    `the personal split rule names this household's own member`);
             }
         }
 

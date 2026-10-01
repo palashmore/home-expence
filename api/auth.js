@@ -182,6 +182,16 @@ module.exports = async function handler(req, res) {
         });
     }
 
+    // Every users/households read in this app happens in this handler, so one
+    // refresh here is enough. On a serverless host /tmp is empty after a cold
+    // start, and without this the directory would silently fall back to the
+    // copy committed in data/ - losing every household and user created since.
+    try {
+        await storage.hydrateDirectoryFromCloud();
+    } catch (e) {
+        console.warn('[Auth] Directory refresh skipped:', e.message);
+    }
+
     try {
         // GET: Verify session or list public user directory
         if (req.method === 'GET') {

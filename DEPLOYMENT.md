@@ -176,28 +176,28 @@ five files the app actually syncs — copy each from your local `data/`:
 
 Then set `GIST_ID` to that gist's id (the hex string at the end of its URL).
 
-### What still does not persist on Vercel
+### What persists on Vercel
 
-`users.json` and `households.json` are **never written to the gist** — only to
-`/tmp` and to the read-only `data/` directory. On Vercel that means:
+Everything the app writes for household `H001` now goes to the Gist and is read
+back from it: expenses, config, attendance, audit history, **and the user and
+household directory**. Creating a household or a user, changing a role or
+resetting a password survives a cold start.
 
-- creating a user, changing a role, resetting a password or deactivating an
-  account **does not survive a cold start**
-- creating a household does not survive either
-- any household after `H001` has no durable storage for its expenses at all
+The directory is stored as two extra Gist files, created automatically on the
+first write:
 
-So the admin console works, but on Vercel its results are temporary. The seeded
-accounts keep working because they are committed in `data/users.json`; anything
-added on top of them is not.
+| File | Contents |
+|---|---|
+| `directory_users.json` | every user account |
+| `directory_households.json` | every household |
 
-If you leave `GIST_ID` unset, the app falls back to a gist id that is hardcoded
-in `api/_cloud_sync.js` and visible to anyone reading this repository. Set your
-own, or set `CLOUD_SYNC_DISABLED=1` and accept that data is not persisted.
+They are versioned snapshots rather than merged record-by-record, so a deletion
+is never undone by a stale copy, and an empty cloud snapshot can never wipe a
+populated directory.
 
-**If you need more than one household to persist, Vercel is the wrong host for
-this app as written** — run it somewhere with a real writable disk (a VPS,
-Render, Railway, Fly.io, or a container with a volume), where `data/` is
-writable and no gist is involved.
+**Still H001-only:** expenses, config and attendance for `H002` and above are
+not synced. A second household can be created and will persist as a record, but
+its ledger lives only in `/tmp`.
 
 ---
 

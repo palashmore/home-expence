@@ -13,6 +13,7 @@ and disables cloud sync. Never run it against real data by hand.
 Exit code 0 only when every check passes.
 """
 import argparse
+import calendar
 import json
 import os
 import sys
@@ -1067,6 +1068,140 @@ def Number(v):
         return None
 
 
+def audit_attendance_follows_period(page, audit, api):
+    """The attendance calendar must show the month the rest of the app is
+    showing, and a tap must save against that month - not silently against
+    today's. Also checks the save survives a reload and that each month keeps
+    its own marks."""
+    print("\n[D] attendance calendar follows the selected period")
+    goto_tab(page, "staff")
+    page.wait_for_timeout(1000)
+
+    if page.query_selector("#attendanceDaysGrid") is None:
+        audit.record("D attendance calendar", False, "attendance grid not present on the staff tab")
+        return
+
+    today = page.evaluate("() => ({y: new Date().getFullYear(), m: new Date().getMonth() + 1})")
+    cur_key = f"{today['y']}-{today['m']:02d}"
+
+    opening_key = page.evaluate(
+        "() => document.getElementById('attendanceDaysGrid').dataset.monthKey")
+    audit.record(
+        "D the calendar opens on the current month by default",
+        opening_key == cur_key,
+        f"grid month is {opening_key!r}, expected {cur_key!r}",
+    )
+
+    # Switch the period filter to a different month and confirm the calendar moves.
+    prev_month = today["m"] - 1 or 12
+    prev_year = today["y"] if today["m"] > 1 else today["y"] - 1
+    prev_key = f"{prev_year}-{prev_month:02d}"
+    month_names = ["January", "February", "March", "April", "May", "June",
+                   "July", "August", "September", "October", "November", "December"]
+
+    page.evaluate(
+        """([mName, yStr]) => {
+            const m = document.getElementById('filterMonth');
+            const y = document.getElementById('filterYear');
+            if (m) { m.value = mName; }
+            if (y) { y.value = yStr; }
+            onFilterChange();
+        }""",
+        [month_names[prev_month - 1], str(prev_year)],
+    )
+    page.wait_for_timeout(1200)
+
+    grid_key = page.evaluate("() => document.getElementById('attendanceDaysGrid').dataset.monthKey")
+    audit.record(
+        "D selecting a past month moves the calendar to that month",
+        grid_key == prev_key,
+        f"calendar shows {grid_key!r}, expected {prev_key!r}",
+    )
+    title = page.evaluate("() => document.getElementById('attendanceMonthTitle').textContent")
+    audit.record(
+        "D the calendar heading names the month being viewed",
+        month_names[prev_month - 1] in title and str(prev_year) in title,
+        f"heading reads {title!r}",
+    )
+    audit.record(
+        "D the day count matches that month, not today's",
+        page.evaluate("() => document.querySelectorAll('#attendanceDaysGrid .att-day-cell').length")
+        == calendar.monthrange(prev_year, prev_month)[1],
+        "the number of day cells does not match the selected month",
+    )
+
+    # Toggle a day in the PAST month and confirm it is stored under that month.
+    staff = page.evaluate("() => document.getElementById('attendanceStaffSelect').value")
+    page.evaluate("""() => {
+        const c = document.querySelectorAll('#attendanceDaysGrid .att-day-cell');
+        if (c.length > 4) c[4].click();
+    }""")
+    page.wait_for_timeout(2000)
+
+    stored = api("GET", "/api/attendance")
+    record = (stored.get("data") or {}).get(staff) or {}
+    months = record.get("months") or {}
+    audit.record(
+        "D a tap in a past month is saved against that month",
+        prev_key in months and bool((months.get(prev_key) or {}).get("days")),
+        f"months stored for {staff!r}: {list(months.keys())}",
+    )
+    audit.record(
+        "D the current month is not written to by mistake",
+        not (months.get(cur_key) or {}).get("days"),
+        f"a mark landed in {cur_key} while viewing {prev_key}",
+    )
+
+    marked = dict((months.get(prev_key) or {}).get("days") or {})
+
+    # Survives a reload, with the filter still on the past month.
+    reload_app(page)
+    page.evaluate(
+        """([mName, yStr]) => {
+            const m = document.getElementById('filterMonth');
+            const y = document.getElementById('filterYear');
+            if (m) m.value = mName;
+            if (y) y.value = yStr;
+            onFilterChange();
+        }""",
+        [month_names[prev_month - 1], str(prev_year)],
+    )
+    page.wait_for_timeout(1500)
+    goto_tab(page, "staff")
+    page.wait_for_timeout(1200)
+
+    after = api("GET", "/api/attendance")
+    after_days = (((after.get("data") or {}).get(staff) or {}).get("months") or {}).get(prev_key, {}).get("days") or {}
+    audit.record(
+        "D the past-month marks survive a reload",
+        after_days == marked and bool(after_days),
+        f"stored {after_days!r}, expected {marked!r}",
+    )
+    audit.record(
+        "D the calendar returns to the selected month after a reload",
+        page.evaluate("() => document.getElementById('attendanceDaysGrid').dataset.monthKey") == prev_key,
+        "the calendar reverted to the current month after reloading",
+    )
+
+    # Switching back to the current month must show a different, clean record.
+    page.evaluate(
+        """([mName, yStr]) => {
+            const m = document.getElementById('filterMonth');
+            const y = document.getElementById('filterYear');
+            if (m) m.value = mName;
+            if (y) y.value = yStr;
+            onFilterChange();
+        }""",
+        [month_names[today["m"] - 1], str(today["y"])],
+    )
+    page.wait_for_timeout(1200)
+    audit.record(
+        "D switching back returns the calendar to the current month",
+        page.evaluate("() => document.getElementById('attendanceDaysGrid').dataset.monthKey") == cur_key,
+        "the calendar did not return to the current month",
+    )
+
+
 def audit_logout(page, audit, api):
     """Section E: signing out must actually end the session. A token left in
     localStorage, or household data still cached after logout, means the next
@@ -1677,7 +1812,8 @@ def main():
                           (audit_unsaved_guard, "C5 unsaved-changes guard"),
                           (audit_rename_flows, "D rename round-trip"),
                           (audit_delete_warnings, "D delete warning"),
-                          (audit_expense_round_trip, "D expense round-trip")):
+                          (audit_expense_round_trip, "D expense round-trip"),
+                          (audit_attendance_follows_period, "D attendance calendar")):
             try:
                 fn(page, audit, api)
             except Exception as e:

@@ -1569,6 +1569,12 @@ function renderAllViews() {
     if (window.renderPersonalExpensesDashboard) {
         window.renderPersonalExpensesDashboard();
     }
+    // The attendance calendar follows the selected period, so it has to be
+    // redrawn whenever the filters change - otherwise it keeps showing the
+    // month it was first rendered for.
+    if (window.renderAttendanceCalendar) {
+        window.renderAttendanceCalendar();
+    }
 }
 
 // Active Filter Tags with '×' Remove Buttons
@@ -2416,7 +2422,7 @@ function renderHouseholdSpendingMatrix(filteredData) {
         return `
             <tr class="hover:bg-indigo-50/50 transition">
                 <td class="py-2.5 px-3 font-black text-slate-900 whitespace-nowrap">
-                    <span class="cursor-pointer hover:text-indigo-600" onclick="quickFilterPaidBy(${escapeHtml(JSON.stringify(m))})">
+                    <span class="tap-row-link cursor-pointer hover:text-indigo-600" onclick="quickFilterPaidBy(${escapeHtml(JSON.stringify(m))})">
                         ${m}
                     </span>
                 </td>

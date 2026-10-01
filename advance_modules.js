@@ -1027,6 +1027,47 @@
     }
   }
 
+  const MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  /**
+   * Which month the attendance calendar should display.
+   *
+   * It follows the period the rest of the app is showing, so looking at last
+   * month's transactions also shows last month's attendance. Previously this
+   * was hardcoded to new Date(), so the calendar always showed the current
+   * month no matter what period was selected - and a tap then wrote to the
+   * current month's record while the user believed they were editing another.
+   *
+   * Falls back to today when the filter is "All Months" or unreadable, because
+   * a calendar has to show exactly one month.
+   */
+  function getAttendanceViewPeriod() {
+    const now = new Date();
+    const fallback = {
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+      isCurrent: true
+    };
+
+    if (typeof dashboardFilters === 'undefined' || !dashboardFilters) return fallback;
+
+    const monthIndex = MONTH_NAMES.indexOf(String(dashboardFilters.month || ''));
+    if (monthIndex === -1) return fallback;              // "all", or unset
+
+    const year = parseInt(dashboardFilters.year, 10);
+    if (!Number.isInteger(year) || year < 1970 || year > 9999) return fallback;
+
+    return {
+      year: year,
+      month: monthIndex + 1,
+      isCurrent: year === now.getFullYear() && monthIndex === now.getMonth()
+    };
+  }
+  window.getAttendanceViewPeriod = getAttendanceViewPeriod;
+
   window.renderAttendanceCalendar = function () {
     const staffSelect = document.getElementById('attendanceStaffSelect');
     const monthTitle = document.getElementById('attendanceMonthTitle');
@@ -1035,14 +1076,18 @@
     if (!grid || !staffSelect) return;
 
     const staffName = staffSelect.value || 'Chef - Nilima Nikose';
-    const now = new Date();
-    const curYear = now.getFullYear();
-    const curMonth = now.getMonth() + 1;
+    const period = getAttendanceViewPeriod();
+    const curYear = period.year;
+    const curMonth = period.month;
     const monthKey = `${curYear}-${String(curMonth).padStart(2, '0')}`;
-    const monthName = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    const monthName = `${MONTH_NAMES[curMonth - 1]} ${curYear}`;
+
+    grid.dataset.monthKey = monthKey;
 
     if (monthTitle) {
-      monthTitle.textContent = `${monthName} Attendance (${staffName.split(' - ')[1] || staffName})`;
+      const suffix = period.isCurrent ? '' : ' · past period';
+      monthTitle.textContent =
+        `${monthName} Attendance (${staffName.split(' - ')[1] || staffName})${suffix}`;
     }
 
     if (!staffAttendanceState[staffName]) {

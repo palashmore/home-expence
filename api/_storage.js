@@ -191,11 +191,24 @@ function createHousehold(data, actor = 'System') {
     writeJsonFile(HOUSEHOLDS_FILE, households);
     
     try {
-        // Initialize household directory structure recursively
+        // Initialize household directory structure recursively.
+        //
+        // getHouseholdDir has already created the writable /tmp overlay and made
+        // a best-effort attempt at the repo-side directory. Repeating that mkdir
+        // here without a guard made household creation fail outright on a
+        // read-only filesystem:
+        //   ENOENT: no such file or directory, mkdir '/var/task/data/households/H003'
+        // Every writeJsonFile below tolerates that already - it writes to /tmp
+        // first - so a failure to create the repo-side directory must not abort
+        // the whole operation.
         const dir = getHouseholdDir(nextId);
-        fs.mkdirSync(dir, { recursive: true });
-        const receiptsDir = path.join(dir, 'receipts');
-        if (!fs.existsSync(receiptsDir)) fs.mkdirSync(receiptsDir, { recursive: true });
+        try {
+            fs.mkdirSync(dir, { recursive: true });
+            const receiptsDir = path.join(dir, 'receipts');
+            if (!fs.existsSync(receiptsDir)) fs.mkdirSync(receiptsDir, { recursive: true });
+        } catch (e) {
+            console.warn(`[Storage] Read-only filesystem for ${dir}; using the tmp overlay instead.`);
+        }
 
         // Zero records initially copied - clean independent ledger
         writeJsonFile(path.join(dir, 'expenses.json'), []);

@@ -1324,3 +1324,18 @@ button[data-busy="1"] {
     opacity: 0.65;
     pointer-events: none;
 }
+
+/* ==========================================================================
+   INLINE ROW LINKS
+   A clickable name inside a table cell renders as a 38x15 inline span, which
+   is far below the thumb minimum. Give it a real 44px tap box on phones
+   without changing how it looks on desktop.
+   ========================================================================== */
+@media (max-width: 767px) {
+    .tap-row-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        min-width: 44px;   /* short names like "Palash" are only 38px wide */
+    }
+}

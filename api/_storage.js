@@ -124,6 +124,107 @@ function writeJsonFile(filePath, data) {
 // ==========================================
 // USER & HOUSEHOLD REGISTRY
 // ==========================================
+// ==========================================
+// DIRECTORY (USERS & HOUSEHOLDS) CLOUD PERSISTENCE
+//
+// users.json and households.json were the only state never pushed to the Gist.
+// On a serverless host they therefore lived solely in /tmp, which is wiped when
+// the instance goes cold - so a household or user created through the admin
+// console disappeared a few minutes later and the directory reverted to the
+// copy committed in data/.
+//
+// These two files are snapshots rather than append-only logs, and they support
+// deletion, so merging record-by-record would resurrect deleted users. Instead
+// the whole file is versioned: whichever side was written last wins. The local
+// stamp lives in directory_meta.json, which is itself written through the /tmp
+// overlay - so after a cold start there is no local stamp, the cloud copy is
+// newer by definition, and the directory is restored.
+// ==========================================
+const DIRECTORY_META_FILE = path.join(DATA_DIR, 'directory_meta.json');
+
+// Deliberately NOT 'users.json' / 'households.json'. _cloud_sync mirrors every
+// write to DATA_DIR/<filename> and TMP_DIR/<filename>, so reusing those names
+// would overwrite the directory files themselves with the wrapped snapshot -
+// getAllHouseholds would then read an object instead of an array.
+const DIRECTORY_USERS_CLOUD_FILE = 'directory_users.json';
+const DIRECTORY_HOUSEHOLDS_CLOUD_FILE = 'directory_households.json';
+
+function readDirectoryMeta() {
+    const meta = readJsonFile(DIRECTORY_META_FILE, {});
+    return (meta && typeof meta === 'object' && !Array.isArray(meta)) ? meta : {};
+}
+
+function stampDirectory(kind) {
+    const at = new Date().toISOString();
+    const meta = readDirectoryMeta();
+    meta[kind] = at;
+    writeJsonFile(DIRECTORY_META_FILE, meta);
+    return at;
+}
+
+function persistUsers(users) {
+    writeJsonFile(USERS_FILE, users);
+    const at = stampDirectory('users');
+    cloudSync.writeJson(DIRECTORY_USERS_CLOUD_FILE, { updatedAt: at, users: users }).catch(err => {
+        console.warn('[CloudSync] users write notice:', err.message);
+    });
+}
+
+function persistHouseholds(households) {
+    writeJsonFile(HOUSEHOLDS_FILE, households);
+    const at = stampDirectory('households');
+    cloudSync.writeJson(DIRECTORY_HOUSEHOLDS_CLOUD_FILE, { updatedAt: at, households: households }).catch(err => {
+        console.warn('[CloudSync] households write notice:', err.message);
+    });
+}
+
+// Accepts the wrapped snapshot this module writes, and a bare array for
+// forward/backward tolerance if the gist file is ever edited by hand.
+function unwrapSnapshot(payload, key) {
+    if (!payload) return null;
+    if (Array.isArray(payload)) return { list: payload, updatedAt: null };
+    if (Array.isArray(payload[key])) {
+        return { list: payload[key], updatedAt: payload.updatedAt || null };
+    }
+    return null;
+}
+
+/**
+ * Pull users and households back from the cloud when that copy is newer.
+ *
+ * Call this before reading the directory in an async request handler; the
+ * getters themselves are synchronous and used all over, so they stay as they
+ * are and simply see refreshed files.
+ */
+async function hydrateDirectoryFromCloud() {
+    const meta = readDirectoryMeta();
+
+    const restore = async (filename, key, targetFile, metaKey) => {
+        try {
+            const snapshot = unwrapSnapshot(await cloudSync.readJson(filename), key);
+            if (!snapshot || !Array.isArray(snapshot.list)) return;
+
+            // Never let an empty cloud copy wipe a populated local directory -
+            // there is always at least one user and one household.
+            if (snapshot.list.length === 0) return;
+
+            const cloudAt = Date.parse(snapshot.updatedAt || '') || 0;
+            const localAt = Date.parse(meta[metaKey] || '') || 0;
+            if (cloudAt <= localAt) return;          // local is the same or newer
+
+            writeJsonFile(targetFile, snapshot.list);
+            const next = readDirectoryMeta();
+            next[metaKey] = new Date(cloudAt).toISOString();
+            writeJsonFile(DIRECTORY_META_FILE, next);
+        } catch (e) {
+            // A cloud failure must never block a request; the local copy stands.
+        }
+    };
+
+    await restore(DIRECTORY_USERS_CLOUD_FILE, 'users', USERS_FILE, 'users');
+    await restore(DIRECTORY_HOUSEHOLDS_CLOUD_FILE, 'households', HOUSEHOLDS_FILE, 'households');
+}
+
 function getAllUsers() {
     return readJsonFile(USERS_FILE, []);
 }
@@ -188,7 +289,7 @@ function createHousehold(data, actor = 'System') {
     };
     
     households.push(newHousehold);
-    writeJsonFile(HOUSEHOLDS_FILE, households);
+    persistHouseholds(households);
     
     try {
         // Initialize household directory structure recursively.
@@ -250,7 +351,7 @@ function createHousehold(data, actor = 'System') {
     } catch (err) {
         // Transactional rollback on failure
         const rollbackList = getAllHouseholds().filter(h => h.householdId !== nextId);
-        writeJsonFile(HOUSEHOLDS_FILE, rollbackList);
+        persistHouseholds(rollbackList);
         const dir = path.join(HOUSEHOLDS_DIR, nextId);
         if (fs.existsSync(dir)) {
             try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
@@ -304,14 +405,14 @@ function createUser(data, actor = 'System') {
     };
 
     users.push(newUser);
-    writeJsonFile(USERS_FILE, users);
+    persistUsers(users);
 
     // Link user to household memberUserIds
     if (!targetHousehold.memberUserIds) targetHousehold.memberUserIds = [];
     if (!targetHousehold.memberUserIds.includes(nextId)) {
         targetHousehold.memberUserIds.push(nextId);
         targetHousehold.updatedAt = new Date().toISOString();
-        writeJsonFile(HOUSEHOLDS_FILE, households);
+        persistHouseholds(households);
     }
 
     // Also add name to household config.json familyMembers if not already present
@@ -355,7 +456,7 @@ function updateHousehold(householdId, updates, actor = 'System') {
         status: newStatus,
         updatedAt: new Date().toISOString()
     };
-    writeJsonFile(HOUSEHOLDS_FILE, households);
+    persistHouseholds(households);
 
     // If monthly budget limit updated, update household config
     if (updates.monthlyBudgetLimit != null) {
@@ -393,7 +494,7 @@ function deleteHousehold(householdId, actor = 'System') {
 
     // Remove from households list
     households.splice(idx, 1);
-    writeJsonFile(HOUSEHOLDS_FILE, households);
+    persistHouseholds(households);
 
     // Reassign any users belonging to this household to H001
     const users = getAllUsers();
@@ -407,7 +508,7 @@ function deleteHousehold(householdId, actor = 'System') {
         }
     });
     if (usersModified) {
-        writeJsonFile(USERS_FILE, users);
+        persistUsers(users);
     }
 
     // Safely archive the physical folder if exists
@@ -498,7 +599,7 @@ function updateUser(userId, updates, actor = 'System') {
             targetH.updatedAt = new Date().toISOString();
         }
 
-        writeJsonFile(HOUSEHOLDS_FILE, households);
+        persistHouseholds(households);
         current.householdId = newHId;
 
         // Add to new household's config.json familyMembers if not present
@@ -519,7 +620,7 @@ function updateUser(userId, updates, actor = 'System') {
 
     current.updatedAt = new Date().toISOString();
     users[idx] = current;
-    writeJsonFile(USERS_FILE, users);
+    persistUsers(users);
 
     logHouseholdAudit(current.householdId, {
         id: `AUD-${Date.now()}-EDIT-U`,
@@ -556,7 +657,7 @@ function deleteUser(userId, actor = 'System') {
 
     // Remove user from users list
     users.splice(idx, 1);
-    writeJsonFile(USERS_FILE, users);
+    persistUsers(users);
 
     // Remove user ID from all households memberUserIds
     const households = getAllHouseholds();
@@ -574,7 +675,7 @@ function deleteUser(userId, actor = 'System') {
         }
     });
     if (householdsModified) {
-        writeJsonFile(HOUSEHOLDS_FILE, households);
+        persistHouseholds(households);
     }
 
     logHouseholdAudit(targetUser.householdId, {
@@ -1139,6 +1240,7 @@ async function getHouseholdBackupBundle(householdId) {
 
 module.exports = {
     sanitizeId,
+    hydrateDirectoryFromCloud,
     getAllUsers,
     getUserById,
     getUserByUsernameOrEmail,

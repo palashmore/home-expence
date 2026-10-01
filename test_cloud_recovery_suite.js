@@ -256,6 +256,115 @@ async function run() {
         fs.rmSync(scratch, { recursive: true, force: true });
     }
 
+    // ---------------------------------------------------------------
+    console.log('\n--- TEST 6: new households and users survive a cold start ---');
+    {
+        const { scratch, dataDir, tmpDir } = makeScratch();
+        const cloud = {};
+
+        let storage = freshStorage(cloud, dataDir, tmpDir);
+        const h2 = storage.createHousehold({ householdName: 'Vaibhavi', initialBudget: 10000 }, 'admin');
+        const h3 = storage.createHousehold({ householdName: 'Second Home', initialBudget: 25000 }, 'admin');
+        const u1 = storage.createUser({
+            username: 'vaibhavi', name: 'Vaibhavi', passwordHash: 'salt1:hash1',
+            householdId: h2.householdId, role: 'OWNER'
+        }, 'admin');
+        const u2 = storage.createUser({
+            username: 'second', name: 'Second User', passwordHash: 'salt2:hash2',
+            householdId: h3.householdId, role: 'MEMBER'
+        }, 'admin');
+
+        check(cloud['directory_households.json'] !== undefined,
+            'creating a household pushes the directory to the cloud');
+        check(cloud['directory_users.json'] !== undefined,
+            'creating a user pushes the directory to the cloud');
+
+        const seededHouseholds = storage.getAllHouseholds().length;
+        const seededUsers = storage.getAllUsers().length;
+
+        coldStart(dataDir, tmpDir);
+        // The committed baseline knows nothing about any of this.
+        fs.writeFileSync(path.join(dataDir, 'households.json'), '[]', 'utf8');
+        fs.writeFileSync(path.join(dataDir, 'users.json'), '[]', 'utf8');
+        fs.rmSync(path.join(dataDir, 'directory_meta.json'), { force: true });
+
+        storage = freshStorage(cloud, dataDir, tmpDir);
+        check(storage.getAllHouseholds().length === 0,
+            'before hydrating, the cold instance sees an empty directory');
+
+        await storage.hydrateDirectoryFromCloud();
+
+        const households = storage.getAllHouseholds();
+        const users = storage.getAllUsers();
+        check(households.length === seededHouseholds,
+            `both new households are restored (${households.length} of ${seededHouseholds})`);
+        check(households.some(h => h.householdName === 'Vaibhavi'),
+            'the household named "Vaibhavi" is back');
+        check(users.length === seededUsers,
+            `both new users are restored (${users.length} of ${seededUsers})`);
+        check(users.some(u => u.username === 'vaibhavi') && users.some(u => u.username === 'second'),
+            'both usernames are back');
+
+        const restored = users.find(u => u.username === 'vaibhavi');
+        check(restored && restored.householdId === h2.householdId,
+            'a restored user still points at the right household');
+        check(restored && typeof restored.passwordHash === 'string' && restored.passwordHash.includes(':'),
+            'the password hash survives, so the user can still sign in');
+        check(u1.userId !== u2.userId, 'the two users were given distinct ids');
+
+        fs.rmSync(scratch, { recursive: true, force: true });
+    }
+
+    // ---------------------------------------------------------------
+    console.log('\n--- TEST 7: a deleted user is not resurrected by the cloud ---');
+    {
+        const { scratch, dataDir, tmpDir } = makeScratch();
+        const cloud = {};
+        fs.writeFileSync(path.join(dataDir, 'users.json'), '[]', 'utf8');
+        fs.writeFileSync(path.join(dataDir, 'households.json'), '[]', 'utf8');
+
+        const storage = freshStorage(cloud, dataDir, tmpDir);
+        const h = storage.createHousehold({ householdName: 'Temp', initialBudget: 1000 }, 'admin');
+        // U000 and U001 are protected from deletion, so make a third account.
+        storage.createUser({ username: 'keep1', name: 'Keep One', passwordHash: 's:h',
+            householdId: h.householdId, role: 'OWNER' }, 'admin');
+        storage.createUser({ username: 'keep2', name: 'Keep Two', passwordHash: 's:h',
+            householdId: h.householdId, role: 'MEMBER' }, 'admin');
+        const doomed = storage.createUser({
+            username: 'doomed', name: 'Doomed', passwordHash: 's:h',
+            householdId: h.householdId, role: 'MEMBER'
+        }, 'admin');
+
+        storage.deleteUser(doomed.userId, 'admin');
+
+        // Hydration must not undo the delete: the local copy is the newer one.
+        await storage.hydrateDirectoryFromCloud();
+        const users = storage.getAllUsers();
+        check(!users.some(u => u.username === 'doomed'),
+            'the deleted user stays deleted after a cloud refresh');
+
+        fs.rmSync(scratch, { recursive: true, force: true });
+    }
+
+    // ---------------------------------------------------------------
+    console.log('\n--- TEST 8: an empty cloud directory cannot wipe local users ---');
+    {
+        const { scratch, dataDir, tmpDir } = makeScratch();
+        const cloud = {
+            'directory_users.json': { updatedAt: '2099-01-01T00:00:00.000Z', users: [] },
+            'directory_households.json': { updatedAt: '2099-01-01T00:00:00.000Z', households: [] }
+        };
+        fs.writeFileSync(path.join(dataDir, 'users.json'),
+            JSON.stringify([{ userId: 'U000', username: 'admin' }]), 'utf8');
+
+        const storage = freshStorage(cloud, dataDir, tmpDir);
+        await storage.hydrateDirectoryFromCloud();
+        check(storage.getAllUsers().length === 1,
+            'an empty cloud snapshot, even a newer one, does not erase the local directory');
+
+        fs.rmSync(scratch, { recursive: true, force: true });
+    }
+
     console.log('\n====================================================');
     console.log(`📊 Test Results: ${passed} PASSED, ${failed} FAILED`);
     console.log('====================================================');

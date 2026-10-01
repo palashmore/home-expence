@@ -70,7 +70,7 @@ echo
 if [ "$#" -gt 0 ]; then
     SUITES=("$@")
 else
-    SUITES=(test_boot_suite.js test_verification_suite.js test_master_settings_and_expenses.js test_config_rules_suite.js)
+    SUITES=(test_boot_suite.js test_cloud_recovery_suite.js test_verification_suite.js test_master_settings_and_expenses.js test_config_rules_suite.js)
 fi
 
 FAILED=0

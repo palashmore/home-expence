@@ -149,6 +149,24 @@ const DIRECTORY_META_FILE = path.join(DATA_DIR, 'directory_meta.json');
 const DIRECTORY_USERS_CLOUD_FILE = 'directory_users.json';
 const DIRECTORY_HOUSEHOLDS_CLOUD_FILE = 'directory_households.json';
 
+/**
+ * Which Gist file holds a given household's copy of `base`.
+ *
+ * H001 keeps the original unprefixed names so an existing Gist keeps working
+ * untouched; every other household gets its own prefixed file. Without this,
+ * cloud sync was guarded by `cleanHId === 'H001'` everywhere and a second
+ * household's ledger, settings and attendance existed only in /tmp - gone on
+ * the next cold start.
+ *
+ *   H001 -> expenses.json
+ *   H002 -> H002_expenses.json
+ */
+function cloudFileFor(householdId, base) {
+    const clean = sanitizeId(householdId);
+    if (!clean || clean === 'H001') return base;
+    return `${clean}_${base}`;
+}
+
 function readDirectoryMeta() {
     const meta = readJsonFile(DIRECTORY_META_FILE, {});
     return (meta && typeof meta === 'object' && !Array.isArray(meta)) ? meta : {};
@@ -745,17 +763,15 @@ async function getHouseholdExpenses(householdId, includeDeleted = false, forceFr
             records = readJsonFile(legacyPath, []);
         }
 
-        // If H001, also sync with CloudSync (GitHub Gist)
-        if (cleanHId === 'H001') {
-            try {
-                const cloudRecords = await cloudSync.readJson('expenses.json');
-                if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
-                    if (!records || cloudRecords.length >= records.length) {
-                        records = cloudRecords;
-                    }
+        // Every household syncs, each to its own Gist file.
+        try {
+            const cloudRecords = await cloudSync.readJson(cloudFileFor(cleanHId, 'expenses.json'));
+            if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+                if (!records || cloudRecords.length >= records.length) {
+                    records = cloudRecords;
                 }
-            } catch (e) {}
-        }
+            }
+        } catch (e) {}
 
         memoryStore.expenses[cleanHId] = Array.isArray(records) ? records : [];
     }
@@ -874,10 +890,10 @@ async function saveHouseholdExpense(householdId, record, actorUser = 'System') {
     // If H001, also mirror to data/expenses.json and CloudSync (Gist)
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'expenses.json'), list);
-        cloudSync.writeJson('expenses.json', list).catch(err => {
-            console.warn('[CloudSync] expenses write notice:', err.message);
-        });
     }
+    cloudSync.writeJson(cloudFileFor(cleanHId, 'expenses.json'), list).catch(err => {
+        console.warn('[CloudSync] expenses write notice:', err.message);
+    });
 
     // Audit Logging
     await logHouseholdAudit(
@@ -934,10 +950,10 @@ async function bulkUpdateHouseholdExpenses(householdId, mutate, actorUser = 'Sys
 
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'expenses.json'), list);
-        cloudSync.writeJson('expenses.json', list).catch(err => {
-            console.warn('[CloudSync] bulk expenses write notice:', err.message);
-        });
     }
+    cloudSync.writeJson(cloudFileFor(cleanHId, 'expenses.json'), list).catch(err => {
+        console.warn('[CloudSync] bulk expenses write notice:', err.message);
+    });
 
     await logHouseholdAudit(
         cleanHId,
@@ -978,10 +994,10 @@ async function deleteHouseholdExpense(householdId, id, actorUser = 'System') {
 
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'expenses.json'), list);
-        cloudSync.writeJson('expenses.json', list).catch(err => {
-            console.warn('[CloudSync] expenses delete notice:', err.message);
-        });
     }
+    cloudSync.writeJson(cloudFileFor(cleanHId, 'expenses.json'), list).catch(err => {
+        console.warn('[CloudSync] expenses delete notice:', err.message);
+    });
 
     await logHouseholdAudit(
         cleanHId,
@@ -1009,10 +1025,10 @@ async function getHouseholdConfig(householdId, forceFresh = true) {
             config = readJsonFile(path.join(DATA_DIR, 'config.json'), {});
         }
 
-        // If H001, also check CloudSync (GitHub Gist)
-        if (cleanHId === 'H001') {
+        // Every household syncs, each to its own Gist file.
+        {
             try {
-                const cloudConfig = await cloudSync.readJson('config.json');
+                const cloudConfig = await cloudSync.readJson(cloudFileFor(cleanHId, 'config.json'));
                 if (cloudConfig && typeof cloudConfig === 'object' && Array.isArray(cloudConfig.categories)) {
                     if (config) {
                         config = { ...config, ...cloudConfig };
@@ -1039,10 +1055,10 @@ async function saveHouseholdConfig(householdId, newConfig, actorUser = 'System')
 
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'config.json'), newConfig);
-        cloudSync.writeJson('config.json', newConfig).catch(err => {
-            console.warn('[CloudSync] config write notice:', err.message);
-        });
     }
+    cloudSync.writeJson(cloudFileFor(cleanHId, 'config.json'), newConfig).catch(err => {
+        console.warn('[CloudSync] config write notice:', err.message);
+    });
 
     await logHouseholdAudit(cleanHId, 'UPDATE_CONFIG', 'config', { updated: true }, newConfig, actorUser);
     return newConfig;
@@ -1112,9 +1128,9 @@ async function getHouseholdAttendance(householdId, forceFresh = true) {
         // then fell through to the committed baseline in data/ and every mark
         // made since appeared to have been lost. The Gist is the durable copy,
         // so it has to be consulted here the same way expenses and config are.
-        if (cleanHId === 'H001') {
+        {
             try {
-                const cloudAttendance = await cloudSync.readJson('staff_attendance.json');
+                const cloudAttendance = await cloudSync.readJson(cloudFileFor(cleanHId, 'staff_attendance.json'));
                 if (cloudAttendance && typeof cloudAttendance === 'object') {
                     attendance = mergeAttendance(attendance, cloudAttendance);
                 }
@@ -1136,8 +1152,8 @@ async function saveHouseholdAttendance(householdId, attendanceData, actorUser = 
 
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'staff_attendance.json'), attendanceData);
-        cloudSync.writeJson('staff_attendance.json', attendanceData).catch(() => {});
     }
+    cloudSync.writeJson(cloudFileFor(cleanHId, 'staff_attendance.json'), attendanceData).catch(() => {});
     return attendanceData;
 }
 
@@ -1158,9 +1174,9 @@ async function getHouseholdAuditLogs(householdId, limit = 100, forceFresh = true
         // Same write-only gap as attendance had: entries were pushed to the Gist
         // but never read back, so history recorded since the last cold start
         // disappeared from the Audit tab. Union by entry id, newest first.
-        if (cleanHId === 'H001') {
+        {
             try {
-                const cloudLogs = await cloudSync.readJson('audit_log.json');
+                const cloudLogs = await cloudSync.readJson(cloudFileFor(cleanHId, 'audit_log.json'));
                 if (Array.isArray(cloudLogs) && cloudLogs.length) {
                     const byId = new Map();
                     for (const entry of [...(Array.isArray(logs) ? logs : []), ...cloudLogs]) {
@@ -1206,8 +1222,8 @@ async function logHouseholdAudit(householdId, action, recordId, diff = {}, snaps
 
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'audit_log.json'), memoryStore.audit[cleanHId]);
-        cloudSync.writeJson('audit_log.json', memoryStore.audit[cleanHId]).catch(() => {});
     }
+    cloudSync.writeJson(cloudFileFor(cleanHId, 'audit_log.json'), memoryStore.audit[cleanHId]).catch(() => {});
 }
 
 // ==========================================

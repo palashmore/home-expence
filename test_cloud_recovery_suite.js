@@ -365,6 +365,58 @@ async function run() {
         fs.rmSync(scratch, { recursive: true, force: true });
     }
 
+    // ---------------------------------------------------------------
+    console.log('\n--- TEST 9: a second household syncs to its own cloud files ---');
+    {
+        const { scratch, dataDir, tmpDir } = makeScratch();
+        const cloud = {};
+        let storage = freshStorage(cloud, dataDir, tmpDir);
+
+        await storage.saveHouseholdConfig('H001', { categories: [{ name: 'H1 Cat' }], marker: 'one' }, 'test');
+        await storage.saveHouseholdConfig('H002', { categories: [{ name: 'H2 Cat' }], marker: 'two' }, 'test');
+        await storage.saveHouseholdExpense('H002', {
+            date: '2026-09-15', amount: 250.75, category: 'H2 Cat', paidBy: 'Vaibhavi'
+        }, 'test');
+        await storage.saveHouseholdAttendance('H002', {
+            'Helper': { months: { '2026-09': { days: { 4: 'L' }, updatedAt: '2026-09-04T00:00:00.000Z' } } }
+        }, 'test');
+
+        check(cloud['config.json'] !== undefined,
+            'H001 still uses the original unprefixed file name');
+        check(cloud['H002_config.json'] !== undefined,
+            'H002 gets its own H002_config.json');
+        check(cloud['H002_expenses.json'] !== undefined,
+            'H002 gets its own H002_expenses.json');
+        check(cloud['H002_staff_attendance.json'] !== undefined,
+            'H002 gets its own H002_staff_attendance.json');
+        check(cloud['config.json'].marker === 'one' && cloud['H002_config.json'].marker === 'two',
+            'the two households do not overwrite each other in the cloud');
+
+        coldStart(dataDir, tmpDir);
+        fs.rmSync(path.join(dataDir, 'households'), { recursive: true, force: true });
+        fs.writeFileSync(path.join(dataDir, 'config.json'), '{}', 'utf8');
+        fs.writeFileSync(path.join(dataDir, 'expenses.json'), '[]', 'utf8');
+        storage = freshStorage(cloud, dataDir, tmpDir);
+
+        const h2cfg = await storage.getHouseholdConfig('H002', true);
+        check(h2cfg && h2cfg.marker === 'two',
+            `H002's settings survive a cold start (marker: ${h2cfg && h2cfg.marker})`);
+
+        const h2exp = await storage.getHouseholdExpenses('H002', false, true);
+        check(h2exp.length === 1 && h2exp[0].amount === 250.75,
+            `H002's ledger survives a cold start (${h2exp.length} records)`);
+
+        const h2att = await storage.getHouseholdAttendance('H002', true);
+        check((((h2att['Helper'] || {}).months || {})['2026-09'] || {}).days['4'] === 'L',
+            "H002's attendance survives a cold start");
+
+        const h1cfg = await storage.getHouseholdConfig('H001', true);
+        check(h1cfg && h1cfg.marker === 'one',
+            "H001's settings are untouched by H002's sync");
+
+        fs.rmSync(scratch, { recursive: true, force: true });
+    }
+
     console.log('\n====================================================');
     console.log(`📊 Test Results: ${passed} PASSED, ${failed} FAILED`);
     console.log('====================================================');

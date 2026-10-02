@@ -31,6 +31,10 @@ const LEGACY_FILES = {
     auditLog: 'audit_log.json'
 };
 
+// The five keys every household slice carries. These mirror what the app
+// already stores per household - the shapes are unchanged, only their location.
+const HOUSEHOLD_KEYS = ['config', 'users', 'expenses', 'attendance', 'auditLog'];
+
 function emptyStore() {
     return {
         updatedAt: new Date().toISOString(),
@@ -39,6 +43,46 @@ function emptyStore() {
         pushSubscriptions: [],
         data: {}
     };
+}
+
+function emptySlice() {
+    return { config: {}, users: [], expenses: [], attendance: {}, auditLog: [] };
+}
+
+/**
+ * Keep the household membership lists in step with the global user directory.
+ *
+ * `data.<id>.users` is a derived index: who belongs to this household and in
+ * what role. The user records themselves remain the single source of truth -
+ * nothing is renamed or moved - so this cannot drift out of sync and no
+ * application code has to maintain it.
+ */
+function deriveHouseholdMembership(doc) {
+    const byHousehold = {};
+    for (const u of (doc.users || [])) {
+        if (!u || !u.householdId || !u.userId) continue;
+        (byHousehold[u.householdId] = byHousehold[u.householdId] || []).push({
+            userId: u.userId,
+            role: u.role || 'MEMBER'
+        });
+    }
+
+    // A slice exists for every known household, and for any household that
+    // already has data, so nothing is ever orphaned.
+    const ids = new Set([
+        ...Object.keys(doc.data || {}),
+        ...(doc.households || []).map(h => h && h.householdId).filter(Boolean)
+    ]);
+
+    for (const id of ids) {
+        const slice = (doc.data[id] && typeof doc.data[id] === 'object') ? doc.data[id] : emptySlice();
+        for (const key of HOUSEHOLD_KEYS) {
+            if (slice[key] === undefined) slice[key] = emptySlice()[key];
+        }
+        slice.users = byHousehold[id] || [];
+        doc.data[id] = slice;
+    }
+    return doc;
 }
 
 function normalise(doc) {
@@ -67,28 +111,43 @@ async function readStore() {
 }
 
 /**
- * One-time migration from the old per-file layout, so an existing Gist keeps
- * its data. Only ever runs when the single document is absent.
+ * One-time migration from the old per-file layout.
+ *
+ * Reads the existing Gist files, rebuilds them as one document preserving every
+ * id and relationship, and validates the result before it is considered usable.
+ * The original files are never read destructively and never deleted - they stay
+ * as a rollback source.
  */
 async function migrateFromLegacy() {
     const store = emptyStore();
     let found = false;
 
+    const unwrap = (payload, key) => {
+        if (!payload) return null;
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload[key])) return payload[key];
+        return null;
+    };
+
     try {
-        const users = await cloudSync.readJson('directory_users.json');
-        if (users && Array.isArray(users.users)) { store.users = users.users; found = true; }
-        const households = await cloudSync.readJson('directory_households.json');
-        if (households && Array.isArray(households.households)) {
-            store.households = households.households; found = true;
-        }
-        const subs = await cloudSync.readJson('push_subscriptions.json');
-        if (Array.isArray(subs)) { store.pushSubscriptions = subs; found = true; }
+        const users = unwrap(await cloudSync.readJson('directory_users.json'), 'users');
+        if (users) { store.users = users; found = true; }
+
+        const households = unwrap(await cloudSync.readJson('directory_households.json'), 'households');
+        if (households) { store.households = households; found = true; }
+
+        const subs = unwrap(await cloudSync.readJson('push_subscriptions.json'), 'subscriptions');
+        if (subs) { store.pushSubscriptions = subs; found = true; }
     } catch (e) {}
 
-    // H001 used unprefixed names; later households used an <id>_ prefix.
-    const ids = new Set(['H001', ...store.households.map(h => h && h.householdId).filter(Boolean)]);
+    // H001 used the unprefixed names; any later household used an <id>_ prefix.
+    const ids = new Set([
+        'H001',
+        ...store.households.map(h => h && h.householdId).filter(Boolean)
+    ]);
+
     for (const id of ids) {
-        const slice = {};
+        const slice = emptySlice();
         for (const [key, base] of Object.entries(LEGACY_FILES)) {
             const name = id === 'H001' ? base : `${id}_${base}`;
             try {
@@ -96,11 +155,58 @@ async function migrateFromLegacy() {
                 if (value !== null && value !== undefined) { slice[key] = value; found = true; }
             } catch (e) {}
         }
-        if (Object.keys(slice).length) store.data[id] = slice;
+        store.data[id] = slice;
     }
 
-    return found ? store : null;
+    if (!found) return null;
+
+    deriveHouseholdMembership(store);
+
+    const problems = validateStore(store);
+    if (problems.length) {
+        console.warn('[CloudStore] Migration rejected, leaving the old files in place:',
+            problems.join('; '));
+        return null;
+    }
+    return store;
 }
+
+/**
+ * Structural checks that must hold before a migrated document replaces the old
+ * layout. Deliberately conservative: a migration that cannot be verified is
+ * abandoned rather than written.
+ */
+function validateStore(doc) {
+    const problems = [];
+    if (!doc || typeof doc !== 'object') return ['document is not an object'];
+    if (!Array.isArray(doc.users)) problems.push('users is not an array');
+    if (!Array.isArray(doc.households)) problems.push('households is not an array');
+    if (!Array.isArray(doc.pushSubscriptions)) problems.push('pushSubscriptions is not an array');
+    if (!doc.data || typeof doc.data !== 'object') problems.push('data is not an object');
+    if (problems.length) return problems;
+
+    // Every household in the directory must have a slice with all five keys.
+    for (const h of doc.households) {
+        const id = h && h.householdId;
+        if (!id) { problems.push('a household has no householdId'); continue; }
+        const slice = doc.data[id];
+        if (!slice) { problems.push(`no data slice for ${id}`); continue; }
+        for (const key of HOUSEHOLD_KEYS) {
+            if (slice[key] === undefined) problems.push(`${id} is missing ${key}`);
+        }
+    }
+
+    // Every user must still point at a household that exists, or at SYSTEM.
+    const knownHouseholds = new Set(doc.households.map(h => h && h.householdId));
+    for (const u of doc.users) {
+        if (!u || !u.userId) { problems.push('a user has no userId'); continue; }
+        if (u.householdId && u.householdId !== 'SYSTEM' && !knownHouseholds.has(u.householdId)) {
+            problems.push(`user ${u.userId} points at unknown household ${u.householdId}`);
+        }
+    }
+    return problems;
+}
+
 
 let migrationAttempted = false;
 
@@ -141,6 +247,7 @@ function updateStore(mutate) {
             const doc = await currentStore();
             if (!doc.data || typeof doc.data !== 'object') doc.data = {};
             mutate(doc);
+            deriveHouseholdMembership(doc);
             doc.updatedAt = new Date().toISOString();
             await cloudSync.writeJson(STORE_FILE, doc);
             return doc;
@@ -217,6 +324,9 @@ module.exports = {
     writePushSubscriptions,
     // exported for tests
     emptyStore,
+    emptySlice,
     migrateFromLegacy,
+    validateStore,
+    deriveHouseholdMembership,
     _resetMigrationFlag: () => { migrationAttempted = false; }
 };

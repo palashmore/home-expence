@@ -426,6 +426,81 @@ async function run() {
         fs.rmSync(scratch, { recursive: true, force: true });
     }
 
+    // ---------------------------------------------------------------
+    console.log('\n--- TEST 10: the old multi-file gist migrates without loss ---');
+    {
+        const { scratch, dataDir, tmpDir } = makeScratch();
+
+        // Mirrors the real exported gist: wrapped directory files, a flat H001
+        // config, attendance keyed by staff name, and households that never had
+        // files of their own.
+        const cloud = {
+            'directory_users.json': { updatedAt: '2026-09-29T00:00:00.000Z', users: [
+                { userId: 'U000', username: 'admin', householdId: 'SYSTEM', role: 'SYSTEM_ADMIN', passwordHash: 's:h' },
+                { userId: 'U001', username: 'owner1', householdId: 'H001', role: 'OWNER', passwordHash: 's:h' },
+                { userId: 'U002', username: 'member1', householdId: 'H001', role: 'MEMBER', passwordHash: 's:h' },
+                { userId: 'U003', username: 'owner2', householdId: 'H002', role: 'OWNER', passwordHash: 's:h' }
+            ]},
+            'directory_households.json': { updatedAt: '2026-09-29T00:00:00.000Z', households: [
+                { householdId: 'H001', householdName: 'First' },
+                { householdId: 'H002', householdName: 'Second' }
+            ]},
+            'config.json': { categories: [{ name: 'Groceries' }], monthlyBudgetLimit: 50000, householdId: 'H001' },
+            'expenses.json': [
+                { id: 'e1', amount: 100, householdId: 'H001' },
+                { id: 'e2', amount: 250.5, householdId: '' }
+            ],
+            'staff_attendance.json': { 'Chef - X': { months: { '2026-09': { days: { 3: 'L' } } } } },
+            'audit_log.json': [{ id: 'a1', action: 'X', timestamp: '2026-09-01T00:00:00.000Z' }],
+            'push_subscriptions.json': [{ userId: 'U001', subscription: {} }]
+        };
+
+        freshStorage(cloud, dataDir, tmpDir);
+        const cloudStore = require('./api/_cloud_store.js');
+        const doc = await cloudStore.migrateFromLegacy();
+
+        check(doc !== null, 'the legacy layout migrates');
+        if (doc) {
+            const problems = cloudStore.validateStore(doc);
+            check(problems.length === 0,
+                'the migrated document validates (' + (problems.join('; ') || 'clean') + ')');
+            check(doc.users.length === 4 && doc.households.length === 2,
+                'every user and household carries over (' + doc.users.length + ' users, ' + doc.households.length + ' households)');
+            check(doc.pushSubscriptions.length === 1,
+                'push subscriptions carry over and stay global');
+            check((doc.data.H001.expenses || []).length === 2,
+                'H001 keeps both expenses (' + (doc.data.H001.expenses || []).length + ')');
+            check(doc.data.H001.config.monthlyBudgetLimit === 50000,
+                "H001's master config carries over unchanged");
+            check(Object.keys(doc.data.H001.attendance || {}).length === 1,
+                "H001's attendance carries over keyed by staff name");
+            check((doc.data.H001.auditLog || []).length === 1,
+                "H001's audit history carries over");
+
+            const h1 = (doc.data.H001.users || []).map(u => u.userId + ':' + u.role).sort().join(',');
+            check(h1 === 'U001:OWNER,U002:MEMBER', 'H001 membership is preserved (' + h1 + ')');
+            const h2 = (doc.data.H002.users || []).map(u => u.userId + ':' + u.role).join(',');
+            check(h2 === 'U003:OWNER', 'H002 membership is preserved (' + h2 + ')');
+
+            check(['config', 'users', 'expenses', 'attendance', 'auditLog']
+                    .every(k => doc.data.H002[k] !== undefined),
+                'a household with no legacy files still gets all five keys');
+            check(doc.data.SYSTEM === undefined,
+                'the SYSTEM pseudo-household is not given a data slice');
+        }
+
+        check(['expenses.json', 'config.json', 'directory_users.json', 'audit_log.json']
+                .every(f => cloud[f] !== undefined),
+            'the original files are left in place, untouched');
+
+        const broken = cloudStore.emptyStore();
+        broken.households = [{ householdId: 'H009', householdName: 'Ghost' }];
+        check(cloudStore.validateStore(broken).some(p => p.indexOf('H009') !== -1),
+            'validation rejects a household with no data slice');
+
+        fs.rmSync(scratch, { recursive: true, force: true });
+    }
+
     console.log('\n====================================================');
     console.log(`📊 Test Results: ${passed} PASSED, ${failed} FAILED`);
     console.log('====================================================');

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const cloudSync = require('./_cloud_sync');
+const cloudStore = require('./_cloud_store');
 const paths = require('./_paths');
 
 const DATA_DIR = paths.DATA_DIR;
@@ -142,29 +143,26 @@ function writeJsonFile(filePath, data) {
 // ==========================================
 const DIRECTORY_META_FILE = path.join(DATA_DIR, 'directory_meta.json');
 
-// Deliberately NOT 'users.json' / 'households.json'. _cloud_sync mirrors every
-// write to DATA_DIR/<filename> and TMP_DIR/<filename>, so reusing those names
-// would overwrite the directory files themselves with the wrapped snapshot -
-// getAllHouseholds would then read an object instead of an array.
-const DIRECTORY_USERS_CLOUD_FILE = 'directory_users.json';
-const DIRECTORY_HOUSEHOLDS_CLOUD_FILE = 'directory_households.json';
 
-/**
- * Which Gist file holds a given household's copy of `base`.
- *
- * H001 keeps the original unprefixed names so an existing Gist keeps working
- * untouched; every other household gets its own prefixed file. Without this,
- * cloud sync was guarded by `cleanHId === 'H001'` everywhere and a second
- * household's ledger, settings and attendance existed only in /tmp - gone on
- * the next cold start.
- *
- *   H001 -> expenses.json
- *   H002 -> H002_expenses.json
- */
-function cloudFileFor(householdId, base) {
-    const clean = sanitizeId(householdId);
-    if (!clean || clean === 'H001') return base;
-    return `${clean}_${base}`;
+// Everything lives in one Gist document; see api/_cloud_store.js. There is no
+// per-household file any more, so adding a household never adds a Gist file.
+
+// createHousehold and createUser are synchronous, so their cloud writes cannot
+// be awaited inline. Track them instead and let the request handler flush before
+// it responds - on serverless the instance can otherwise be frozen before a
+// fire-and-forget write ever reaches the Gist.
+const pendingCloudWrites = new Set();
+
+function trackCloudWrite(promise) {
+    pendingCloudWrites.add(promise);
+    promise.catch(() => {}).finally(() => pendingCloudWrites.delete(promise));
+    return promise;
+}
+
+async function flushPendingCloudWrites() {
+    while (pendingCloudWrites.size) {
+        await Promise.allSettled([...pendingCloudWrites]);
+    }
 }
 
 function readDirectoryMeta() {
@@ -183,29 +181,19 @@ function stampDirectory(kind) {
 function persistUsers(users) {
     writeJsonFile(USERS_FILE, users);
     const at = stampDirectory('users');
-    cloudSync.writeJson(DIRECTORY_USERS_CLOUD_FILE, { updatedAt: at, users: users }).catch(err => {
-        console.warn('[CloudSync] users write notice:', err.message);
+    trackCloudWrite(cloudStore.writeUsers(users)).catch(err => {
+        console.warn('[CloudStore] users write notice:', err.message);
     });
 }
 
 function persistHouseholds(households) {
     writeJsonFile(HOUSEHOLDS_FILE, households);
     const at = stampDirectory('households');
-    cloudSync.writeJson(DIRECTORY_HOUSEHOLDS_CLOUD_FILE, { updatedAt: at, households: households }).catch(err => {
-        console.warn('[CloudSync] households write notice:', err.message);
+    trackCloudWrite(cloudStore.writeHouseholds(households)).catch(err => {
+        console.warn('[CloudStore] households write notice:', err.message);
     });
 }
 
-// Accepts the wrapped snapshot this module writes, and a bare array for
-// forward/backward tolerance if the gist file is ever edited by hand.
-function unwrapSnapshot(payload, key) {
-    if (!payload) return null;
-    if (Array.isArray(payload)) return { list: payload, updatedAt: null };
-    if (Array.isArray(payload[key])) {
-        return { list: payload[key], updatedAt: payload.updatedAt || null };
-    }
-    return null;
-}
 
 /**
  * Pull users and households back from the cloud when that copy is newer.
@@ -215,32 +203,28 @@ function unwrapSnapshot(payload, key) {
  * are and simply see refreshed files.
  */
 async function hydrateDirectoryFromCloud() {
-    const meta = readDirectoryMeta();
+    try {
+        const directory = await cloudStore.readDirectory();
+        if (!directory) return;
 
-    const restore = async (filename, key, targetFile, metaKey) => {
-        try {
-            const snapshot = unwrapSnapshot(await cloudSync.readJson(filename), key);
-            if (!snapshot || !Array.isArray(snapshot.list)) return;
+        const meta = readDirectoryMeta();
+        const cloudAt = Date.parse(directory.updatedAt || '') || 0;
 
-            // Never let an empty cloud copy wipe a populated local directory -
-            // there is always at least one user and one household.
-            if (snapshot.list.length === 0) return;
-
-            const cloudAt = Date.parse(snapshot.updatedAt || '') || 0;
+        const restore = (list, targetFile, metaKey) => {
+            if (!Array.isArray(list) || list.length === 0) return;   // never wipe
             const localAt = Date.parse(meta[metaKey] || '') || 0;
-            if (cloudAt <= localAt) return;          // local is the same or newer
-
-            writeJsonFile(targetFile, snapshot.list);
+            if (cloudAt <= localAt) return;                          // local is newer
+            writeJsonFile(targetFile, list);
             const next = readDirectoryMeta();
             next[metaKey] = new Date(cloudAt).toISOString();
             writeJsonFile(DIRECTORY_META_FILE, next);
-        } catch (e) {
-            // A cloud failure must never block a request; the local copy stands.
-        }
-    };
+        };
 
-    await restore(DIRECTORY_USERS_CLOUD_FILE, 'users', USERS_FILE, 'users');
-    await restore(DIRECTORY_HOUSEHOLDS_CLOUD_FILE, 'households', HOUSEHOLDS_FILE, 'households');
+        restore(directory.users, USERS_FILE, 'users');
+        restore(directory.households, HOUSEHOLDS_FILE, 'households');
+    } catch (e) {
+        // A cloud failure must never block a request; the local copy stands.
+    }
 }
 
 function getAllUsers() {
@@ -763,9 +747,9 @@ async function getHouseholdExpenses(householdId, includeDeleted = false, forceFr
             records = readJsonFile(legacyPath, []);
         }
 
-        // Every household syncs, each to its own Gist file.
+        // Pull this household's slice out of the single cloud document.
         try {
-            const cloudRecords = await cloudSync.readJson(cloudFileFor(cleanHId, 'expenses.json'));
+            const cloudRecords = await cloudStore.readHouseholdSlice(cleanHId, 'expenses');
             if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
                 if (!records || cloudRecords.length >= records.length) {
                     records = cloudRecords;
@@ -891,8 +875,8 @@ async function saveHouseholdExpense(householdId, record, actorUser = 'System') {
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'expenses.json'), list);
     }
-    cloudSync.writeJson(cloudFileFor(cleanHId, 'expenses.json'), list).catch(err => {
-        console.warn('[CloudSync] expenses write notice:', err.message);
+    await cloudStore.writeHouseholdSlice(cleanHId, 'expenses', list).catch(err => {
+        console.warn('[CloudStore] expenses write notice:', err.message);
     });
 
     // Audit Logging
@@ -951,8 +935,8 @@ async function bulkUpdateHouseholdExpenses(householdId, mutate, actorUser = 'Sys
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'expenses.json'), list);
     }
-    cloudSync.writeJson(cloudFileFor(cleanHId, 'expenses.json'), list).catch(err => {
-        console.warn('[CloudSync] bulk expenses write notice:', err.message);
+    await cloudStore.writeHouseholdSlice(cleanHId, 'expenses', list).catch(err => {
+        console.warn('[CloudStore] bulk expenses write notice:', err.message);
     });
 
     await logHouseholdAudit(
@@ -995,8 +979,8 @@ async function deleteHouseholdExpense(householdId, id, actorUser = 'System') {
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'expenses.json'), list);
     }
-    cloudSync.writeJson(cloudFileFor(cleanHId, 'expenses.json'), list).catch(err => {
-        console.warn('[CloudSync] expenses delete notice:', err.message);
+    await cloudStore.writeHouseholdSlice(cleanHId, 'expenses', list).catch(err => {
+        console.warn('[CloudStore] expenses delete notice:', err.message);
     });
 
     await logHouseholdAudit(
@@ -1028,7 +1012,7 @@ async function getHouseholdConfig(householdId, forceFresh = true) {
         // Every household syncs, each to its own Gist file.
         {
             try {
-                const cloudConfig = await cloudSync.readJson(cloudFileFor(cleanHId, 'config.json'));
+                const cloudConfig = await cloudStore.readHouseholdSlice(cleanHId, 'config');
                 if (cloudConfig && typeof cloudConfig === 'object' && Array.isArray(cloudConfig.categories)) {
                     if (config) {
                         config = { ...config, ...cloudConfig };
@@ -1056,8 +1040,8 @@ async function saveHouseholdConfig(householdId, newConfig, actorUser = 'System')
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'config.json'), newConfig);
     }
-    cloudSync.writeJson(cloudFileFor(cleanHId, 'config.json'), newConfig).catch(err => {
-        console.warn('[CloudSync] config write notice:', err.message);
+    await cloudStore.writeHouseholdSlice(cleanHId, 'config', newConfig).catch(err => {
+        console.warn('[CloudStore] config write notice:', err.message);
     });
 
     await logHouseholdAudit(cleanHId, 'UPDATE_CONFIG', 'config', { updated: true }, newConfig, actorUser);
@@ -1130,7 +1114,7 @@ async function getHouseholdAttendance(householdId, forceFresh = true) {
         // so it has to be consulted here the same way expenses and config are.
         {
             try {
-                const cloudAttendance = await cloudSync.readJson(cloudFileFor(cleanHId, 'staff_attendance.json'));
+                const cloudAttendance = await cloudStore.readHouseholdSlice(cleanHId, 'attendance');
                 if (cloudAttendance && typeof cloudAttendance === 'object') {
                     attendance = mergeAttendance(attendance, cloudAttendance);
                 }
@@ -1153,7 +1137,7 @@ async function saveHouseholdAttendance(householdId, attendanceData, actorUser = 
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'staff_attendance.json'), attendanceData);
     }
-    cloudSync.writeJson(cloudFileFor(cleanHId, 'staff_attendance.json'), attendanceData).catch(() => {});
+    await cloudStore.writeHouseholdSlice(cleanHId, 'attendance', attendanceData).catch(() => {});
     return attendanceData;
 }
 
@@ -1176,7 +1160,7 @@ async function getHouseholdAuditLogs(householdId, limit = 100, forceFresh = true
         // disappeared from the Audit tab. Union by entry id, newest first.
         {
             try {
-                const cloudLogs = await cloudSync.readJson(cloudFileFor(cleanHId, 'audit_log.json'));
+                const cloudLogs = await cloudStore.readHouseholdSlice(cleanHId, 'auditLog');
                 if (Array.isArray(cloudLogs) && cloudLogs.length) {
                     const byId = new Map();
                     for (const entry of [...(Array.isArray(logs) ? logs : []), ...cloudLogs]) {
@@ -1223,7 +1207,7 @@ async function logHouseholdAudit(householdId, action, recordId, diff = {}, snaps
     if (cleanHId === 'H001') {
         writeJsonFile(path.join(DATA_DIR, 'audit_log.json'), memoryStore.audit[cleanHId]);
     }
-    cloudSync.writeJson(cloudFileFor(cleanHId, 'audit_log.json'), memoryStore.audit[cleanHId]).catch(() => {});
+    await cloudStore.writeHouseholdSlice(cleanHId, 'auditLog', memoryStore.audit[cleanHId]).catch(() => {});
 }
 
 // ==========================================
@@ -1279,6 +1263,7 @@ async function getHouseholdBackupBundle(householdId) {
 module.exports = {
     sanitizeId,
     hydrateDirectoryFromCloud,
+    flushPendingCloudWrites,
     getAllUsers,
     getUserById,
     getUserByUsernameOrEmail,

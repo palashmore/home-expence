@@ -34,10 +34,12 @@ function check(cond, msg) {
 function freshStorage(cloudFiles, dataDir, tmpDir) {
     const storagePath = require.resolve('./api/_storage.js');
     const cloudPath = require.resolve('./api/_cloud_sync.js');
+    const storePath = require.resolve('./api/_cloud_store.js');
     const pathsPath = require.resolve('./api/_paths.js');
 
     delete require.cache[storagePath];
     delete require.cache[cloudPath];
+    delete require.cache[storePath];
     delete require.cache[pathsPath];
 
     process.env.HOMEEXPENSES_DATA_DIR = dataDir;
@@ -53,8 +55,15 @@ function freshStorage(cloudFiles, dataDir, tmpDir) {
     };
 
     delete require.cache[storagePath];
+    delete require.cache[storePath];
     return require(storagePath);
 }
+
+// Everything now lives in one document; these read a slice out of the stub.
+const STORE = 'gharkhata.json';
+const slice = (cloud, hid, key) =>
+    (((cloud[STORE] || {}).data || {})[hid] || {})[key];
+const directory = (cloud, key) => (cloud[STORE] || {})[key];
 
 /**
  * Simulate an instance going cold on a serverless host.
@@ -116,8 +125,8 @@ async function run() {
             }
         }, 'test');
 
-        check(cloud['staff_attendance.json'] !== undefined,
-            'saving attendance pushes it to the cloud copy');
+        check(slice(cloud, 'H001', 'attendance') !== undefined,
+            'saving attendance pushes it into the single cloud document');
 
         const sameInstance = await storage.getHouseholdAttendance('H001', true);
         check((sameInstance[staff].months['2026-09'].days || {})['18'] === 'L',
@@ -141,18 +150,13 @@ async function run() {
     {
         const { scratch, dataDir, tmpDir } = makeScratch();
         const staff = 'Chef - Nilima Nikose';
-        const cloud = {
-            'staff_attendance.json': {
-                [staff]: {
-                    months: {
-                        '2026-09': {
-                            days: { 1: 'L' },
-                            updatedAt: '2026-09-01T00:00:00.000Z'   // older
-                        }
-                    }
+        const cloud = { [STORE]: { data: { H001: { attendance: {
+            [staff]: {
+                months: {
+                    '2026-09': { days: { 1: 'L' }, updatedAt: '2026-09-01T00:00:00.000Z' }  // older
                 }
             }
-        };
+        } } } } };
 
         const storage = freshStorage(cloud, dataDir, tmpDir);
         await storage.saveHouseholdAttendance('H001', {
@@ -179,16 +183,14 @@ async function run() {
     {
         const { scratch, dataDir, tmpDir } = makeScratch();
         const staff = 'Chef - Nilima Nikose';
-        const cloud = {
-            'staff_attendance.json': {
-                [staff]: {
-                    months: {
-                        '2026-08': { days: { 5: 'L' }, updatedAt: '2026-08-31T00:00:00.000Z' },
-                        '2026-09': { days: { 9: 'HD' }, updatedAt: '2026-09-30T00:00:00.000Z' }
-                    }
+        const cloud = { [STORE]: { data: { H001: { attendance: {
+            [staff]: {
+                months: {
+                    '2026-08': { days: { 5: 'L' }, updatedAt: '2026-08-31T00:00:00.000Z' },
+                    '2026-09': { days: { 9: 'HD' }, updatedAt: '2026-09-30T00:00:00.000Z' }
                 }
             }
-        };
+        } } } } };
 
         // This is exactly what /api/attendance saveMonth does: read the current
         // state first, add the new month, then save the whole object back. The
@@ -239,7 +241,7 @@ async function run() {
     {
         const { scratch, dataDir, tmpDir } = makeScratch();
         const staff = 'Chef - Nilima Nikose';
-        const cloud = { 'staff_attendance.json': null };
+        const cloud = { [STORE]: { data: { H001: { attendance: null } } } };
 
         const storage = freshStorage(cloud, dataDir, tmpDir);
         await storage.saveHouseholdAttendance('H001', {
@@ -248,7 +250,7 @@ async function run() {
 
         // saveHouseholdAttendance stores the stub's value; force the cloud to a
         // junk shape to prove a bad response cannot wipe local marks.
-        cloud['staff_attendance.json'] = 'not an object';
+        cloud[STORE].data.H001.attendance = 'not an object';
         const merged = await storage.getHouseholdAttendance('H001', true);
         check((((merged[staff] || {}).months || {})['2026-09'] || {}).days['3'] === 'L',
             'local marks survive a malformed cloud payload');
@@ -274,10 +276,14 @@ async function run() {
             householdId: h3.householdId, role: 'MEMBER'
         }, 'admin');
 
-        check(cloud['directory_households.json'] !== undefined,
-            'creating a household pushes the directory to the cloud');
-        check(cloud['directory_users.json'] !== undefined,
-            'creating a user pushes the directory to the cloud');
+        // createHousehold/createUser are synchronous; their cloud writes are
+        // tracked and drained by the request handler. Do the same here.
+        await storage.flushPendingCloudWrites();
+
+        check(Array.isArray(directory(cloud, 'households')) && directory(cloud, 'households').length > 0,
+            'creating a household pushes the directory into the document');
+        check(Array.isArray(directory(cloud, 'users')) && directory(cloud, 'users').length > 0,
+            'creating a user pushes the directory into the document');
 
         const seededHouseholds = storage.getAllHouseholds().length;
         const seededUsers = storage.getAllUsers().length;
@@ -336,6 +342,7 @@ async function run() {
         }, 'admin');
 
         storage.deleteUser(doomed.userId, 'admin');
+        await storage.flushPendingCloudWrites();
 
         // Hydration must not undo the delete: the local copy is the newer one.
         await storage.hydrateDirectoryFromCloud();
@@ -350,10 +357,9 @@ async function run() {
     console.log('\n--- TEST 8: an empty cloud directory cannot wipe local users ---');
     {
         const { scratch, dataDir, tmpDir } = makeScratch();
-        const cloud = {
-            'directory_users.json': { updatedAt: '2099-01-01T00:00:00.000Z', users: [] },
-            'directory_households.json': { updatedAt: '2099-01-01T00:00:00.000Z', households: [] }
-        };
+        const cloud = { [STORE]: {
+            updatedAt: '2099-01-01T00:00:00.000Z', users: [], households: [], data: {}
+        } };
         fs.writeFileSync(path.join(dataDir, 'users.json'),
             JSON.stringify([{ userId: 'U000', username: 'admin' }]), 'utf8');
 
@@ -366,7 +372,7 @@ async function run() {
     }
 
     // ---------------------------------------------------------------
-    console.log('\n--- TEST 9: a second household syncs to its own cloud files ---');
+    console.log('\n--- TEST 9: every household lives in the one document ---');
     {
         const { scratch, dataDir, tmpDir } = makeScratch();
         const cloud = {};
@@ -381,16 +387,19 @@ async function run() {
             'Helper': { months: { '2026-09': { days: { 4: 'L' }, updatedAt: '2026-09-04T00:00:00.000Z' } } }
         }, 'test');
 
-        check(cloud['config.json'] !== undefined,
-            'H001 still uses the original unprefixed file name');
-        check(cloud['H002_config.json'] !== undefined,
-            'H002 gets its own H002_config.json');
-        check(cloud['H002_expenses.json'] !== undefined,
-            'H002 gets its own H002_expenses.json');
-        check(cloud['H002_staff_attendance.json'] !== undefined,
-            'H002 gets its own H002_staff_attendance.json');
-        check(cloud['config.json'].marker === 'one' && cloud['H002_config.json'].marker === 'two',
-            'the two households do not overwrite each other in the cloud');
+        check(Object.keys(cloud).length === 1 && cloud[STORE] !== undefined,
+            `everything is in one Gist file (files: ${Object.keys(cloud).join(', ')})`);
+        check(slice(cloud, 'H001', 'config') !== undefined,
+            "H001's config is a slice of the document");
+        check(slice(cloud, 'H002', 'config') !== undefined,
+            "H002's config is a slice of the same document");
+        check(slice(cloud, 'H002', 'expenses') !== undefined,
+            "H002's ledger is in the document");
+        check(slice(cloud, 'H002', 'attendance') !== undefined,
+            "H002's attendance is in the document");
+        check(slice(cloud, 'H001', 'config').marker === 'one'
+              && slice(cloud, 'H002', 'config').marker === 'two',
+            'the two households do not overwrite each other');
 
         coldStart(dataDir, tmpDir);
         fs.rmSync(path.join(dataDir, 'households'), { recursive: true, force: true });

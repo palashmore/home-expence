@@ -658,6 +658,17 @@ module.exports = async function handler(req, res) {
     } catch (err) {
         console.error("API /api/auth error:", err);
         return res.status(500).json({ success: false, error: "Internal authentication error." });
+    } finally {
+        // createHousehold and createUser are synchronous, so their cloud writes
+        // are started rather than awaited. A serverless host freezes the
+        // instance once this handler's promise settles - not when the response
+        // is sent - so draining them here is what makes a new household or user
+        // actually reach the Gist.
+        try {
+            await storage.flushPendingCloudWrites();
+        } catch (e) {
+            console.warn('[Auth] Cloud write flush notice:', e.message);
+        }
     }
 };
 

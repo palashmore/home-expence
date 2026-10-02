@@ -1,59 +1,190 @@
-# HOME EXPENCE · Household Financial & Staff Payroll Command Center
+# GharKhata · Household Finance & Staff Payroll
 
-A high-performance, modern, mobile-first PWA and web application designed for complete household financial tracking, multi-user role management, domestic staff payroll management (with attendance & leave quotas), utility due date radar, 1-click Splitwise reimbursement, and Excel import/export persistence.
+A mobile-first PWA for running a household's money: shared and personal expenses,
+domestic staff payroll with attendance and paid-leave quotas, recurring-bill
+reminders, reimbursement settlement, and Excel import/export.
 
----
-
-## 🌟 Key Features
-
-1. **Mobile-First Responsive PWA**:
-   - 100% responsive across all mobile screens (320px iPhone SE, 360px Samsung Galaxy A-series, tablets, desktop).
-   - Horizontal swipeable top navigation + native bottom mobile navigation bar with 1-thumb center Quick Add (+) action.
-   - PWA installable on iOS Safari ("Add to Home Screen") and Android Chrome ("Install App") for a full-screen, offline-capable mobile experience.
-   - Custom GharKhata Logo featuring an authentic house silhouette with an inner Indian Rupee symbol (₹).
-
-2. **Multi-Household & Dynamic User Scoping**:
-   - Real-time scoped filters for family members, categories, payment methods, and personal expense tracking.
-   - Granular RBAC (System Administrator, Owner, Member) with isolated household ledgers.
-
-3. **Domestic Staff Attendance & Leave Payroll Suite**:
-   - Interactive calendar for staff (Chef, Maid, etc.).
-   - Configurable paid leave quotas before salary deductions apply.
-   - 1-click WhatsApp payment voucher generation and payroll settlement.
-
-4. **Household Reimbursement & Splitwise Matrix**:
-   - Tracks payer and household allocation with automatic balance reconciliation.
-   - 1-Click "Settle Up" action that logs reimbursement and instantly brings balance to ₹0.
-
-5. **Utility Due Date Radar & Cash Runway**:
-   - Real-time countdown for upcoming recurring bills (Electricity, Maintenance, WiFi, DTH, Salaries).
-   - Color-coded status (Paid, Due Soon, Scheduled).
-
-6. **⚙️ Master Configuration & Admin Access**:
-   - Easily configure household categories, staff, recurring bills, monthly budgets, and user permissions.
-
-7. **Full Persistence & Microsoft Excel Integration**:
-   - Multi-sheet Excel export and import.
-   - Dual-mode server persistence (Node.js REST API + `/tmp` serverless support on Vercel).
+Vanilla JavaScript, Tailwind via CDN, Chart.js, SheetJS. **No build step** — the
+browser loads the source as written. The server is plain Node `http` routing to
+Vercel-style handlers in `api/`.
 
 ---
 
-## 🚀 Running Locally
+## Features
+
+**Multi-household, multi-user.** Households are isolated: a member of one never
+sees another's expenses, notifications or configuration. Roles are
+`SYSTEM_ADMIN`, `ADMIN`, `OWNER`, `MEMBER` and `VIEWER`, enforced server-side —
+a `VIEWER` is refused writes by the API, not just by a hidden button.
+
+**Everything is configured, nothing is hardcoded.** Staff, recurring bills,
+categories, payment methods, split rules, family members and budgets all come
+from each household's own Master Configuration. A new household starts empty and
+its dashboard hides the sections it has nothing for — no staff means no payroll
+card anywhere.
+
+**Dashboard mode.** `household`, `personal` or `combined`, chosen once in Master
+Settings so every member sees the same thing. The monthly budget counts *every*
+expense in the period, household and personal together.
+
+**Phone home screen.** One figure first — remaining budget — with spend, net flow
+and the cap beneath it, a `Today / Weekly / Monthly / Yearly` switch, and a
+swipeable KPI strip. The ledger groups by day with each day's total. Desktop
+keeps its own denser layout.
+
+**Staff payroll.** Attendance calendar per configured staff member, paid-leave
+quotas before deductions apply, pro-rata salary, WhatsApp payment vouchers.
+
+**Notifications.** Adding an expense notifies the rest of that household.
+Recurring bills and staff paydays produce reminders daily from five days before
+the due date, on the day, and while overdue — stopping as soon as a payment is
+recorded.
+
+**Theming.** Eight themes including a full dark mode, carried by a semantic
+token layer rather than per-component overrides.
+
+---
+
+## Running locally
 
 ```bash
 npm install
-node server.js
+node server.js          # http://localhost:8000
 ```
-Then open `http://localhost:8000/` in your browser.
+
+Without `JWT_SECRET` the server generates a random one per process, so sessions
+will not survive a restart. Fine for a quick look; set it for real use.
 
 ---
 
-## ☁️ Deploying to Vercel
+## Environment variables
 
-1. **Connect GitHub**:
-   - Import `palashmore/home-expence` on [vercel.com](https://vercel.com).
-   - Framework Preset: **Other**.
-   - Output Directory: `./`.
-   - Deploy!
-2. **Or deploy via Vercel CLI**:
-   - Run `npx vercel --prod` in the project root directory.
+| Variable | Required | What it does |
+|---|---|---|
+| `JWT_SECRET` | **yes** | Signs session tokens. Without it, every restart invalidates all sessions. |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | for push | Web Push identity. If unset, keys are generated per cold start and **every existing subscription silently breaks**. |
+| `VAPID_SUBJECT` | optional | `mailto:` contact sent to push services. |
+| `CRON_SECRET` | for reminders | Authorises the scheduled reminder scan. Without it the daily cron is refused and **reminders never send**. |
+| `GITHUB_TOKEN` / `GIST_ID` | for cloud sync | Durable storage. See below. |
+| `PORT` | optional | Defaults to `8000`. |
+| `HOMEEXPENSES_DATA_DIR` / `HOMEEXPENSES_TMP_DIR` | testing | Point storage at a scratch directory. |
+| `CLOUD_SYNC_DISABLED` | testing | Set to `1` to keep a run entirely off the network. |
+
+Generate the push keys with `npm run keys`. Generate a `CRON_SECRET` with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+---
+
+## Storage
+
+Three layers: an in-process memory store, a `/tmp` overlay for serverless, and
+the repository's `data/` directory. `/tmp` is wiped on cold start, so the
+durable copy lives in a **GitHub Gist**.
+
+Everything is one document, `gharkhata.json`:
+
+```
+gharkhata.json
+├── users[]                 directory across all households
+├── households[]
+├── pushSubscriptions[]
+└── data
+    ├── H001
+    │   ├── config          masterConfig, categories, budgets, settings
+    │   ├── users[]         membership, derived from the directory
+    │   ├── expenses[]
+    │   ├── attendance      { staff[], records[] }
+    │   └── auditLog[]
+    └── H002 …
+```
+
+Expenses are soft-deleted (`isDeleted`) and carry a `version` for optimistic
+concurrency — a stale write is refused with `409` rather than silently
+overwriting. Writes to the single document are serialised, because concurrent
+read-modify-write cycles clobbered each other.
+
+Keep the Gist **secret**. It holds every household's financial records.
+
+### Migrating from the older per-file layout
+
+```bash
+node scripts/build_gharkhata.js <folder-of-exported-gist-files> gharkhata.json
+node scripts/upload_gharkhata.js gharkhata.json
+```
+
+`build_gharkhata.js` refuses to write unless every record count matches and the
+records are byte-identical. `upload_gharkhata.js` refuses to upload if any count
+would shrink, and reads the result back to confirm. Neither touches the original
+files.
+
+---
+
+## Security notes
+
+- Passwords are hashed with **scrypt** and a per-user salt; verification is
+  constant-time.
+- Any signed-in user can change their own password from Master Settings. The
+  current password is required, and a `userId` in the request body is ignored —
+  the session decides whose password changes.
+- **Changing a password ends sessions opened before it.** Tokens carry the
+  credential generation they were issued against. The same check refuses tokens
+  belonging to deleted or deactivated accounts.
+- An administrator can reset any user's password, which also signs that user out
+  everywhere.
+- The reminder scan is not open to the world: it requires `CRON_SECRET` or an
+  administrator session.
+
+If you are bringing up a deployment from this repository's seed data, treat the
+seeded passwords as public and rotate them before use.
+
+---
+
+## Testing
+
+```bash
+npm test          # or: bash ./run_tests.sh   — 8 Node suites
+npm run audit     # or: bash ./run_audit.sh   — 256-check browser audit
+```
+
+Both copy `data/` to a scratch directory and disable cloud sync, so they never
+touch real records or the Gist, and each run asserts `data/` is unchanged
+afterwards.
+
+| Suite | Covers |
+|---|---|
+| `test_boot_suite.js` | serverless boot, declared assets, read-only filesystem |
+| `test_cloud_recovery_suite.js` | cold-start recovery, concurrent writes |
+| `test_verification_suite.js` | RBAC and tenant isolation |
+| `test_master_settings_and_expenses.js` | zero-cache sync, role enforcement |
+| `test_config_rules_suite.js` | config validation, rename cascades |
+| `test_dashboard_config_suite.js` | dashboard mode, per-household config |
+| `test_password_suite.js` | authentication, password change, session invalidation |
+| `test_notifications_suite.js` | household notifications, reminder windows |
+
+`run_audit.sh` drives a real browser at 390×844 with touch emulation, checking
+tap targets, overflow at six phone widths, theme coverage across every tab, and
+complete user journeys.
+
+The audit needs Python with Playwright:
+
+```bash
+pip install playwright && playwright install chromium
+```
+
+---
+
+## Deploying to Vercel
+
+1. Import the repository on [vercel.com](https://vercel.com). Framework preset
+   **Other**, output directory `./`.
+2. Add the environment variables above. **They only apply to new deployments** —
+   redeploy after adding them.
+3. `vercel.json` registers a daily cron that runs the reminder scan. Confirm it
+   under **Settings → Cron Jobs** after the first deploy.
+
+A `setInterval` in `server.js` runs the same scan locally. It does **not** fire
+on Vercel — serverless functions are frozen between requests — which is why the
+cron exists.

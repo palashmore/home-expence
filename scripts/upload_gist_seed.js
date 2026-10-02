@@ -114,6 +114,30 @@ function describe(name, value) {
 }
 
 async function main() {
+    // This builds the document from the LOCAL data/ directory, which is a
+    // development seed - it is usually older and smaller than what the live
+    // Gist holds. Uploading it over a populated Gist destroys data. The safe
+    // path for an existing deployment is:
+    //
+    //   node scripts/build_gharkhata.js <folder-of-exported-gist-files> gharkhata.json
+    //   node scripts/upload_gharkhata.js gharkhata.json
+    //
+    // which validates and refuses to shrink any record count.
+    if (!process.argv.includes('--dry-run') && !process.argv.includes('--i-know-this-overwrites')) {
+        console.error('');
+        console.error('This seeds the Gist from the LOCAL data/ directory and will OVERWRITE');
+        console.error('whatever is in the Gist, including newer data.');
+        console.error('');
+        console.error('For an existing deployment use instead:');
+        console.error('  node scripts/build_gharkhata.js <exported-gist-folder> gharkhata.json');
+        console.error('  node scripts/upload_gharkhata.js gharkhata.json');
+        console.error('');
+        console.error('To seed a brand new, empty Gist anyway:');
+        console.error('  node scripts/upload_gist_seed.js --i-know-this-overwrites');
+        console.error('');
+        process.exit(1);
+    }
+
     const token = (process.env.GITHUB_TOKEN || process.env.GIST_TOKEN || '').trim();
     const gistId = (process.env.GIST_ID || '').trim();
 

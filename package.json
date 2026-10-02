@@ -9,7 +9,9 @@
     "keys": "node scripts/generate_keys.js",
     "test": "bash ./run_tests.sh",
     "audit": "bash ./run_audit.sh",
-    "seed-gist": "node scripts/upload_gist_seed.js"
+    "seed-gist": "node scripts/upload_gist_seed.js",
+    "build-gharkhata": "node scripts/build_gharkhata.js",
+    "upload-gharkhata": "node scripts/upload_gharkhata.js"
   },
   "dependencies": {
     "cookie": "^0.6.0",

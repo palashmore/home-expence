@@ -552,15 +552,36 @@ def audit_no_silent_defaults(page, audit, api):
     target_id = staff[0]["id"]
     original_name = staff[0].get("name")
 
+    # Each staff member is rendered twice - a card for phones, a table row for
+    # desktop - and saveAdminConfigFromUI chooses its source by viewport width.
+    # Driving whichever copy document.querySelector happened to return made this
+    # check depend on render order: clear the table row, let the mobile list
+    # render, and the save reads the untouched card, raises no error, and the
+    # test fails for a reason that has nothing to do with validation. Target the
+    # copy the save will actually read.
+    SCOPE_JS = """
+        const mobile = document.querySelectorAll('#adminStaffMobileList .staff-mobile-card');
+        const useMobile = window.innerWidth < 768 && mobile.length > 0;
+        const scope = useMobile ? '#adminStaffMobileList' : '#adminStaffTableBody';
+    """
+    try:
+        page.wait_for_function(
+            "(id) => {" + SCOPE_JS +
+            "  return !!document.querySelector(scope + ' [data-staff-id=\"' + id + '\"] .staff-edit-name');"
+            "}",
+            arg=target_id, timeout=8000)
+    except PWError:
+        pass
+
     cleared = page.evaluate(
-        """(id) => {
-            const row = document.querySelector(`[data-staff-id="${id}"]`);
-            if (!row) return {no_row: true};
+        "(id) => {" + SCOPE_JS + """
+            const row = document.querySelector(scope + ' [data-staff-id="' + id + '"]');
+            if (!row) return {no_row: true, scope: scope};
             const n = row.querySelector('.staff-edit-name');
-            if (!n) return {no_name: true};
+            if (!n) return {no_name: true, scope: scope};
             n.value = '';
             n.dispatchEvent(new Event('input', {bubbles: true}));
-            return {ok: true};
+            return {ok: true, scope: scope};
         }""",
         target_id,
     )

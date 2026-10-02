@@ -2271,3 +2271,344 @@ button.min-h-\[36px\], .kpi-card button { min-height: 36px; }
     .glass-card, .kpi-card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
     .section-enter > * { animation: none !important; }
 }
+
+/* =================================================================
+   GHARKHATA v7 — PHONE HOME
+   =================================================================
+   Phone-only. Everything here is inside a max-width query or on an
+   element the markup only renders at `md:hidden`, so the desktop
+   layout is untouched.
+
+   The reference designs all lead with one figure and a period switch,
+   then go straight to data. Ours spent roughly 420px of a 390x844
+   screen on chrome before showing a single rupee, then stacked ten KPI
+   cards two-up - five rows of scrolling before the first chart.
+   ================================================================= */
+
+/* ---- Hero -------------------------------------------------------- */
+.m-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+    padding: 1.15rem 1.15rem 1.25rem;
+    color: #fff;
+    background:
+        radial-gradient(28rem 16rem at 88% -30%, color-mix(in srgb, var(--accent) 62%, transparent), transparent 70%),
+        radial-gradient(22rem 14rem at -10% 120%, rgba(14, 165, 233, .38), transparent 70%),
+        linear-gradient(135deg, #1d2745 0%, #151d33 48%, #0b1020 100%);
+    box-shadow: var(--elev-3);
+    border: 1px solid rgba(255, 255, 255, .09);
+}
+[data-theme="dark"] .m-hero {
+    background:
+        radial-gradient(28rem 16rem at 88% -30%, color-mix(in srgb, var(--accent) 44%, transparent), transparent 70%),
+        linear-gradient(135deg, #16203a 0%, #0e1526 50%, #070b16 100%);
+}
+
+.m-hero-period {
+    font-size: 0.6875rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, .64);
+}
+
+.m-hero-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 44px;
+    padding: 0.2rem 0.75rem;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, .12);
+    border: 1px solid rgba(255, 255, 255, .18);
+    color: #fff;
+    font-size: 0.6875rem;
+    font-weight: 800;
+}
+.m-hero-chip i { font-size: 0.625rem; opacity: .85; }
+.m-hero-chip:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, .35); }
+
+.m-hero-label {
+    margin-top: 0.9rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, .70);
+}
+
+.m-hero-figure {
+    margin-top: 0.1rem;
+    font-size: 2.35rem;
+    line-height: 1.05;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+}
+.m-hero-figure.is-over { color: #fda4af; }
+
+.m-hero-track {
+    margin-top: 0.85rem;
+    height: 7px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, .16);
+    overflow: hidden;
+}
+.m-hero-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #34d399, #10b981);
+    transition: width 600ms var(--ease-spring), background-color 300ms;
+}
+.m-hero-fill.is-warn { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+.m-hero-fill.is-over { background: linear-gradient(90deg, #fb7185, #e11d48); }
+
+.m-hero-note {
+    margin-top: 0.4rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, .58);
+}
+
+.m-hero-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid rgba(255, 255, 255, .14);
+}
+.m-hero-k {
+    display: block;
+    font-size: 0.625rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, .55);
+}
+.m-hero-v {
+    margin-top: 0.15rem;
+    font-size: 0.9375rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.m-hero-v.is-negative { color: #fda4af; }
+
+.m-hero-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+.m-hero-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 44px;
+    padding: 0 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.8125rem;
+    font-weight: 800;
+    transition: transform var(--duration-fast) var(--ease-spring),
+                box-shadow var(--duration-fast) var(--ease-smooth);
+}
+.m-hero-btn:active { transform: scale(.97); }
+.m-hero-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, .4); }
+.m-hero-btn-primary {
+    background: linear-gradient(135deg, #10b981, #0d9488);
+    color: #fff;
+    box-shadow: 0 8px 20px -8px rgba(16, 185, 129, .8);
+}
+.m-hero-btn-ghost {
+    background: rgba(255, 255, 255, .11);
+    border: 1px solid rgba(255, 255, 255, .18);
+    color: #fff;
+}
+
+/* ---- Period switch ----------------------------------------------- */
+.m-seg {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+    border: 1px solid var(--line-1);
+}
+.m-seg > button {
+    flex: 1 1 0;
+    min-height: 44px;
+    border-radius: calc(var(--radius-md) - 0.25rem);
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--ink-3);
+    transition: background-color var(--duration-fast) var(--ease-smooth),
+                color var(--duration-fast) var(--ease-smooth);
+}
+.m-seg > button:hover { color: var(--ink-1); }
+.m-seg > button[aria-pressed="true"] {
+    background: var(--surface-1);
+    color: var(--accent);
+    box-shadow: var(--elev-1);
+}
+.m-seg > button:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* ---- Phone layout ------------------------------------------------ */
+@media (max-width: 767px) {
+    /* Ten KPI cards two-up is five rows of scrolling. One swipeable row
+       keeps every card rendered and measurable - which matters, because
+       the conditional-section rules hide cards with .hidden and the
+       audit asserts the survivors still have height. */
+    .kpi-strip {
+        display: flex !important;
+        gap: 0.75rem;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scroll-padding-left: 0.1rem;
+        overscroll-behavior-x: contain;
+        padding-bottom: 0.35rem;
+        -webkit-overflow-scrolling: touch;
+    }
+    .kpi-strip::-webkit-scrollbar { height: 0; }
+    .kpi-strip > .kpi-card {
+        flex: 0 0 68%;
+        min-width: 0;
+        scroll-snap-align: start;
+    }
+
+    /* The filter toolbar is chrome, not content. On a phone the period
+       switch below the hero now owns period selection, so this shrinks to
+       a single tap target and stops pushing the primary figure off the
+       first screenful. */
+    #mainFilterToolbar {
+        padding: 0.55rem;
+        border-radius: var(--radius-md);
+    }
+    #mainFilterToolbar > .space-y-3 > * + *,
+    #mainFilterToolbar > * + * { margin-top: 0.5rem; }
+    #activeFilterTags { padding-top: 0; gap: 0.3rem; }
+    #activeFilterTags .active-filter-tag { padding: 2px 7px; font-size: 10px; }
+
+    /* Airy: fewer things per screen, more room around each. */
+    #view-dashboard.tab-view { gap: 1.25rem; }
+    #view-dashboard .glass-card { padding: 1.1rem; border-radius: var(--radius-lg); }
+    .m-hero-figure { font-size: 2.5rem; }
+}
+
+@media (max-width: 380px) {
+    /* The narrowest phones still in use. */
+    .m-hero { padding: 1rem; }
+    .m-hero-figure { font-size: 2.05rem; }
+    .m-hero-v { font-size: 0.875rem; }
+    .m-seg > button { font-size: 0.6875rem; }
+    .kpi-strip > .kpi-card { flex-basis: 76%; }
+}
+
+/* =================================================================
+   GHARKHATA v7.1 — LEDGER GROUPS & CATEGORY BREAKDOWN
+   ================================================================= */
+
+/* ---- Date-grouped ledger ----------------------------------------
+   A long ledger read as one undifferentiated stream. Day headings
+   with that day's total turn it into days, the way every reference
+   design presents transactions. */
+.tx-group-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 0.25rem 0.4rem;
+}
+.tx-group-head:first-child { padding-top: 0.15rem; }
+
+.tx-group-label {
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+.tx-group-total {
+    font-size: 0.75rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
+}
+
+/* ---- Category breakdown bars ------------------------------------
+   Ranked, with the bar scaled to the largest category rather than to
+   the total, so the small ones stay readable instead of collapsing
+   into a sliver. */
+.cat-bar-row {
+    /* Explicitly a column rather than relying on block layout: something in the
+       Tailwind CDN layer computes a bare <button> as display:flex, which laid
+       the label, the bar and the caption out side by side and collapsed the
+       bar to nothing. Stating the direction makes this independent of it. */
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0.3rem;
+    width: 100%;
+    text-align: left;
+    min-height: 44px;
+    padding: 0.4rem 0.45rem 0.5rem;
+    border-radius: var(--radius-sm);
+    transition: background-color var(--duration-fast) var(--ease-smooth);
+}
+.cat-bar-row:hover { background: var(--accent-soft); }
+.cat-bar-row:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.cat-bar-top {
+    display: flex;
+    width: 100%;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+.cat-bar-name {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    font-weight: 700;
+    color: var(--ink-2);
+}
+.cat-bar-dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    flex: 0 0 auto;
+}
+.cat-bar-amt {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-1);
+    white-space: nowrap;
+}
+.cat-bar-track {
+    display: block;
+    width: 100%;
+    height: 6px;
+    border-radius: var(--radius-full);
+    background: var(--surface-3);
+    overflow: hidden;
+}
+.cat-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    transition: width 500ms var(--ease-spring);
+}
+.cat-bar-pct {
+    display: block;
+    text-align: left;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--ink-3);
+}

@@ -30,7 +30,7 @@
     <!-- SheetJS (XLSX) for Excel Export & Import -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="styles.css?v=6.0.0">
+    <link rel="stylesheet" href="styles.css?v=7.1.0">
     <script>
         tailwind.config = {
             theme: {
@@ -663,8 +663,73 @@
         <!-- ================= TAB 1: LUXURY DASHBOARD COMMAND CENTER ================= -->
         <div id="view-dashboard" class="tab-view space-y-6">
             
+            <!-- ================= MOBILE HOME (phone only) =================
+                 Phones lead with one figure and a period switch; the desktop
+                 header above is untouched. The references all put the primary
+                 number in the first screenful, where we used to spend ~420px
+                 on chrome before showing a single rupee. -->
+            <div class="md:hidden space-y-3.5">
+
+                <!-- Hero summary -->
+                <div class="m-hero">
+                    <div class="flex items-center justify-between gap-2">
+                        <span id="mHeroPeriod" class="m-hero-period">This Month</span>
+                        <button type="button" id="mHeroModeChip" onclick="switchTab('admin')"
+                            class="m-hero-chip" title="Dashboard view mode. Change it in Master Settings.">
+                            <i class="fa-solid fa-house-chimney"></i>
+                            <span>Household</span>
+                        </button>
+                    </div>
+
+                    <p id="mHeroPrimaryLabel" class="m-hero-label">Remaining Budget</p>
+                    <h2 id="mHeroPrimaryVal" class="m-hero-figure">&#8377;0</h2>
+
+                    <div class="m-hero-track" role="presentation">
+                        <div id="mHeroBar" class="m-hero-fill" style="width: 0%"></div>
+                    </div>
+                    <p id="mHeroBarNote" class="m-hero-note">0% of budget used</p>
+
+                    <div class="m-hero-stats">
+                        <div>
+                            <span class="m-hero-k">Spent</span>
+                            <p id="mHeroSpent" class="m-hero-v">&#8377;0</p>
+                        </div>
+                        <div>
+                            <span class="m-hero-k">Net Flow</span>
+                            <p id="mHeroNet" class="m-hero-v">&#8377;0</p>
+                        </div>
+                        <div>
+                            <span class="m-hero-k">Budget</span>
+                            <p id="mHeroBudget" class="m-hero-v">&#8377;0</p>
+                        </div>
+                    </div>
+
+                    <div class="m-hero-actions">
+                        <button type="button" onclick="openExpenseModal()" class="m-hero-btn m-hero-btn-primary">
+                            <i class="fa-solid fa-plus"></i><span>Record Expense</span>
+                        </button>
+                        <button type="button" onclick="exportToExcel('filtered')" class="m-hero-btn m-hero-btn-ghost">
+                            <i class="fa-solid fa-file-arrow-down"></i><span>Export</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Period switch. Today and Weekly are real date ranges; the
+                     other two are month/year selections. -->
+                <div class="m-seg" role="group" aria-label="Reporting period">
+                    <button type="button" id="mPeriodToday" aria-pressed="false"
+                        onclick="quickFilterPeriod('today')">Today</button>
+                    <button type="button" id="mPeriodWeek" aria-pressed="false"
+                        onclick="quickFilterPeriod('this-week')">Weekly</button>
+                    <button type="button" id="mPeriodMonth" aria-pressed="true"
+                        onclick="quickFilterPeriod('this-month')">Monthly</button>
+                    <button type="button" id="mPeriodYear" aria-pressed="false"
+                        onclick="quickFilterPeriod('this-year')">Yearly</button>
+                </div>
+            </div>
+
             <!-- Dashboard Hero Header v5.0 -->
-            <div class="luxury-header flex flex-col sm:flex-row justify-between sm:items-center gap-3 text-white p-5 sm:p-6 rounded-3xl shadow-xl border border-indigo-700/30">
+            <div class="luxury-header hidden md:flex flex-col sm:flex-row justify-between sm:items-center gap-3 text-white p-5 sm:p-6 rounded-3xl shadow-xl border border-indigo-700/30">
                 <div>
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="text-[11px] font-black uppercase tracking-widest text-indigo-300/90">Command Center &bull; Financial Overview</span>
@@ -718,7 +783,7 @@
             </div>
 
             <!-- ================= 10 KPI METRIC CARDS v5.0 ================= -->
-            <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+            <div class="kpi-strip grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                 
                 <!-- KPI 1: Household Expenses -->
                 <div class="kpi-card kpi-card-accent kpi-indigo flex flex-col justify-between">
@@ -925,7 +990,7 @@
                     <div class="relative h-64 flex items-center justify-center">
                         <canvas id="categoryPieChart"></canvas>
                     </div>
-                    <div id="categoryChartLegend" class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs"></div>
+                    <div id="categoryChartLegend" class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2.5 text-xs"></div>
                 </div>
 
                 <!-- Chart 2: Expenses by "PAID BY" (Palash vs Pallavi vs Mom vs Dad) -->

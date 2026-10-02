@@ -47,7 +47,7 @@ async function run() {
     const palashLoginRes = await fetch(`${BASE_URL}/api/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', username: 'palash', password: 'Household123!' })
+        body: JSON.stringify({ action: 'login', username: 'palash', password: 'Palash@123' })
     });
     const palashLogin = await palashLoginRes.json();
     assert.strictEqual(palashLoginRes.status, 200, "Palash login should return 200");

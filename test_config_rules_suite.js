@@ -54,7 +54,7 @@ async function run() {
     console.log('🔒 Config Validation & Rename Cascade Suite');
     console.log('====================================================\n');
 
-    const token = await login('palash', 'Household123!');
+    const token = await login('palash', 'Palash@123');
     const original = await getConfig(token);
 
     // ---------------------------------------------------------------
@@ -266,7 +266,7 @@ async function run() {
     {
         // sanjay owns H002. He must not be able to rename anything in H001,
         // and the new action must not become a way around tenant isolation.
-        const sanjay = await login('sanjay', 'Household123!');
+        const sanjay = await login('sanjay', 'Sanjay@123');
         const res = await fetch(`${BASE_URL}/api/config?householdId=H001`, {
             method: 'POST',
             headers: authed(sanjay),

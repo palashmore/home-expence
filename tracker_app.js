@@ -842,6 +842,15 @@ function switchTab(tabId) {
         window.renderPersonalExpensesDashboard();
     }
 
+    // Name the account on the password card when arriving, and wipe the fields
+    // when leaving, so a typed password is never left sitting revealed on a
+    // screen somebody walks away from.
+    if (tabId === 'admin') {
+        if (window.renderPasswordCardIdentity) window.renderPasswordCardIdentity();
+    } else if (window.resetPasswordFields) {
+        window.resetPasswordFields();
+    }
+
     // Scroll to top when switching views on mobile/desktop
     try {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -4639,6 +4648,133 @@ window.updateGlobalsFromConfig = function(config) {
     applyDashboardModeFromConfig(false);
     renderDashboardModeControl();
 };
+
+// ============================================================
+// YOUR PASSWORD (self-service, every role)
+// ============================================================
+
+// Show/hide toggle. Reveal is per-field and never sticky: leaving the tab or
+// a successful save puts every field back to masked, so a password is not
+// left legible on a screen someone walks away from.
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const reveal = input.type === 'password';
+    input.type = reveal ? 'text' : 'password';
+    if (btn) {
+        btn.setAttribute('aria-pressed', String(reveal));
+        btn.setAttribute('aria-label', (reveal ? 'Hide' : 'Show') + ' ' +
+            (inputId === 'pwCurrent' ? 'current' : inputId === 'pwNew' ? 'new' : 'confirmation') + ' password');
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = reveal ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+    }
+}
+window.togglePasswordVisibility = togglePasswordVisibility;
+
+function resetPasswordFields() {
+    ['pwCurrent', 'pwNew', 'pwConfirm'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.value = ''; el.type = 'password'; }
+        const err = document.getElementById(id + 'Error');
+        if (err) { err.textContent = ''; err.classList.remove('is-visible'); }
+    });
+    document.querySelectorAll('.pw-eye').forEach(btn => {
+        btn.setAttribute('aria-pressed', 'false');
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = 'fa-solid fa-eye';
+    });
+}
+window.resetPasswordFields = resetPasswordFields;
+
+function setPasswordFieldError(fieldId, message) {
+    const err = document.getElementById(fieldId + 'Error');
+    if (!err) return;
+    err.textContent = message || '';
+    err.classList.toggle('is-visible', !!message);
+}
+
+function clearPasswordErrors() {
+    ['pwCurrent', 'pwNew', 'pwConfirm'].forEach(id => setPasswordFieldError(id, ''));
+}
+
+async function submitPasswordChange() {
+    const btn = document.getElementById('btnChangePassword');
+    const current = (document.getElementById('pwCurrent') || {}).value || '';
+    const next = (document.getElementById('pwNew') || {}).value || '';
+    const confirm = (document.getElementById('pwConfirm') || {}).value || '';
+
+    clearPasswordErrors();
+
+    // Check locally first so obvious mistakes never leave the device, then let
+    // the server decide - it is the only side that can check the current one.
+    let firstBad = null;
+    if (!current) { setPasswordFieldError('pwCurrent', 'Enter your current password.'); firstBad = firstBad || 'pwCurrent'; }
+    if (next.length < 8) { setPasswordFieldError('pwNew', 'At least 8 characters.'); firstBad = firstBad || 'pwNew'; }
+    if (next && next === current) { setPasswordFieldError('pwNew', 'Choose a different password from the current one.'); firstBad = firstBad || 'pwNew'; }
+    if (next !== confirm) { setPasswordFieldError('pwConfirm', 'The two new passwords do not match.'); firstBad = firstBad || 'pwConfirm'; }
+    if (firstBad) {
+        const el = document.getElementById(firstBad);
+        if (el && el.focus) el.focus();
+        return false;
+    }
+
+    if (btn) { btn.disabled = true; btn.dataset.busy = '1'; }
+    try {
+        const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken || localStorage.getItem('household_auth_token') || ''}`
+            },
+            body: JSON.stringify({
+                action: 'change_password',
+                currentPassword: current,
+                newPassword: next,
+                confirmPassword: confirm
+            })
+        });
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok || !json.success) {
+            // The server names the field it rejected, so the message lands next
+            // to the box the owner has to fix.
+            const field = json.field;
+            const message = json.error || 'Could not update the password.';
+            if (field === 'currentPassword') setPasswordFieldError('pwCurrent', message);
+            else if (field === 'newPassword') setPasswordFieldError('pwNew', message);
+            else if (field === 'confirmPassword') setPasswordFieldError('pwConfirm', message);
+            else if (window.showToast) window.showToast('error', 'Password not changed', message);
+            if (field && window.showToast) window.showToast('error', 'Password not changed', message);
+            return false;
+        }
+
+        resetPasswordFields();
+        if (window.showToast) {
+            window.showToast('success', 'Password updated',
+                'Use the new password next time you sign in. Sessions already open stay signed in until they expire.');
+        }
+        return true;
+    } catch (err) {
+        if (window.showToast) {
+            window.showToast('error', 'Password not changed',
+                'Could not reach the server. Your password is unchanged.');
+        }
+        return false;
+    } finally {
+        if (btn) { btn.disabled = false; delete btn.dataset.busy; }
+    }
+}
+window.submitPasswordChange = submitPasswordChange;
+
+// Name the account being changed, so an administrator who can also reset other
+// people cannot mistake this card for one of them.
+function renderPasswordCardIdentity() {
+    const label = document.getElementById('pwAccountLabel');
+    if (!label) return;
+    const u = currentSessionUser;
+    label.textContent = u && u.username ? `@${u.username}` : 'your account';
+}
+window.renderPasswordCardIdentity = renderPasswordCardIdentity;
 
 // ============================================================
 // ADMIN CONSOLE: MULTI-HOUSEHOLD & USER DIRECTORY ENGINE

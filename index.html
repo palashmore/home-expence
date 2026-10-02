@@ -30,7 +30,7 @@
     <!-- SheetJS (XLSX) for Excel Export & Import -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="styles.css?v=7.1.0">
+    <link rel="stylesheet" href="styles.css?v=7.2.0">
     <script>
         tailwind.config = {
             theme: {
@@ -2020,6 +2020,76 @@
 
             <!-- Admin Grid: Core Config Cards -->
             <div class="space-y-6">
+
+                <!-- CARD S: Your Password. Available to every signed-in role,
+                     and it only ever changes the signed-in user's own password -
+                     administrators reset other people's accounts from card 0. -->
+                <div class="glass-card p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+                    <div class="flex items-center space-x-3 border-b border-slate-100 pb-4">
+                        <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-lg shrink-0">
+                            <i class="fa-solid fa-key"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-base font-black text-slate-900">Your Password</h3>
+                            <p class="text-xs text-slate-500 font-medium mt-0.5">
+                                Changes the password for <span id="pwAccountLabel" class="font-bold text-slate-700">your account</span> only. Takes effect immediately on every device.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label for="pwCurrent" class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Current Password</label>
+                            <div class="pw-field">
+                                <input type="password" id="pwCurrent" autocomplete="current-password"
+                                    class="pw-input" placeholder="Current password">
+                                <button type="button" class="pw-eye" aria-label="Show current password"
+                                    aria-pressed="false" onclick="togglePasswordVisibility('pwCurrent', this)">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                            <p id="pwCurrentError" class="field-error"></p>
+                        </div>
+
+                        <div>
+                            <label for="pwNew" class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">New Password</label>
+                            <div class="pw-field">
+                                <input type="password" id="pwNew" autocomplete="new-password"
+                                    class="pw-input" placeholder="At least 8 characters">
+                                <button type="button" class="pw-eye" aria-label="Show new password"
+                                    aria-pressed="false" onclick="togglePasswordVisibility('pwNew', this)">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                            <p id="pwNewError" class="field-error"></p>
+                        </div>
+
+                        <div>
+                            <label for="pwConfirm" class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Confirm New Password</label>
+                            <div class="pw-field">
+                                <input type="password" id="pwConfirm" autocomplete="new-password"
+                                    class="pw-input" placeholder="Repeat new password">
+                                <button type="button" class="pw-eye" aria-label="Show confirmation password"
+                                    aria-pressed="false" onclick="togglePasswordVisibility('pwConfirm', this)">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                            <p id="pwConfirmError" class="field-error"></p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                        <p class="text-[11px] text-slate-500 font-medium">
+                            <i class="fa-solid fa-circle-info text-slate-400 mr-1"></i>
+                            Sessions already signed in elsewhere stay signed in until they expire.
+                        </p>
+                        <button type="button" id="btnChangePassword" onclick="submitPasswordChange()"
+                            class="px-5 py-2.5 min-h-[44px] bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white text-xs font-black rounded-xl shadow-lg shadow-rose-500/25 transition flex items-center justify-center gap-1.5 shrink-0">
+                            <i class="fa-solid fa-key"></i>
+                            <span>Update Password</span>
+                        </button>
+                    </div>
+                </div>
 
                 <!-- CARD A: Dashboard View Mode. The single source of truth for what
                      the dashboard reports on, for everyone in this household. -->

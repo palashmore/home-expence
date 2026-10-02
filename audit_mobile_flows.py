@@ -35,7 +35,7 @@ PHONE = {"width": 390, "height": 844}
 PHONE_WIDTHS = [360, 375, 390, 393, 412, 430]
 MIN_TAP = 44          # px, WCAG 2.5.5 / Apple HIG minimum
 MIN_TAP_GAP = 8       # px between adjacent targets
-OWNER = ("palash", "Household123!")
+OWNER = ("palash", "Palash@123")
 
 # Controls that are intentionally not thumb targets (decorative, or inside a
 # scrolling chip row where the row itself is the target). Kept explicit and
@@ -1960,8 +1960,8 @@ def audit_two_device_sync(browser, audit):
     attach_listeners(page_b, audit)
 
     try:
-        login(page_a, "palash", "Household123!")
-        login(page_b, "pallavi", "Household123!")
+        login(page_a, "palash", "Palash@123")
+        login(page_b, "pallavi", "Pallavi@123")
         api_a = make_api(page_a)
         api_b = make_api(page_b)
 
@@ -2096,7 +2096,7 @@ def audit_two_device_sync(browser, audit):
         ctx_c = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
         page_c = ctx_c.new_page()
         try:
-            login(page_c, "sanjay", "Household123!")          # owner of H002
+            login(page_c, "sanjay", "Sanjay@123")          # owner of H002
             api_c = make_api(page_c)
             other = api_c("GET", "/api/expenses").get("data") or []
             audit.record(
@@ -2374,7 +2374,7 @@ def audit_admin_management(browser, audit):
         # --- non-admins must not reach any of this ------------------------------
         ppage6 = probe_page(browser)
         try:
-            login(ppage6, "palash", "Household123!")          # OWNER, not admin
+            login(ppage6, "palash", "Palash@123")          # OWNER, not admin
             papi6 = make_api(ppage6)
             ov = papi6("GET", "/api/auth?action=admin_overview")
             audit.record(

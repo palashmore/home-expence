@@ -68,6 +68,11 @@ const SESSION_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 // ==========================================
 // CRYPTOGRAPHIC PASSWORD HASHING
 // ==========================================
+// Floor for passwords chosen from here on. create_user still accepts 6 for
+// compatibility with accounts already seeded; anything set deliberately from
+// now on clears a higher bar.
+const MIN_PASSWORD_LENGTH = 8;
+
 function hashPassword(password) {
     if (!password || typeof password !== 'string') throw new Error('Password required.');
     const salt = crypto.randomBytes(16).toString('hex');
@@ -338,12 +343,22 @@ module.exports = async function handler(req, res) {
                     return res.status(401).json({ success: false, error: "Invalid username or password." });
                 }
 
-                // Verify Password (supports crypto scrypt hash and admin fallback)
-                const isValidPassword = verifyPassword(password, user.passwordHash) ||
-                    password === "Household123!" ||
-                    password === `${user.name}@123` ||
-                    (user.username === 'admin' && password === 'Admin@123') ||
-                    (user.userId === 'U003' && password === 'UserB@123');
+                // Verify the password against this user's stored scrypt hash, and
+                // nothing else.
+                //
+                // This used to accept four fallbacks as well: the literal
+                // "Household123!", "<display name>@123", and two account-specific
+                // strings. "Household123!" opened EVERY account in EVERY household
+                // regardless of that user's real password, and the name pattern is
+                // guessable from any screen that shows who paid for something. On a
+                // deployment holding several households' financial records that is a
+                // complete authentication bypass, and it also made password changes
+                // meaningless: a user could pick a strong password and still be
+                // reachable with the fallback.
+                //
+                // Every seeded account already had a valid scrypt hash, so removing
+                // these locked nobody out - it only stopped the bypass.
+                const isValidPassword = verifyPassword(password, user.passwordHash);
 
                 if (!isValidPassword) {
                     return res.status(401).json({ success: false, error: "Invalid username or password." });
@@ -367,6 +382,86 @@ module.exports = async function handler(req, res) {
                         role: user.role
                     },
                     message: `Welcome back, ${user.name}!`
+                });
+            }
+
+            // 1b. CHANGE OWN PASSWORD (every authenticated role)
+            //
+            // Deliberately separate from edit_user, which is the administrator's
+            // reset path and requires ADMIN/SYSTEM_ADMIN/OWNER. This one is for
+            // the signed-in user and nobody else:
+            //   - the target is always session.userId. A userId in the body is
+            //     ignored, so this can never be aimed at another account.
+            //   - the current password must be supplied and verified. Without
+            //     that, a borrowed unlocked phone or any XSS becomes a permanent
+            //     account takeover rather than a temporary one.
+            //   - neither password is ever logged or echoed back.
+            if (action === 'change_password') {
+                const session = authenticateRequest(req);
+                if (!session) {
+                    return res.status(401).json({ success: false, error: "Authentication required." });
+                }
+
+                const currentPassword = String(body.currentPassword || '');
+                const newPassword = String(body.newPassword || '');
+                const confirmPassword = String(body.confirmPassword !== undefined ? body.confirmPassword : newPassword);
+
+                if (!currentPassword) {
+                    return res.status(422).json({
+                        success: false, field: 'currentPassword',
+                        error: "Enter your current password."
+                    });
+                }
+                if (newPassword.length < MIN_PASSWORD_LENGTH) {
+                    return res.status(422).json({
+                        success: false, field: 'newPassword',
+                        error: `New password must be at least ${MIN_PASSWORD_LENGTH} characters.`
+                    });
+                }
+                if (newPassword !== confirmPassword) {
+                    return res.status(422).json({
+                        success: false, field: 'confirmPassword',
+                        error: "The two new passwords do not match."
+                    });
+                }
+                if (newPassword === currentPassword) {
+                    return res.status(422).json({
+                        success: false, field: 'newPassword',
+                        error: "The new password must be different from the current one."
+                    });
+                }
+
+                const user = storage.getUserById(session.userId);
+                if (!user) {
+                    return res.status(404).json({ success: false, error: "Account not found." });
+                }
+                if (!verifyPassword(currentPassword, user.passwordHash)) {
+                    return res.status(403).json({
+                        success: false, field: 'currentPassword',
+                        error: "That is not your current password."
+                    });
+                }
+
+                try {
+                    storage.updateUser(session.userId,
+                        { passwordHash: hashPassword(newPassword) },
+                        session.username);
+                } catch (err) {
+                    return res.status(400).json({ success: false, error: err.message });
+                }
+
+                // The write has to reach the Gist before the response, or a cold
+                // start can discard it and the owner is left believing their
+                // password changed when it did not.
+                await storage.flushPendingCloudWrites();
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Password updated. It is already in effect everywhere you sign in.",
+                    // Session tokens are self-contained and are not checked against
+                    // the user record, so sessions opened before this change stay
+                    // valid until they expire.
+                    sessionsUnaffected: true
                 });
             }
 

@@ -310,14 +310,10 @@ async function checkAndSendScheduledReminders() {
         try { config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch (e) {}
     }
 
-    const bills = config?.recurringBills || [
-        { name: "Electricity Bill", category: "Electricity Bill", approxAmount: 2200, dueDay: 10, icon: "⚡" },
-        { name: "Flat Maintenance", category: "Flat Maintenance", approxAmount: 3500, dueDay: 5, icon: "🏢" },
-        { name: "Airtel Broadband / Wifi", category: "Wifi & Internet", approxAmount: 999, dueDay: 15, icon: "📶" },
-        { name: "Tata Play / Dish Bill", category: "Dish Bill (DTH)", approxAmount: 450, dueDay: 20, icon: "📺" },
-        { name: "Maid - Madhuri Salary", category: "Maid - Madhuri", approxAmount: 800, dueDay: 21, icon: "🧹" },
-        { name: "Chef - Nilima Salary", category: "Chef - Nilima Nikose", approxAmount: 4500, dueDay: 30, icon: "👩‍🍳" }
-    ];
+    // Only the household's own recurring bills. There is no default list: a
+    // household that configured none must not be reminded about someone
+    // else's utilities or staff salaries.
+    const bills = Array.isArray(config?.recurringBills) ? config.recurringBills : [];
 
     const today = new Date();
     const currentDay = today.getDate();
@@ -374,29 +370,33 @@ async function checkAndSendScheduledReminders() {
         }
     }
 
-    // 2. Scan staff salary cutoffs
-    if (currentDay === 21) {
-        const madhuriPaid = currentMonthExpenses.some(e => (e.category || '').includes('Madhuri'));
-        if (!madhuriPaid) {
-            notificationsToSend.push({
-                title: '🧹 Maid Madhuri Salary Cutoff Today',
-                body: 'Billing cycle closes today on the 21st Date (Base: ₹800). Please verify attendance and record payment.',
-                url: '/#tab-staff',
-                tag: `cutoff-madhuri-${currentYear}-${currentMonth}`
-            });
-        }
-    }
+    // 2. Scan staff salary cutoffs, from this household's own staff list.
+    // These used to be two hardcoded people on two hardcoded dates.
+    const staffList = Array.isArray(config?.staff) ? config.staff : [];
+    for (const st of staffList) {
+        if (!st || st.active === false) continue;
+        const cycleDay = Number(st.billingCycleDay);
+        if (!cycleDay || cycleDay < 1) continue;
 
-    if (currentDay === 30 || currentDay === 31) {
-        const nilimaPaid = currentMonthExpenses.some(e => (e.category || '').includes('Nilima'));
-        if (!nilimaPaid) {
-            notificationsToSend.push({
-                title: '👩‍🍳 Chef Nilima Salary Cutoff',
-                body: 'Month-end payroll cutoff active (Base: ₹4,500). Please check paid leaves quota and process salary.',
-                url: '/#tab-staff',
-                tag: `cutoff-nilima-${currentYear}-${currentMonth}`
-            });
-        }
+        const lastDay = new Date(currentYear, currentMonth, 0).getDate();
+        if (currentDay !== Math.min(cycleDay, lastDay)) continue;
+
+        const category = String(st.category || st.name || '').trim();
+        if (!category) continue;
+        const alreadyPaid = currentMonthExpenses.some(
+            e => String(e.category || '').trim().toLowerCase() === category.toLowerCase());
+        if (alreadyPaid) continue;
+
+        const person = String(st.shortName || st.name || category).trim();
+        const salary = Number(st.baseSalary) || 0;
+        notificationsToSend.push({
+            title: `\u{1F9D1}‍\u{1F373} ${person} Salary Cutoff Today`,
+            body: `Billing cycle closes today` +
+                (salary > 0 ? ` (Base: ₹${salary.toLocaleString('en-IN')})` : '') +
+                `. Please verify attendance and record payment.`,
+            url: '/#tab-staff',
+            tag: `cutoff-${category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${currentYear}-${currentMonth}`
+        });
     }
 
     let sentCount = 0;

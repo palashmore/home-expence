@@ -468,7 +468,7 @@
                 </button>
                 <button onclick="switchTab('staff')" id="tab-staff" class="tab-btn shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 whitespace-nowrap">
                     <i class="fa-solid fa-users-gear"></i>
-                    <span class="hidden sm:inline">Staff Payments (Madhuri & Nilima)</span>
+                    <span class="hidden sm:inline">Staff Payments</span>
                     <span class="sm:hidden">Staff</span>
                 </button>
                 <button onclick="switchTab('matrix')" id="tab-matrix" class="tab-btn shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 whitespace-nowrap">
@@ -550,8 +550,6 @@
                                 <option value="Grocery & Vegetables">🛒 Grocery & Vegetables</option>
                                 <option value="Electricity Bill">⚡ Electricity Bill</option>
                                 <option value="Flat Maintenance">🏢 Flat Maintenance</option>
-                                <option value="Maid - Madhuri">🧹 Maid - Madhuri</option>
-                                <option value="Chef - Nilima Nikose">👩‍🍳 Chef - Nilima Nikose</option>
                                 <option value="Wifi & Internet">📶 Wifi & Internet</option>
                                 <option value="Dish Bill (DTH)">📺 Dish Bill (DTH)</option>
                                 <option value="Shopping & Miscellaneous">🛍️ Shopping & Miscellaneous</option>
@@ -670,17 +668,14 @@
                 <div>
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="text-[11px] font-black uppercase tracking-widest text-indigo-300/90">Command Center &bull; Financial Overview</span>
-                        <!-- Scope Mode Switcher (Household Only vs Combined) -->
-                        <div class="inline-flex p-0.5 bg-slate-800/90 rounded-lg border border-indigo-700/60 text-[10px]">
-                            <button type="button" id="btnScopeHousehold" onclick="setDashboardScope('household')" class="px-2 py-0.5 rounded-md font-black transition bg-indigo-600 text-white shadow-xs flex items-center gap-1" title="Household Expenses only (pure bills, staff, utilities)">
-                                <i class="fa-solid fa-house-chimney text-[9px]"></i>
-                                <span>Household Only</span>
-                            </button>
-                            <button type="button" id="btnScopeCombined" onclick="setDashboardScope('combined')" class="px-2 py-0.5 rounded-md font-bold text-slate-300 hover:text-white transition flex items-center gap-1" title="Combined Household + Personal Total">
-                                <i class="fa-solid fa-layer-group text-[9px]"></i>
-                                <span>Combined</span>
-                            </button>
-                        </div>
+                        <!-- Dashboard view mode. Set once per household in Master Settings. -->
+                        <button type="button" id="dashboardModeBadge" onclick="switchTab('admin')"
+                            class="inline-flex items-center gap-1 px-2 py-1 min-h-[28px] bg-slate-800/90 rounded-lg border border-indigo-700/60 text-[10px] font-black text-white hover:border-indigo-400 transition"
+                            title="Dashboard view mode. Change it in Master Settings.">
+                            <i class="fa-solid fa-house-chimney text-[9px]"></i>
+                            <span>Household View</span>
+                            <i class="fa-solid fa-sliders text-[9px] text-indigo-300 ml-0.5"></i>
+                        </button>
                     </div>
                     <h2 id="dashboardPeriodTitle" class="text-2xl sm:text-3xl font-black tracking-tight text-white mt-0.5">
                         September 2026
@@ -825,8 +820,8 @@
                     </div>
                 </div>
 
-                <!-- KPI 6: Staff Payments (Madhuri & Nilima) -->
-                <div class="kpi-card kpi-card-accent kpi-amber">
+                <!-- KPI 6: Staff Payroll. Hidden when the household configured no staff. -->
+                <div id="kpiStaffPayroll" class="kpi-card kpi-card-accent kpi-amber hidden">
                     <div class="flex justify-between items-start">
                         <div class="min-w-0">
                             <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-amber-700 truncate">Staff Payroll</p>
@@ -876,8 +871,8 @@
                     </div>
                 </div>
 
-                <!-- KPI 9: Pending Recurring Bills -->
-                <div class="kpi-card kpi-card-accent kpi-orange">
+                <!-- KPI 9: Pending Recurring Bills. Hidden when no bills are configured. -->
+                <div id="kpiPendingBills" class="kpi-card kpi-card-accent kpi-orange hidden">
                     <div class="flex justify-between items-start">
                         <div class="min-w-0">
                             <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-orange-700 truncate">Pending Bills</p>
@@ -893,8 +888,8 @@
                     </div>
                 </div>
 
-                <!-- KPI 10: Paid Recurring Bills -->
-                <div class="kpi-card kpi-card-accent kpi-teal">
+                <!-- KPI 10: Paid Recurring Bills. Hidden when no bills are configured. -->
+                <div id="kpiPaidBills" class="kpi-card kpi-card-accent kpi-teal hidden">
                     <div class="flex justify-between items-start">
                         <div class="min-w-0">
                             <p class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-teal-700 truncate">Paid Utilities</p>
@@ -1041,8 +1036,8 @@
 
             <!-- ================= ADVANCE MODULE: UPCOMING BILLS RADAR & 15-DAY CASH RUNWAY ================= -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <!-- Upcoming Bills Radar (8 cols) -->
-                <div class="lg:col-span-8 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+                <!-- Upcoming Bills Radar (8 cols). Hidden when no recurring bills are configured. -->
+                <div id="dashBillsRadarSection" class="lg:col-span-8 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3 hidden">
                     <div class="flex justify-between items-center">
                         <div>
                             <h3 class="text-sm font-extrabold text-slate-900 flex items-center">
@@ -1054,12 +1049,12 @@
                         <span class="text-[11px] font-bold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg border border-indigo-200">Live Cycle Radar</span>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" id="billsRadarGrid">
-                        <!-- Populated dynamically: MSCB Electricity, Flat Maint, Dish TV, Wifi, Madhuri, Nilima -->
+                        <!-- Populated dynamically from masterConfig.recurringBills -->
                     </div>
                 </div>
 
                 <!-- 15-Day Cash Flow Runway Predictor (4 cols) -->
-                <div class="lg:col-span-4 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-3">
+                <div id="dashRunwaySection" class="lg:col-span-4 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-3">
                     <div>
                         <div class="flex justify-between items-center">
                             <h3 class="text-sm font-extrabold text-slate-900 flex items-center">
@@ -1087,15 +1082,15 @@
             <!-- ================= STAFF PAYMENTS & BUDGET / RECURRING SUMMARY ================= -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                <!-- Staff Payments Dedicated Status (Madhuri & Nilima) -->
-                <div class="lg:col-span-6 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                <!-- Staff Payroll Ledger. Rendered from Master Settings; hidden when no staff. -->
+                <div id="dashStaffLedgerSection" class="lg:col-span-6 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 hidden">
                     <div class="flex justify-between items-center">
                         <div>
                             <h3 class="text-base font-extrabold text-slate-900 flex items-center">
                                 <i class="fa-solid fa-hand-holding-dollar text-indigo-600 mr-2"></i>
                                 <span>Staff Payroll Ledger (Current Period)</span>
                             </h3>
-                            <p class="text-xs text-slate-500 font-medium">Dedicated payment status for Maid and Chef</p>
+                            <p class="text-xs text-slate-500 font-medium">Payment status for every staff member in Master Settings</p>
                         </div>
                         <button onclick="switchTab('staff')" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center space-x-1">
                             <span>Open Staff View</span>
@@ -1103,57 +1098,13 @@
                         </button>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <!-- Madhuri (Maid) -->
-                        <div class="p-4 rounded-xl bg-indigo-50/70 border border-indigo-100 space-y-2.5">
-                            <div class="flex justify-between items-start">
-                                <div class="flex items-center space-x-2">
-                                    <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
-                                        <i class="fa-solid fa-broom"></i>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-xs font-extrabold text-slate-900">Madhuri (Maid)</h4>
-                                        <span class="text-[10px] text-slate-500 font-bold">21st of Month Cycle</span>
-                                    </div>
-                                </div>
-                                <span id="statMadhuriStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800">Pending</span>
-                            </div>
-                            <div class="flex justify-between items-baseline pt-2 border-t border-indigo-100/80 text-xs">
-                                <span class="text-slate-500">Paid in Period:</span>
-                                <span id="statMadhuriPaid" class="font-extrabold text-slate-900 text-sm">₹0</span>
-                            </div>
-                            <button onclick="quickPayItem('Maid - Madhuri', 800, 'Madhuri')" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
-                                Pay Madhuri ₹800
-                            </button>
-                        </div>
-
-                        <!-- Nilima Nikose (Chef) -->
-                        <div class="p-4 rounded-xl bg-amber-50/70 border border-amber-100 space-y-2.5">
-                            <div class="flex justify-between items-start">
-                                <div class="flex items-center space-x-2">
-                                    <div class="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold text-xs">
-                                        <i class="fa-solid fa-utensils"></i>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-xs font-extrabold text-slate-900">Nilima Nikose (Chef)</h4>
-                                        <span class="text-[10px] text-slate-500 font-bold">Month End (30th) Cycle</span>
-                                    </div>
-                                </div>
-                                <span id="statNilimaStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800">Pending</span>
-                            </div>
-                            <div class="flex justify-between items-baseline pt-2 border-t border-amber-100/80 text-xs">
-                                <span class="text-slate-500">Paid in Period:</span>
-                                <span id="statNilimaPaid" class="font-extrabold text-slate-900 text-sm">₹0</span>
-                            </div>
-                            <button onclick="quickPayItem('Chef - Nilima Nikose', 4500, 'Nilima Nikose')" class="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
-                                Pay Nilima ₹4,500
-                            </button>
-                        </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="dashStaffLedgerGrid">
+                        <!-- Populated by renderStaffPayrollLedger() from masterConfig.staff -->
                     </div>
                 </div>
 
                 <!-- Monthly Budget & Year-To-Date (YTD) Summary -->
-                <div class="lg:col-span-6 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                <div id="dashBudgetYtdSection" class="lg:col-span-6 glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
                     <div class="flex justify-between items-center">
                         <h3 class="text-base font-extrabold text-slate-900 flex items-center">
                             <i class="fa-solid fa-piggy-bank text-emerald-600 mr-2"></i>
@@ -1562,8 +1513,7 @@
                     <!-- Staff Selector & Action -->
                     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                         <select id="attendanceStaffSelect" onchange="renderAttendanceCalendar()" class="w-full sm:w-auto bg-white border-2 border-indigo-200 text-indigo-900 text-xs font-black rounded-xl px-3 py-2.5 shadow-sm focus:border-indigo-500">
-                            <option value="Chef - Nilima Nikose">👩‍🍳 Chef - Nilima Nikose (₹4,500/mo)</option>
-                            <option value="Maid - Madhuri">🧹 Maid - Madhuri (₹800/mo)</option>
+                            <option value="">No staff configured yet</option>
                         </select>
                         <button onclick="generateWhatsAppVoucher()" class="w-full sm:w-auto justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl shadow-md transition flex items-center space-x-1.5 active:scale-95">
                             <i class="fa-brands fa-whatsapp text-sm sm:text-base"></i>
@@ -1694,79 +1644,9 @@
 
         <!-- ================= TAB 3: STAFF PAYMENTS ================= -->
         <div id="view-staff" class="tab-view hidden space-y-6">
-            <!-- Staff Overview Headers -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Maid: Madhuri -->
-                <div class="glass-card p-6 rounded-2xl border border-slate-200/80 shadow-sm relative border-l-4 border-l-indigo-600 hover-lift">
-                    <div class="flex justify-between items-start">
-                        <div class="flex items-center space-x-4">
-                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center text-2xl font-bold shadow-md shadow-indigo-500/20">
-                                <i class="fa-solid fa-broom"></i>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-black text-slate-900">Madhuri</h3>
-                                <p class="text-xs text-slate-500 font-semibold">Household Maid (Cleaning & Washing)</p>
-                                <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-                                    <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200">
-                                        <i class="fa-solid fa-calendar-check mr-1"></i>Month Ends: 21st Date
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="openStaffPaymentModal('Madhuri')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md transition">
-                            <i class="fa-solid fa-indian-rupee-sign mr-1"></i> Pay ₹800
-                        </button>
-                    </div>
-
-                    <div class="mt-6 pt-4 border-t border-slate-100 grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <span class="text-[11px] text-slate-400 uppercase font-extrabold">Total Paid (Selected Period)</span>
-                            <p id="staffMadhuriPeriodTotal" class="text-xl font-black text-indigo-900 mt-0.5">₹0</p>
-                        </div>
-                        <div>
-                            <span class="text-[11px] text-slate-400 uppercase font-extrabold">Selected Month Status</span>
-                            <p id="staffMadhuriBadge" class="mt-1">
-                                <span class="px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-md">Pending</span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Chef: Nilima Nikose -->
-                <div class="glass-card p-6 rounded-2xl border border-slate-200/80 shadow-sm relative border-l-4 border-l-amber-500 hover-lift">
-                    <div class="flex justify-between items-start">
-                        <div class="flex items-center space-x-4">
-                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center text-2xl font-bold shadow-md shadow-amber-500/20">
-                                <i class="fa-solid fa-utensils"></i>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-black text-slate-900">Nilima Nikose</h3>
-                                <p class="text-xs text-slate-500 font-semibold">Household Chef (Cooking & Meals)</p>
-                                <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-                                    <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                                        <i class="fa-solid fa-calendar-check mr-1"></i>Month Ends: 30th Date
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="openStaffPaymentModal('Nilima Nikose')" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md transition">
-                            <i class="fa-solid fa-indian-rupee-sign mr-1"></i> Pay ₹4500
-                        </button>
-                    </div>
-
-                    <div class="mt-6 pt-4 border-t border-slate-100 grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <span class="text-[11px] text-slate-400 uppercase font-extrabold">Total Paid (Selected Period)</span>
-                            <p id="staffNilimaPeriodTotal" class="text-xl font-black text-amber-900 mt-0.5">₹0</p>
-                        </div>
-                        <div>
-                            <span class="text-[11px] text-slate-400 uppercase font-extrabold">Selected Month Status</span>
-                            <p id="staffNilimaBadge" class="mt-1">
-                                <span class="px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-md">Pending</span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
+            <!-- Staff Overview Headers. Rendered from masterConfig.staff by renderStaffView(). -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="staffOverviewGrid">
+                <!-- Populated dynamically; empty state shown when no staff are configured -->
             </div>
 
             <!-- Staff Payment History Table -->
@@ -2001,7 +1881,7 @@
                         </div>
                     </div>
                     <p class="text-xs text-slate-600 leading-relaxed">
-                        Generates a comprehensive multi-sheet workbook containing Daily Expenses Log, Monthly Summary Matrix, Staff Payments Ledger (Madhuri & Nilima), and Category Summary with complete Paid By details.
+                        Generates a comprehensive multi-sheet workbook containing Daily Expenses Log, Monthly Summary Matrix, Staff Payments Ledger, and Category Summary with complete Paid By details.
                     </p>
                     <div class="flex flex-wrap gap-2 pt-2">
                         <button onclick="exportToExcel('filtered')" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md transition flex items-center space-x-2">
@@ -2075,6 +1955,29 @@
 
             <!-- Admin Grid: Core Config Cards -->
             <div class="space-y-6">
+
+                <!-- CARD A: Dashboard View Mode. The single source of truth for what
+                     the dashboard reports on, for everyone in this household. -->
+                <div class="glass-card p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+                    <div class="flex items-center space-x-3 border-b border-slate-100 pb-4">
+                        <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">
+                            <i class="fa-solid fa-gauge-high"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-base font-black text-slate-900">Dashboard View Mode</h3>
+                            <p class="text-xs text-slate-500 font-medium mt-0.5">
+                                Chooses what the dashboard totals, charts and tables report on. Applies to every member of this household.
+                            </p>
+                        </div>
+                    </div>
+                    <div id="adminDashboardModeOptions" role="radiogroup" aria-label="Dashboard view mode"
+                        class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <!-- Populated by renderDashboardModeControl() -->
+                    </div>
+                    <p class="text-[11px] text-slate-500 font-medium">
+                        Sections follow your configuration: payroll is shown only once staff are added below, and the bill radar only once recurring bills exist.
+                    </p>
+                </div>
 
                 <!-- CARD 0: Multi-Tenant Household & User Directory (System Administrator Only) -->
                 <div id="adminTenantManagementCard" class="hidden glass-card p-6 rounded-3xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/40 via-white to-slate-50/50 shadow-sm space-y-5">
@@ -2756,8 +2659,6 @@
                             <option value="Grocery & Vegetables">🛒 Grocery & Vegetables</option>
                             <option value="Electricity Bill">⚡ Electricity Bill</option>
                             <option value="Flat Maintenance">🏢 Flat Maintenance</option>
-                            <option value="Chef - Nilima Nikose">👩‍🍳 Chef - Nilima Nikose</option>
-                            <option value="Maid - Madhuri">🧹 Maid - Madhuri</option>
                             <option value="Dish Bill (DTH)">📺 Dish Bill (DTH)</option>
                             <option value="Shopping & Miscellaneous">🛍️ Shopping & Miscellaneous</option>
                             <option value="Food Delivery">🍔 Food Delivery</option>
@@ -2796,7 +2697,7 @@
                         <!-- Paid To / Vendor -->
                         <div>
                             <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">Paid To / Vendor</label>
-                            <input type="text" id="inputPaidTo" placeholder="e.g. Madhuri, Nilima, Blinkit, MSEDCL" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium focus:border-indigo-500">
+                            <input type="text" id="inputPaidTo" placeholder="e.g. staff name, store, or biller" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium focus:border-indigo-500">
                         </div>
                         <!-- Payment Mode -->
                         <div>

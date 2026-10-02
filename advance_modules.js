@@ -5,7 +5,7 @@
  * 2. 1-Click Settle Up / Reimburse Action with Instant Reconciliation
  * 3. Mobile PWA Install Prompt & Guided Instructions (iOS Safari / Android / Desktop)
  * 4. Smart Anomaly & 24h Duplicate Radar
- * 5. Domestic Staff Attendance Calendar & Payroll Suite (Nilima Nikose & Madhuri)
+ * 5. Domestic Staff Attendance Calendar & Payroll Suite (per-household staff)
  * 6. Upcoming Bills Due Date Radar & 15-Day Cash Flow Runway
  * 7. Luxury Executive PDF Monthly Report Generator
  */
@@ -824,14 +824,9 @@
   // 3. UPCOMING BILLS DUE DATE RADAR & 15-DAY RUNWAY
   // ========================================================
 
-  const RADAR_BILLS = [
-    { name: 'MSCB Electricity Bill', category: 'Electricity Bill', dueDay: 10, approxAmount: 2200, icon: '⚡' },
-    { name: 'Society Flat Maintenance', category: 'Flat Maintenance', dueDay: 5, approxAmount: 3500, icon: '🏢' },
-    { name: 'Airtel Broadband / Wifi', category: 'Wifi / Internet', dueDay: 15, approxAmount: 999, icon: '📶' },
-    { name: 'Tata Play / Dish Bill', category: 'Dish Bill (DTH)', dueDay: 20, approxAmount: 450, icon: '📺' },
-    { name: 'Maid - Madhuri', category: 'Maid - Madhuri', dueDay: 21, approxAmount: 800, icon: '🧹' },
-    { name: 'Chef - Nilima Nikose', category: 'Chef - Nilima Nikose', dueDay: 30, approxAmount: 4500, icon: '👩‍🍳' }
-  ];
+  // Recurring bills are per household and come from Master Settings only.
+  // There is deliberately no built-in default list: one household's utilities
+  // and staff salaries must never show up on another household's dashboard.
 
   function renderBillsRadar(filtered) {
     const grid = document.getElementById('billsRadarGrid');
@@ -852,9 +847,23 @@
     let runwaySum = 0;
     const runwayItems = [];
 
-    const activeBills = (window.masterConfig && window.masterConfig.recurringBills && window.masterConfig.recurringBills.length > 0)
-      ? window.masterConfig.recurringBills
-      : RADAR_BILLS;
+    // Only this household's own bills. The old fallback to RADAR_BILLS showed a
+    // brand new household another household's utilities and staff salaries.
+    const activeBills = (window.masterConfig && Array.isArray(window.masterConfig.recurringBills))
+      ? window.masterConfig.recurringBills.filter(b => b && b.active !== false)
+      : [];
+
+    if (activeBills.length === 0) {
+      grid.innerHTML = '<div class="col-span-full p-6 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 text-center">' +
+        '<i class="fa-solid fa-receipt text-slate-300 text-xl"></i>' +
+        '<p class="text-sm font-bold text-slate-600 mt-2">No recurring bills configured</p>' +
+        '<p class="text-xs text-slate-500 font-medium mt-1">Add them in Master Settings to track due dates here.</p></div>';
+      if (runwayNeededEl) runwayNeededEl.textContent = '₹0';
+      if (runwayProgressEl) runwayProgressEl.style.width = '0%';
+      if (runwayNoteEl) runwayNoteEl.textContent = 'No recurring commitments configured.';
+      if (runwayListEl) runwayListEl.innerHTML = '';
+      return;
+    }
 
     activeBills.forEach(bill => {
       const evalRes = window.getRecurringPaymentStatus
@@ -1183,12 +1192,23 @@
     });
 
     // Update Pro-Rata Salary Calculation with Configurable Allowed Paid Leaves Quota
-    const staffConf = (window.masterConfig && window.masterConfig.staff)
-      ? window.masterConfig.staff.find(s => s.name === staffName || s.shortName === staffName || staffName.includes(s.shortName))
+    const staffConf = (window.masterConfig && Array.isArray(window.masterConfig.staff))
+      ? window.masterConfig.staff.find(s => s && (
+          s.name === staffName ||
+          s.shortName === staffName ||
+          (s.shortName && staffName.includes(s.shortName))
+        ))
       : null;
 
-    const baseSalary = staffConf ? Number(staffConf.baseSalary) : (staffRecord.baseSalary || (staffName.includes('Nilima') ? 4500 : 800));
-    const allowedLeaves = staffConf ? Number(staffConf.allowedPaidLeaves ?? (staffName.includes('Nilima') ? 4 : (staffName.includes('Madhuri') ? 2 : 0))) : (staffName.includes('Nilima') ? 4 : (staffName.includes('Madhuri') ? 2 : 0));
+    // Salary and leave quota come from this household's configuration. They
+    // used to fall back to two named staff members' figures, so a household
+    // with no staff configured saw a payable of 4,500 out of nowhere.
+    const baseSalary = staffConf
+      ? (Number(staffConf.baseSalary) || 0)
+      : (Number(staffRecord && staffRecord.baseSalary) || 0);
+    const allowedLeaves = staffConf
+      ? (Number(staffConf.allowedPaidLeaves) || 0)
+      : (Number(staffRecord && staffRecord.allowedPaidLeaves) || 0);
     const perDayRate = baseSalary / daysInMonth;
 
     // Allowed Paid Leaves Quota Calculation:
@@ -1686,6 +1706,8 @@
           if (window.renderBillsRadar && (window.currentFilteredExpenses || window.expensesData)) {
             window.renderBillsRadar(window.currentFilteredExpenses || window.expensesData);
           }
+          if (window.renderDashboardModeControl) window.renderDashboardModeControl();
+          if (window.applyDashboardModeFromConfig) window.applyDashboardModeFromConfig(false);
           if (window.renderAdminView) window.renderAdminView();
           if (window.renderAllViews) window.renderAllViews();
 
@@ -1926,6 +1948,11 @@
         window.loadMasterConfig();
       }
       return;
+    }
+
+    // 0. Dashboard view mode selector
+    if (typeof window.renderDashboardModeControl === 'function') {
+      window.renderDashboardModeControl();
     }
 
     // 1. Staff Members Table & Mobile Cards
@@ -2860,6 +2887,7 @@
         headers: headers,
         body: JSON.stringify({
           staff: [],
+          dashboardMode: 'household',
           categories: [
             { name: "Grocery & Vegetables", icon: "\u{1F6D2}", type: "expense", defaultPaidTo: "" },
             { name: "Electricity Bill", icon: "⚡", type: "expense", defaultPaidTo: "" },
@@ -4787,7 +4815,7 @@
   window.updateNotificationCenter = async function () {
     const expenses = window.expenses || [];
     const config = window.masterConfig || {};
-    const bills = config.recurringBills || RADAR_BILLS;
+    const bills = Array.isArray(config.recurringBills) ? config.recurringBills : [];
     const dismissed = getDismissedNotificationIds();
 
     const today = new Date();
@@ -4942,27 +4970,46 @@
       }
     });
 
-    // 2. Evaluate Staff Attendance / Leave & Salary Cutoffs
+    // 2. Evaluate Staff Attendance / Leave & Salary Cutoffs.
+    // One reminder per staff member this household actually configured, around
+    // that member's own cycle day. It used to be two hardcoded people.
     const day = today.getDate();
-    const madhuriKey = `staff-madhuri-${curYear}-${curMonth}`;
-    if (!dismissed.includes(madhuriKey) && day >= 19 && day <= 24) {
-      const madhuriExp = curMonthExpenses.find(e => (e.category || '').includes('Madhuri'));
-      if (!madhuriExp) {
-        notifs.push({
-          id: madhuriKey,
-          type: day > 21 ? 'action' : 'upcoming',
-          severity: day > 21 ? 'critical' : 'high',
-          title: day > 21 ? 'Madhuri Salary Overdue' : 'Madhuri Salary Cutoff Approaching',
-          description: 'Billing cycle closes on 21st Date (Base: ₹800). Verify attendance and process payment.',
-          icon: '🧹',
-          actionLabel: 'Check Staff',
-          onAction: () => {
-            window.switchTab && window.switchTab('staff');
-            window.toggleNotificationCenter();
-          }
-        });
-      }
-    }
+    const configuredStaff = (typeof window.getConfiguredStaff === 'function')
+      ? window.getConfiguredStaff()
+      : [];
+
+    configuredStaff.forEach((st) => {
+      const cycleDay = Number(st.billingCycleDay);
+      if (!cycleDay || cycleDay < 1) return;
+      if (day < cycleDay - 2 || day > cycleDay + 3) return;
+
+      const category = window.staffCategoryOf ? window.staffCategoryOf(st) : (st.category || st.name);
+      const person = window.staffDisplayName ? window.staffDisplayName(st) : (st.shortName || st.name);
+      const key = 'staff-' + String(category).toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + curYear + '-' + curMonth;
+      if (dismissed.includes(key)) return;
+
+      const alreadyPaid = curMonthExpenses.some(
+        e => String(e.category || '').trim().toLowerCase() === String(category).trim().toLowerCase());
+      if (alreadyPaid) return;
+
+      const overdue = day > cycleDay;
+      const salary = Number(st.baseSalary) || 0;
+      notifs.push({
+        id: key,
+        type: overdue ? 'action' : 'upcoming',
+        severity: overdue ? 'critical' : 'high',
+        title: person + ' Salary ' + (overdue ? 'Overdue' : 'Cutoff Approaching'),
+        description: 'Billing cycle closes on day ' + cycleDay +
+          (salary > 0 ? ' (Base: ₹' + salary.toLocaleString('en-IN') + ')' : '') +
+          '. Verify attendance and process payment.',
+        icon: '🧑‍🍳',
+        actionLabel: 'Check Staff',
+        onAction: () => {
+          window.switchTab && window.switchTab('staff');
+          window.toggleNotificationCenter();
+        }
+      });
+    });
 
     // 3. High Value Unsettled Reimbursements
     if (window.currentNetSettleAmount && window.currentNetSettleAmount > 5000) {

@@ -1309,6 +1309,198 @@ def audit_expense_view_toggle(page, audit, api):
     )
 
 
+def audit_dashboard_mode(page, audit, api):
+    """The dashboard reports on whatever Master Settings says it should, and
+    sections that nothing is configured for are not shown at all. Both used to
+    be hardcoded: a per-device toggle, and two named staff members baked into
+    the markup."""
+    print("\n[D] dashboard follows Master Configuration")
+
+    cfg = read_config(api)
+    original_mode = cfg.get("dashboardMode") or "household"
+    original_staff = cfg.get("staff") or []
+    original_bills = cfg.get("recurringBills") or []
+
+    goto_tab(page, "admin")
+    page.wait_for_timeout(1200)
+
+    audit.record(
+        "D Master Settings hosts the dashboard view mode selector",
+        page.query_selector("#adminDashboardModeOptions") is not None,
+        "the dashboard mode card is missing from Master Settings",
+    )
+    audit.record(
+        "D the dashboard no longer carries its own scope toggle",
+        page.query_selector("#btnScopeCombined") is None
+        and page.query_selector("#btnScopeHousehold") is None,
+        "the per-device dashboard scope buttons are still present",
+    )
+
+    option_count = page.evaluate(
+        "() => document.querySelectorAll('#adminDashboardModeOptions button').length"
+    )
+    audit.record(
+        "D all three modes are offered",
+        option_count == 3,
+        "found %s options" % option_count,
+    )
+
+    def mode_state():
+        return page.evaluate(
+            """() => {
+                const vis = (id) => {
+                    const el = document.getElementById(id);
+                    if (!el) return null;
+                    return !el.classList.contains('hidden') && el.offsetHeight > 0;
+                };
+                return {
+                    scope: (window.dashboardFilters || {}).scope,
+                    stored: (window.masterConfig || {}).dashboardMode,
+                    badge: (document.getElementById('dashboardModeBadge') || {}).textContent,
+                    staffKpi: vis('kpiStaffPayroll'),
+                    staffLedger: vis('dashStaffLedgerSection'),
+                    billsRadar: vis('dashBillsRadarSection')
+                };
+            }"""
+        )
+
+    for mode in ("personal", "combined", "household"):
+        page.evaluate("(m) => setDashboardMode(m)", mode)
+        page.wait_for_timeout(1400)
+        goto_tab(page, "dashboard")
+        page.wait_for_timeout(900)
+        st = mode_state()
+        audit.record(
+            "D choosing %s in Master Settings drives the dashboard" % mode,
+            st["scope"] == mode and st["stored"] == mode,
+            "scope=%s stored=%s" % (st["scope"], st["stored"]),
+        )
+        audit.record(
+            "D the %s mode is named in the dashboard header" % mode,
+            st["badge"] is not None and mode[:4].lower() in st["badge"].lower(),
+            "header badge reads %r" % (st["badge"],),
+        )
+        if mode == "personal":
+            audit.record(
+                "D personal mode hides household payroll and bill sections",
+                st["staffKpi"] is not True
+                and st["staffLedger"] is not True
+                and st["billsRadar"] is not True,
+                "state is %s" % (st,),
+            )
+        goto_tab(page, "admin")
+        page.wait_for_timeout(700)
+
+    # The choice is a household setting, so it must reach the server and come
+    # back on reload rather than living in this browser.
+    page.evaluate("() => setDashboardMode('combined')")
+    page.wait_for_timeout(1500)
+    stored = read_config(api)
+    audit.record(
+        "D the mode is persisted server-side, not just locally",
+        stored.get("dashboardMode") == "combined",
+        "server stored %r" % (stored.get("dashboardMode"),),
+    )
+    reload_app(page)
+    page.wait_for_timeout(1800)
+    after = mode_state()
+    audit.record(
+        "D the mode is restored from the config after a reload",
+        after["scope"] == "combined",
+        "scope after reload is %r" % (after["scope"],),
+    )
+
+    page.evaluate("() => setDashboardMode('household')")
+    page.wait_for_timeout(1500)
+    goto_tab(page, "dashboard")
+    page.wait_for_timeout(1000)
+
+    if original_staff:
+        with_staff = page.evaluate(
+            """() => {
+                const grid = document.getElementById('dashStaffLedgerGrid');
+                const sec = document.getElementById('dashStaffLedgerSection');
+                return {
+                    shown: sec ? !sec.classList.contains('hidden') : null,
+                    cards: grid ? grid.querySelectorAll('button').length : 0,
+                    text: grid ? grid.textContent : ''
+                };
+            }"""
+        )
+        audit.record(
+            "D payroll is shown when staff are configured",
+            with_staff["shown"] is True and with_staff["cards"] == len(original_staff),
+            "%s cards for %s staff, shown=%s"
+            % (with_staff["cards"], len(original_staff), with_staff["shown"]),
+        )
+        names = [(st.get("shortName") or st.get("name") or "") for st in original_staff]
+        audit.record(
+            "D the payroll cards name this household's own staff",
+            all(n and n in with_staff["text"] for n in names),
+            "expected %s in the ledger" % (names,),
+        )
+
+    # Remove staff and bills and prove the sections disappear. This is the bug
+    # the owner reported: a household with no staff still saw payroll cards.
+    try:
+        api("POST", "/api/config", {"staff": [], "recurringBills": []})
+        page.evaluate("async () => { await window.loadMasterConfig(); }")
+        page.wait_for_timeout(1800)
+        goto_tab(page, "dashboard")
+        page.wait_for_timeout(1200)
+        empty = mode_state()
+        audit.record(
+            "D no staff configured means no payroll anywhere on the dashboard",
+            empty["staffKpi"] is not True and empty["staffLedger"] is not True,
+            "state is %s" % (empty,),
+        )
+        audit.record(
+            "D no recurring bills configured means no bill radar",
+            empty["billsRadar"] is not True,
+            "state is %s" % (empty,),
+        )
+
+        goto_tab(page, "staff")
+        page.wait_for_timeout(1200)
+        staff_tab = page.evaluate(
+            """() => {
+                const g = document.getElementById('staffOverviewGrid');
+                return {cards: g ? g.querySelectorAll('.glass-card').length : -1,
+                        text: g ? g.textContent.trim() : ''};
+            }"""
+        )
+        audit.record(
+            "D the staff tab shows no staff cards when none are configured",
+            staff_tab["cards"] == 0,
+            "%s cards still rendered" % staff_tab["cards"],
+        )
+        audit.record(
+            "D the empty staff tab explains itself instead of going blank",
+            "No staff configured" in staff_tab["text"],
+            "staff tab reads %r" % (staff_tab["text"][:120],),
+        )
+    finally:
+        # Put the household back exactly as it was.
+        api("POST", "/api/config", {
+            "staff": original_staff,
+            "recurringBills": original_bills,
+            "dashboardMode": original_mode,
+        })
+        page.evaluate("async () => { await window.loadMasterConfig(); }")
+        page.wait_for_timeout(1500)
+
+    restored = read_config(api)
+    audit.record(
+        "D the household's staff and bills are restored after the audit",
+        len(restored.get("staff") or []) == len(original_staff)
+        and len(restored.get("recurringBills") or []) == len(original_bills)
+        and (restored.get("dashboardMode") or "household") == original_mode,
+        "staff %s/%s, bills %s/%s"
+        % (len(restored.get("staff") or []), len(original_staff),
+           len(restored.get("recurringBills") or []), len(original_bills)),
+    )
+
+
 def audit_logout(page, audit, api):
     """Section E: signing out must actually end the session. A token left in
     localStorage, or household data still cached after logout, means the next
@@ -1952,7 +2144,8 @@ def main():
                           (audit_delete_warnings, "D delete warning"),
                           (audit_expense_round_trip, "D expense round-trip"),
                           (audit_attendance_follows_period, "D attendance calendar"),
-                          (audit_expense_view_toggle, "D expense view toggle")):
+                          (audit_expense_view_toggle, "D expense view toggle"),
+                          (audit_dashboard_mode, "D dashboard follows master config")):
             try:
                 fn(page, audit, api)
             except Exception as e:

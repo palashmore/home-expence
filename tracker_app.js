@@ -12,8 +12,6 @@ let CATEGORIES = _win.CATEGORIES || [
     "Flat Maintenance",
     "Dish Bill (DTH)",
     "Grocery & Vegetables",
-    "Maid - Madhuri",
-    "Chef - Nilima Nikose",
     "Gas & Water",
     "Wifi & Internet",
     "Accepted Payments (Income)",
@@ -72,6 +70,59 @@ function isPersonalExpense(item) {
 }
 window.isPersonalExpense = isPersonalExpense;
 
+// ================= MASTER-CONFIG DRIVEN DASHBOARD =================
+// The dashboard used to be hardwired to one household with two named staff
+// members and a fixed list of utility bills. Everything below reads the
+// household's own Master Configuration instead, so a brand new household with
+// no staff and no recurring bills sees neither - rather than someone else's.
+const DASHBOARD_MODES = ['household', 'personal', 'combined'];
+
+function getDashboardMode() {
+    const m = window.masterConfig && window.masterConfig.dashboardMode;
+    return DASHBOARD_MODES.includes(m) ? m : 'household';
+}
+window.getDashboardMode = getDashboardMode;
+
+// In this schema staff[].name IS the expense category ("Maid - Madhuri") and
+// staff[].shortName is the person ("Madhuri"). Older records may carry an
+// explicit category, so that wins when present.
+function staffCategoryOf(s) {
+    return String((s && (s.category || s.name)) || '').trim();
+}
+function staffDisplayName(s) {
+    return String((s && (s.shortName || s.name)) || '').trim();
+}
+function getConfiguredStaff() {
+    const list = (window.masterConfig && Array.isArray(window.masterConfig.staff))
+        ? window.masterConfig.staff
+        : [];
+    return list.filter(s => s && (s.name || s.shortName) && s.active !== false);
+}
+function getStaffCategorySet() {
+    const set = new Set();
+    getConfiguredStaff().forEach(s => {
+        const c = staffCategoryOf(s).toLowerCase();
+        if (c) set.add(c);
+    });
+    return set;
+}
+function isStaffExpense(item, categorySet) {
+    const set = categorySet || getStaffCategorySet();
+    return set.has(String((item && item.category) || '').trim().toLowerCase());
+}
+function getConfiguredBills() {
+    const list = (window.masterConfig && Array.isArray(window.masterConfig.recurringBills))
+        ? window.masterConfig.recurringBills
+        : [];
+    return list.filter(b => b && b.active !== false);
+}
+window.staffCategoryOf = staffCategoryOf;
+window.staffDisplayName = staffDisplayName;
+window.getConfiguredStaff = getConfiguredStaff;
+window.getStaffCategorySet = getStaffCategorySet;
+window.isStaffExpense = isStaffExpense;
+window.getConfiguredBills = getConfiguredBills;
+
 function getPersonalPayer(item) {
     const members = (window.masterConfig && window.masterConfig.familyMembers) || window.FAMILY_MEMBERS || ['Household Member'];
     const defaultMember = (currentSessionUser && currentSessionUser.name) || members[0] || 'Household Member';
@@ -112,29 +163,155 @@ let dashboardFilters = {
     dateTo: null,
     searchVal: ""
 };
+// `let` at the top level of a classic script does not land on window, and the
+// filter state is never reassigned - only mutated - so exposing the object once
+// keeps every reader in step.
+window.dashboardFilters = dashboardFilters;
+
+const DASHBOARD_MODE_META = {
+    household: {
+        label: 'Household',
+        icon: 'fa-house-chimney',
+        subtitle: 'Viewing verified household expenses, staff payroll, and utilities.'
+    },
+    personal: {
+        label: 'Personal',
+        icon: 'fa-user',
+        subtitle: 'Viewing personal expenditure only. Household bills are excluded.'
+    },
+    combined: {
+        label: 'Combined',
+        icon: 'fa-layer-group',
+        subtitle: 'Viewing combined household expenses and personal expenditures.'
+    }
+};
+
+// Reflect the active mode in the hero header. The mode itself is no longer
+// switchable from the dashboard - it belongs to the household's Master
+// Configuration, so one member cannot silently change what everyone sees.
+function updateDashboardModeBadge() {
+    const mode = getDashboardMode();
+    const meta = DASHBOARD_MODE_META[mode] || DASHBOARD_MODE_META.household;
+
+    const badge = document.getElementById("dashboardModeBadge");
+    if (badge) {
+        const icon = badge.querySelector('i');
+        const text = badge.querySelector('span');
+        if (icon) icon.className = `fa-solid ${meta.icon} text-[9px]`;
+        if (text) text.textContent = `${meta.label} View`;
+        badge.title = `Dashboard view mode: ${meta.label}. Change it in Master Settings.`;
+    }
+
+    const subTitle = document.getElementById("dashboardPeriodSubtitle");
+    if (subTitle) subTitle.textContent = meta.subtitle;
+}
+window.updateDashboardModeBadge = updateDashboardModeBadge;
+
+// Show or hide whole dashboard sections based on what the household actually
+// configured. No staff -> no payroll anywhere. No recurring bills -> no bill
+// radar or bill counters.
+function applyDashboardSectionVisibility() {
+    const mode = getDashboardMode();
+    // Personal view is one person's own spending; payroll and shared utilities
+    // are household concerns and have no place in it.
+    const showStaff = getConfiguredStaff().length > 0 && mode !== 'personal';
+    const showBills = getConfiguredBills().length > 0 && mode !== 'personal';
+
+    const toggle = (id, visible) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden', !visible);
+    };
+    toggle('kpiStaffPayroll', showStaff);
+    toggle('dashStaffLedgerSection', showStaff);
+    toggle('dashBillsRadarSection', showBills);
+    toggle('kpiPendingBills', showBills);
+    toggle('kpiPaidBills', showBills);
+
+    // Keep the 12-column rows from leaving a hole when one half is hidden.
+    const budgetCard = document.getElementById('dashBudgetYtdSection');
+    if (budgetCard) {
+        budgetCard.classList.toggle('lg:col-span-6', showStaff);
+        budgetCard.classList.toggle('lg:col-span-12', !showStaff);
+    }
+    const runwayCard = document.getElementById('dashRunwaySection');
+    if (runwayCard) {
+        runwayCard.classList.toggle('lg:col-span-4', showBills);
+        runwayCard.classList.toggle('lg:col-span-12', !showBills);
+    }
+}
+window.applyDashboardSectionVisibility = applyDashboardSectionVisibility;
+
+// Pull the stored mode into the live filter state. Called whenever the config
+// is (re)loaded, so switching household switches the dashboard with it.
+function applyDashboardModeFromConfig(render = false) {
+    dashboardFilters.scope = getDashboardMode();
+    updateDashboardModeBadge();
+    applyDashboardSectionVisibility();
+    if (render && typeof renderDashboard === 'function') {
+        renderDashboard(getFilteredExpenses());
+    }
+}
+window.applyDashboardModeFromConfig = applyDashboardModeFromConfig;
 
 function setDashboardScope(scope) {
-    dashboardFilters.scope = scope;
-    const btnH = document.getElementById("btnScopeHousehold");
-    const btnC = document.getElementById("btnScopeCombined");
-    if (btnH && btnC) {
-        if (scope === 'combined') {
-            btnC.className = "px-2 py-0.5 rounded-md font-black transition bg-indigo-600 text-white shadow-xs flex items-center gap-1";
-            btnH.className = "px-2 py-0.5 rounded-md font-bold text-slate-300 hover:text-white transition flex items-center gap-1";
-        } else {
-            btnH.className = "px-2 py-0.5 rounded-md font-black transition bg-indigo-600 text-white shadow-xs flex items-center gap-1";
-            btnC.className = "px-2 py-0.5 rounded-md font-bold text-slate-300 hover:text-white transition flex items-center gap-1";
-        }
-    }
-    const subTitle = document.getElementById("dashboardPeriodSubtitle");
-    if (subTitle) {
-        subTitle.textContent = scope === 'combined'
-            ? "Viewing combined household expenses and personal expenditures."
-            : "Viewing verified household expenses, staff payroll, and utilities.";
-    }
+    dashboardFilters.scope = DASHBOARD_MODES.includes(scope) ? scope : 'household';
+    updateDashboardModeBadge();
+    applyDashboardSectionVisibility();
     renderDashboard(getFilteredExpenses());
 }
 window.setDashboardScope = setDashboardScope;
+
+// The only place the mode can be changed: Master Settings. Persisting it means
+// every member and every device sees the same dashboard.
+async function setDashboardMode(mode) {
+    if (!DASHBOARD_MODES.includes(mode)) return false;
+    const previous = getDashboardMode();
+    if (window.masterConfig) window.masterConfig.dashboardMode = mode;
+    if (typeof renderDashboardModeControl === 'function') renderDashboardModeControl();
+    setDashboardScope(mode);
+
+    if (typeof window.saveMasterConfig !== 'function') return false;
+    const ok = await window.saveMasterConfig({ dashboardMode: mode });
+    if (!ok) {
+        // The server did not keep it - put the UI back rather than showing a
+        // mode that is not actually stored.
+        if (window.masterConfig) window.masterConfig.dashboardMode = previous;
+        if (typeof renderDashboardModeControl === 'function') renderDashboardModeControl();
+        setDashboardScope(previous);
+    }
+    return ok;
+}
+window.setDashboardMode = setDashboardMode;
+
+// Segmented control inside Master Settings.
+function renderDashboardModeControl() {
+    const host = document.getElementById('adminDashboardModeOptions');
+    if (!host) return;
+    const active = getDashboardMode();
+    const copy = {
+        household: 'Shared household spending only - bills, utilities and staff payroll.',
+        personal: 'Personal expenditure only - individual spending, no shared household bills.',
+        combined: 'Everything together - household plus personal in one view.'
+    };
+    host.innerHTML = DASHBOARD_MODES.map(mode => {
+        const meta = DASHBOARD_MODE_META[mode];
+        const on = mode === active;
+        return `
+            <button type="button" role="radio" aria-checked="${on}"
+                onclick="setDashboardMode('${mode}')"
+                class="text-left p-3.5 rounded-xl border-2 transition min-h-[44px] ${on
+                    ? 'border-indigo-500 bg-indigo-50/70 shadow-sm'
+                    : 'border-slate-200 bg-white hover:border-indigo-300'}">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid ${meta.icon} ${on ? 'text-indigo-600' : 'text-slate-400'}"></i>
+                    <span class="text-sm font-black ${on ? 'text-indigo-900' : 'text-slate-700'}">${meta.label}</span>
+                    ${on ? '<span class="ml-auto text-[10px] font-black uppercase tracking-wider text-indigo-700">Active</span>' : ''}
+                </span>
+                <span class="block text-[11px] font-medium text-slate-500 mt-1.5 leading-snug">${copy[mode]}</span>
+            </button>`;
+    }).join('');
+}
+window.renderDashboardModeControl = renderDashboardModeControl;
 
 // ================= LUXURY HAPTIC ENGINE (Phase 13) =================
 function triggerHaptic(type = 'light') {
@@ -1720,10 +1897,20 @@ function renderDashboard(filtered) {
     const totalCombinedSpent = totalHouseholdSpent + totalPersonalSpent;
 
 
-    const isCombinedMode = dashboardFilters.scope === 'combined';
-    // Active view items: Household Only by default, or Combined if chosen
-    const activeExpenseItems = isCombinedMode ? allExpenseItems : householdExpenseItems;
-    const totalDisplaySpent = isCombinedMode ? totalCombinedSpent : totalHouseholdSpent;
+    // Which slice the dashboard is reporting on comes from Master Settings.
+    const viewMode = DASHBOARD_MODES.includes(dashboardFilters.scope)
+        ? dashboardFilters.scope
+        : 'household';
+    const isCombinedMode = viewMode === 'combined';
+    const isPersonalMode = viewMode === 'personal';
+    const modeLabel = (DASHBOARD_MODE_META[viewMode] || DASHBOARD_MODE_META.household).label;
+
+    const activeExpenseItems = isCombinedMode
+        ? allExpenseItems
+        : (isPersonalMode ? personalExpenseItems : householdExpenseItems);
+    const totalDisplaySpent = isCombinedMode
+        ? totalCombinedSpent
+        : (isPersonalMode ? totalPersonalSpent : totalHouseholdSpent);
     const totalIncome = incomeItems.reduce((acc, i) => acc + Number(i.amount), 0);
     const netCashFlow = totalIncome - totalDisplaySpent;
     const expenseCount = activeExpenseItems.length;
@@ -1746,12 +1933,12 @@ function renderDashboard(filtered) {
         }
     });
 
-    // Staff Payments
-    const staffExpenses = householdExpenseItems.filter(i => i.category === "Maid - Madhuri" || i.category === "Chef - Nilima Nikose");
+    // Staff Payments - strictly the staff this household configured.
+    const configuredStaff = getConfiguredStaff();
+    const staffCategorySet = getStaffCategorySet();
+    const staffExpenses = householdExpenseItems.filter(i => isStaffExpense(i, staffCategorySet));
     const staffTotal = staffExpenses.reduce((acc, i) => acc + Number(i.amount), 0);
-
-    const madhuriPaid = staffExpenses.filter(i => i.category === "Maid - Madhuri").reduce((acc, i) => acc + Number(i.amount), 0);
-    const nilimaPaid = staffExpenses.filter(i => i.category === "Chef - Nilima Nikose").reduce((acc, i) => acc + Number(i.amount), 0);
+    const staffExpected = configuredStaff.reduce((acc, s) => acc + (Number(s.baseSalary) || 0), 0);
 
     // Groceries
     const groceryItems = householdExpenseItems.filter(i => i.category === "Grocery & Vegetables");
@@ -1764,14 +1951,16 @@ function renderDashboard(filtered) {
     // 3. Update KPI Elements in DOM
     const periodLabelEl = document.getElementById("statPeriodLabel");
     if (periodLabelEl) {
-        periodLabelEl.textContent = isCombinedMode ? "Total Expenses (Combined)" : "Household Expenses";
+        periodLabelEl.textContent = isCombinedMode
+            ? "Total Expenses (Combined)"
+            : (isPersonalMode ? "Personal Expenses" : "Household Expenses");
     }
 
     const spentEl = document.getElementById("statTotalSpent");
     if (spentEl) spentEl.textContent = formatINR(totalDisplaySpent);
 
     const spentCountEl = document.getElementById("statSpentCount");
-    if (spentCountEl) spentCountEl.textContent = `${expenseCount} ${isCombinedMode ? 'total' : 'household'} exp`;
+    if (spentCountEl) spentCountEl.textContent = `${expenseCount} ${isCombinedMode ? 'total' : (isPersonalMode ? 'personal' : 'household')} exp`;
 
     const personalSpentEl = document.getElementById("statPersonalSpentVal");
     if (personalSpentEl) personalSpentEl.textContent = formatINR(totalPersonalSpent);
@@ -1808,7 +1997,7 @@ function renderDashboard(filtered) {
     const avgEl = document.getElementById("statAvgPerDay");
     if (avgEl) avgEl.textContent = formatINR(avgDaily);
     const dailyDaysEl = document.getElementById("statDailyDaysCount");
-    if (dailyDaysEl) dailyDaysEl.textContent = `${daysInPeriod} days (${isCombinedMode ? 'Combined' : 'Household'})`;
+    if (dailyDaysEl) dailyDaysEl.textContent = `${daysInPeriod} days (${modeLabel})`;
 
     const highestEl = document.getElementById("statHighestExpense");
     const highestVendorEl = document.getElementById("statHighestExpenseVendor");
@@ -1823,9 +2012,15 @@ function renderDashboard(filtered) {
     if (staffTotalEl) staffTotalEl.textContent = formatINR(staffTotal);
     const staffSummaryEl = document.getElementById("statStaffStatusSummary");
     if (staffSummaryEl) {
-        const bothPaid = madhuriPaid >= 800 && nilimaPaid >= 4500;
-        staffSummaryEl.textContent = bothPaid ? "Fully Paid" : "Pending Action";
-        staffSummaryEl.className = bothPaid ? "font-bold text-emerald-600" : "font-bold text-amber-600";
+        const allPaid = staffExpected > 0 ? staffTotal >= staffExpected : staffTotal > 0;
+        staffSummaryEl.textContent = allPaid ? "Fully Paid" : "Pending Action";
+        staffSummaryEl.className = allPaid ? "font-bold text-emerald-600" : "font-bold text-amber-600";
+    }
+    const staffPayrollBadgeEl = document.getElementById("statStaffPayrollBadge");
+    if (staffPayrollBadgeEl) {
+        staffPayrollBadgeEl.textContent = configuredStaff.length === 1
+            ? staffDisplayName(configuredStaff[0])
+            : `${configuredStaff.length} staff`;
     }
 
     const groceryTotalEl = document.getElementById("statGroceryTotal");
@@ -1836,26 +2031,14 @@ function renderDashboard(filtered) {
     if (groceryShareEl) groceryShareEl.textContent = `${groceryShare}% of total`;
 
     const txCountEl = document.getElementById("statTxCountTotal");
-    if (txCountEl) txCountEl.textContent = isCombinedMode ? filtered.length : filtered.filter(i => !isPersonalExpense(i)).length;
-
-    // Staff Card Badges
-    const madhuriBadge = document.getElementById("statMadhuriStatusBadge");
-    const madhuriPaidEl = document.getElementById("statMadhuriPaid");
-    if (madhuriPaidEl) madhuriPaidEl.textContent = formatINR(madhuriPaid);
-    if (madhuriBadge) {
-        const isPaid = madhuriPaid >= 800;
-        madhuriBadge.className = isPaid ? "px-2 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800" : "px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800";
-        madhuriBadge.textContent = isPaid ? "Paid" : "Pending";
+    if (txCountEl) {
+        txCountEl.textContent = isCombinedMode
+            ? filtered.length
+            : filtered.filter(i => isPersonalMode ? isPersonalExpense(i) : !isPersonalExpense(i)).length;
     }
 
-    const nilimaBadge = document.getElementById("statNilimaStatusBadge");
-    const nilimaPaidEl = document.getElementById("statNilimaPaid");
-    if (nilimaPaidEl) nilimaPaidEl.textContent = formatINR(nilimaPaid);
-    if (nilimaBadge) {
-        const isPaid = nilimaPaid >= 4500;
-        nilimaBadge.className = isPaid ? "px-2 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800" : "px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800";
-        nilimaBadge.textContent = isPaid ? "Paid" : "Pending";
-    }
+    // Staff payroll ledger - one card per configured staff member.
+    renderStaffPayrollLedger(staffExpenses, configuredStaff);
 
     // Pending vs Paid Recurring count
     const pendingBillsCountEl = document.getElementById("statPendingBillsCount");
@@ -1884,7 +2067,9 @@ function renderDashboard(filtered) {
     renderFinancialInsights(activeExpenseItems, totalDisplaySpent, totalIncome, netCashFlow);
 
     // 6. Visualizations
-    const visualData = isCombinedMode ? filtered : filtered.filter(i => !isPersonalExpense(i));
+    const visualData = isCombinedMode
+        ? filtered
+        : filtered.filter(i => isPersonalMode ? isPersonalExpense(i) : !isPersonalExpense(i));
     renderCategoryPieChart(visualData);
     renderPaidByChart(visualData);
     renderMonthlyTrendChart(expenses);
@@ -1957,26 +2142,34 @@ function renderFinancialInsights(filtered, totalSpent, totalIncome, netCashFlow)
         });
     }
 
-    // Staff Payment Insight
-    const staffExpenses = filtered.filter(i => i.category === "Maid - Madhuri" || i.category === "Chef - Nilima Nikose");
-    const madhuriPaid = staffExpenses.filter(i => i.category === "Maid - Madhuri").reduce((acc, i) => acc + Number(i.amount), 0);
-    const nilimaPaid = staffExpenses.filter(i => i.category === "Chef - Nilima Nikose").reduce((acc, i) => acc + Number(i.amount), 0);
-    
-    if (madhuriPaid >= 800 && nilimaPaid >= 4500) {
-        insights.push({
-            type: "success",
-            icon: "fa-circle-check",
-            text: `Staff payments for Maid (Madhuri ₹800) and Chef (Nilima ₹4,500) are fully paid.`
+    // Staff Payment Insight - only when this household actually has staff.
+    const configuredStaff = getConfiguredStaff();
+    if (configuredStaff.length > 0) {
+        const staffCategorySet = getStaffCategorySet();
+        const staffExpenses = filtered.filter(i => isStaffExpense(i, staffCategorySet));
+        const pending = configuredStaff.filter(s => {
+            const paid = staffPaidInPeriod(staffExpenses, s);
+            const due = Number(s.baseSalary) || 0;
+            return due > 0 ? paid < due : paid <= 0;
         });
-    } else {
-        const pendingNames = [];
-        if (madhuriPaid < 800) pendingNames.push("Madhuri (Maid ₹800)");
-        if (nilimaPaid < 4500) pendingNames.push("Nilima Nikose (Chef ₹4,500)");
-        insights.push({
-            type: "warning",
-            icon: "fa-triangle-exclamation",
-            text: `Staff payment pending: <strong>${pendingNames.join(", ")}</strong> for this billing cycle.`
-        });
+
+        if (pending.length === 0) {
+            insights.push({
+                type: "success",
+                icon: "fa-circle-check",
+                text: `Staff payments are fully settled for this billing cycle (${configuredStaff.length} ${configuredStaff.length === 1 ? 'member' : 'members'}).`
+            });
+        } else {
+            const names = pending.map(s => {
+                const due = Number(s.baseSalary) || 0;
+                return escapeHtml(staffDisplayName(s)) + (due > 0 ? ` (${formatINR(due)})` : '');
+            });
+            insights.push({
+                type: "warning",
+                icon: "fa-triangle-exclamation",
+                text: `Staff payment pending: <strong>${names.join(", ")}</strong> for this billing cycle.`
+            });
+        }
     }
 
     container.innerHTML = insights.map(ins => {
@@ -2364,15 +2557,16 @@ function renderHouseholdSpendingMatrix(filteredData) {
             "Grocery & Vegetables",
             "Electricity Bill",
             "Flat Maintenance",
-            "Maid - Madhuri",
-            "Chef - Nilima Nikose",
             "Dish Bill (DTH)",
             "Wifi & Internet",
             "Shopping & Miscellaneous"
         ];
     }
 
-    const dataToMatrix = (dashboardFilters.scope === 'combined') ? filteredData : filteredData.filter(i => !isPersonalExpense(i));
+    const matrixMode = getDashboardMode();
+    const dataToMatrix = matrixMode === 'combined'
+        ? filteredData
+        : filteredData.filter(i => matrixMode === 'personal' ? isPersonalExpense(i) : !isPersonalExpense(i));
 
     // Include any new categories present in the active filtered data
     dataToMatrix.filter(i => i.category && i.category !== "Accepted Payments (Income)").forEach(i => {
@@ -2503,15 +2697,6 @@ function calculateRecurringChecklist(filteredData) {
     let checklistConfig = [];
     if (window.masterConfig && window.masterConfig.recurringBills && Array.isArray(window.masterConfig.recurringBills) && window.masterConfig.recurringBills.length > 0) {
         checklistConfig = window.masterConfig.recurringBills.filter(b => b.active !== false);
-    } else {
-        checklistConfig = [
-            { name: "Electricity Bill", category: "Electricity Bill", approxAmount: 2800, dueDay: 10 },
-            { name: "Flat Maintenance", category: "Flat Maintenance", approxAmount: 1500, dueDay: 5 },
-            { name: "Dish Bill (DTH)", category: "Dish Bill (DTH)", approxAmount: 300, dueDay: 20 },
-            { name: "Maid - Madhuri", category: "Maid - Madhuri", approxAmount: 800, dueDay: 21 },
-            { name: "Chef - Nilima Nikose", category: "Chef - Nilima Nikose", approxAmount: 4500, dueDay: 30 },
-            { name: "Wifi & Internet", category: "Wifi & Internet", approxAmount: 1000, dueDay: 15 }
-        ];
     }
 
     let paidCount = 0;
@@ -2561,11 +2746,15 @@ function renderChecklistUI(items) {
 function renderMoMAndYtd(allExpenses) {
     const cur = getCurrentPeriod();
     const curYear = cur.yearStr;
-    const isCombinedMode = dashboardFilters.scope === 'combined';
+    const ytdMode = getDashboardMode();
+    const inScope = (i) => {
+        if (ytdMode === 'combined') return true;
+        return ytdMode === 'personal' ? isPersonalExpense(i) : !isPersonalExpense(i);
+    };
 
-    // YTD Calculations (Household by default)
+    // YTD Calculations, restricted to the mode chosen in Master Settings
     const ytdItems = allExpenses.filter(i => i.date && new Date(i.date).getFullYear().toString() === curYear);
-    const ytdSpend = ytdItems.filter(i => i.category !== "Accepted Payments (Income)" && (isCombinedMode || !isPersonalExpense(i))).reduce((a, b) => a + Number(b.amount), 0);
+    const ytdSpend = ytdItems.filter(i => i.category !== "Accepted Payments (Income)" && inScope(i)).reduce((a, b) => a + Number(b.amount), 0);
     const ytdIncome = ytdItems.filter(i => i.category === "Accepted Payments (Income)").reduce((a, b) => a + Number(b.amount), 0);
     const ytdNet = ytdIncome - ytdSpend;
 
@@ -2585,12 +2774,12 @@ function renderMoMAndYtd(allExpenses) {
 
         const curSpend = allExpenses.filter(i => {
             const d = new Date(i.date);
-            return d.getMonth() === curMIdx && d.getFullYear().toString() === dashboardFilters.year && i.category !== "Accepted Payments (Income)" && (isCombinedMode || !isPersonalExpense(i));
+            return d.getMonth() === curMIdx && d.getFullYear().toString() === dashboardFilters.year && i.category !== "Accepted Payments (Income)" && inScope(i);
         }).reduce((a, b) => a + Number(b.amount), 0);
 
         const prevSpend = allExpenses.filter(i => {
             const d = new Date(i.date);
-            return d.getMonth() === prevMIdx && d.getFullYear().toString() === prevYear && i.category !== "Accepted Payments (Income)" && (isCombinedMode || !isPersonalExpense(i));
+            return d.getMonth() === prevMIdx && d.getFullYear().toString() === prevYear && i.category !== "Accepted Payments (Income)" && inScope(i);
         }).reduce((a, b) => a + Number(b.amount), 0);
 
         const momDiff = curSpend - prevSpend;
@@ -2831,32 +3020,145 @@ function renderExpenseTable(filteredData) {
     }
 }
 
-// ================= TAB 3: STAFF VIEW =================
-function renderStaffView(filteredData) {
-    const staffExpenses = (filteredData || expenses).filter(i => i.category === "Maid - Madhuri" || i.category === "Chef - Nilima Nikose");
-    const tbody = document.getElementById("staffTableBody");
+// ================= STAFF PAYROLL RENDERING (CONFIG DRIVEN) =================
+// Accent colours cycle, so any number of staff members renders sensibly -
+// there is nothing special about "the maid" and "the chef" any more.
+const STAFF_ACCENTS = [
+    { bg: 'bg-indigo-50/70', border: 'border-indigo-100', chip: 'bg-indigo-600', btn: 'bg-indigo-600 hover:bg-indigo-700', text: 'text-indigo-900', rule: 'border-indigo-100/80', edge: 'border-l-indigo-600', grad: 'from-indigo-500 to-indigo-700', pill: 'bg-indigo-50 text-indigo-800 border-indigo-200' },
+    { bg: 'bg-amber-50/70', border: 'border-amber-100', chip: 'bg-amber-500', btn: 'bg-amber-600 hover:bg-amber-700', text: 'text-amber-900', rule: 'border-amber-100/80', edge: 'border-l-amber-500', grad: 'from-amber-500 to-orange-600', pill: 'bg-amber-50 text-amber-800 border-amber-200' },
+    { bg: 'bg-emerald-50/70', border: 'border-emerald-100', chip: 'bg-emerald-600', btn: 'bg-emerald-600 hover:bg-emerald-700', text: 'text-emerald-900', rule: 'border-emerald-100/80', edge: 'border-l-emerald-600', grad: 'from-emerald-500 to-teal-600', pill: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+    { bg: 'bg-violet-50/70', border: 'border-violet-100', chip: 'bg-violet-600', btn: 'bg-violet-600 hover:bg-violet-700', text: 'text-violet-900', rule: 'border-violet-100/80', edge: 'border-l-violet-600', grad: 'from-violet-500 to-purple-700', pill: 'bg-violet-50 text-violet-800 border-violet-200' }
+];
 
-    const madhuriPaid = staffExpenses.filter(i => i.category === "Maid - Madhuri").reduce((a, b) => a + Number(b.amount), 0);
-    const nilimaPaid = staffExpenses.filter(i => i.category === "Chef - Nilima Nikose").reduce((a, b) => a + Number(b.amount), 0);
+function staffCycleLabel(s) {
+    const day = Number(s && s.billingCycleDay);
+    if (!day) return 'Monthly cycle';
+    return `${day}${day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'} of month cycle`;
+}
 
-    const mTotal = document.getElementById("staffMadhuriPeriodTotal");
-    const mBadge = document.getElementById("staffMadhuriBadge");
-    if (mTotal) mTotal.textContent = formatINR(madhuriPaid);
-    if (mBadge) {
-        const isPaid = madhuriPaid >= 800;
-        mBadge.innerHTML = isPaid 
-            ? `<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-md">Paid (Completed)</span>`
-            : `<span class="px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-md">Pending (Due)</span>`;
+function staffPaidInPeriod(staffExpenses, s) {
+    const cat = staffCategoryOf(s).toLowerCase();
+    return staffExpenses
+        .filter(i => String(i.category || '').trim().toLowerCase() === cat)
+        .reduce((a, b) => a + Number(b.amount), 0);
+}
+
+function staffEmptyState(message) {
+    return `<div class="col-span-full p-6 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 text-center">
+        <i class="fa-solid fa-user-plus text-slate-300 text-xl"></i>
+        <p class="text-sm font-bold text-slate-600 mt-2">No staff configured</p>
+        <p class="text-xs text-slate-500 font-medium mt-1">${escapeHtml(message)}</p>
+    </div>`;
+}
+
+// Dashboard: compact payroll status card per staff member.
+function renderStaffPayrollLedger(staffExpenses, configuredStaff) {
+    const grid = document.getElementById("dashStaffLedgerGrid");
+    if (!grid) return;
+    const staff = configuredStaff || getConfiguredStaff();
+    if (!staff.length) {
+        grid.innerHTML = staffEmptyState('Add staff in Master Settings to track payroll here.');
+        return;
     }
 
-    const nTotal = document.getElementById("staffNilimaPeriodTotal");
-    const nBadge = document.getElementById("staffNilimaBadge");
-    if (nTotal) nTotal.textContent = formatINR(nilimaPaid);
-    if (nBadge) {
-        const isPaid = nilimaPaid >= 4500;
-        nBadge.innerHTML = isPaid 
-            ? `<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-md">Paid (Completed)</span>`
-            : `<span class="px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-md">Pending (Due)</span>`;
+    grid.innerHTML = staff.map((s, idx) => {
+        const a = STAFF_ACCENTS[idx % STAFF_ACCENTS.length];
+        const paid = staffPaidInPeriod(staffExpenses, s);
+        const due = Number(s.baseSalary) || 0;
+        const isPaid = due > 0 ? paid >= due : paid > 0;
+        const name = staffDisplayName(s);
+        const category = staffCategoryOf(s);
+        const badge = isPaid
+            ? 'bg-emerald-100 text-emerald-800'
+            : 'bg-amber-100 text-amber-800';
+        return `
+        <div class="p-4 rounded-xl ${a.bg} border ${a.border} space-y-2.5">
+            <div class="flex justify-between items-start">
+                <div class="flex items-center space-x-2 min-w-0">
+                    <div class="w-8 h-8 rounded-lg ${a.chip} text-white flex items-center justify-center font-bold text-xs shrink-0">
+                        <i class="fa-solid fa-user-tie"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h4 class="text-xs font-extrabold text-slate-900 truncate">${escapeHtml(name)}${s.role ? ` (${escapeHtml(s.role)})` : ''}</h4>
+                        <span class="text-[10px] text-slate-500 font-bold">${escapeHtml(staffCycleLabel(s))}</span>
+                    </div>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[10px] font-black ${badge} shrink-0 ml-1">${isPaid ? 'Paid' : 'Pending'}</span>
+            </div>
+            <div class="flex justify-between items-baseline pt-2 border-t ${a.rule} text-xs">
+                <span class="text-slate-500">Paid in Period:</span>
+                <span class="font-extrabold text-slate-900 text-sm">${formatINR(paid)}</span>
+            </div>
+            <button onclick="quickPayItem(${escapeHtml(JSON.stringify(category))}, ${due}, ${escapeHtml(JSON.stringify(name))})"
+                class="w-full py-1.5 min-h-[36px] ${a.btn} text-white text-xs font-bold rounded-lg shadow-sm transition">
+                Pay ${escapeHtml(name)}${due > 0 ? ` ${formatINR(due)}` : ''}
+            </button>
+        </div>`;
+    }).join('');
+}
+window.renderStaffPayrollLedger = renderStaffPayrollLedger;
+
+// ================= TAB 3: STAFF VIEW =================
+function renderStaffView(filteredData) {
+    const staffCategorySet = getStaffCategorySet();
+    const configuredStaff = getConfiguredStaff();
+    const staffExpenses = (filteredData || expenses).filter(i => isStaffExpense(i, staffCategorySet));
+    const tbody = document.getElementById("staffTableBody");
+
+    const overview = document.getElementById("staffOverviewGrid");
+    if (overview) {
+        if (!configuredStaff.length) {
+            overview.innerHTML = staffEmptyState('Add staff in Master Settings and their payments will appear here.');
+        } else {
+            overview.innerHTML = configuredStaff.map((s, idx) => {
+                const a = STAFF_ACCENTS[idx % STAFF_ACCENTS.length];
+                const paid = staffPaidInPeriod(staffExpenses, s);
+                const due = Number(s.baseSalary) || 0;
+                const isPaid = due > 0 ? paid >= due : paid > 0;
+                const name = staffDisplayName(s);
+                const category = staffCategoryOf(s);
+                return `
+                <div class="glass-card p-6 rounded-2xl border border-slate-200/80 shadow-sm relative border-l-4 ${a.edge} hover-lift">
+                    <div class="flex justify-between items-start gap-3">
+                        <div class="flex items-center space-x-4 min-w-0">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br ${a.grad} text-white flex items-center justify-center text-2xl font-bold shadow-md shrink-0">
+                                <i class="fa-solid fa-user-tie"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="text-lg font-black text-slate-900 truncate">${escapeHtml(name)}</h3>
+                                <p class="text-xs text-slate-500 font-semibold truncate">${escapeHtml(s.role || 'Household Staff')}</p>
+                                <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                    <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${a.pill}">
+                                        <i class="fa-solid fa-calendar-check mr-1"></i>${escapeHtml(staffCycleLabel(s))}
+                                    </span>
+                                    ${Number.isFinite(Number(s.allowedPaidLeaves)) ? `<span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                                        <i class="fa-solid fa-umbrella-beach mr-1"></i>${Number(s.allowedPaidLeaves)} paid leaves
+                                    </span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="quickPayItem(${escapeHtml(JSON.stringify(category))}, ${due}, ${escapeHtml(JSON.stringify(name))})"
+                            class="${a.btn} text-white font-bold text-xs px-3.5 py-2 min-h-[44px] rounded-xl shadow-md transition shrink-0">
+                            <i class="fa-solid fa-indian-rupee-sign mr-1"></i> Pay${due > 0 ? ` ${formatINR(due)}` : ''}
+                        </button>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-slate-100 grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-[11px] text-slate-400 uppercase font-extrabold">Total Paid (Selected Period)</span>
+                            <p class="text-xl font-black ${a.text} mt-0.5">${formatINR(paid)}</p>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-slate-400 uppercase font-extrabold">Selected Month Status</span>
+                            <p class="mt-1">
+                                <span class="px-2.5 py-1 ${isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'} text-xs font-bold rounded-md">
+                                    ${isPaid ? 'Paid (Completed)' : 'Pending (Due)'}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
     }
 
     if (!tbody) return;
@@ -3161,9 +3463,14 @@ function onCategoryChange() {
         }
     }
 
-    if (cat === "Maid - Madhuri") paidTo.value = "Madhuri";
-    else if (cat === "Chef - Nilima Nikose") paidTo.value = "Nilima Nikose";
-    else if (cat === "Electricity Bill") paidTo.value = "MSCB / MSEDCL";
+    // A staff category pays that staff member, whoever this household hired.
+    const staffMatch = getConfiguredStaff().find(st => staffCategoryOf(st) === cat);
+    if (staffMatch) {
+        paidTo.value = staffDisplayName(staffMatch);
+        return;
+    }
+
+    if (cat === "Electricity Bill") paidTo.value = "MSCB / MSEDCL";
     else if (cat === "Flat Maintenance") paidTo.value = "Society Office";
     else if (cat === "Dish Bill (DTH)") paidTo.value = "Dish TV / Tata Play";
 }
@@ -3738,14 +4045,28 @@ function openQuickFillModal() {
     const container = document.getElementById("quickPayItemsContainer");
     if (!modal || !container) return;
 
+    // Built from this household's own staff and recurring bills.
     const items = [
-        { name: "Maid - Madhuri", amount: 800, paidTo: "Madhuri" },
-        { name: "Chef - Nilima Nikose", amount: 4500, paidTo: "Nilima Nikose" },
-        { name: "Flat Maintenance", amount: 1500, paidTo: "Society Office" },
-        { name: "Electricity Bill", amount: 2800, paidTo: "MSEDCL" },
-        { name: "Dish Bill (DTH)", amount: 300, paidTo: "Dish TV / Tata Play" },
-        { name: "Wifi & Internet", amount: 1000, paidTo: "Broadband Provider" }
-    ];
+        ...getConfiguredStaff().map(st => ({
+            name: staffCategoryOf(st),
+            amount: Number(st.baseSalary) || 0,
+            paidTo: staffDisplayName(st)
+        })),
+        ...getConfiguredBills().map(b => ({
+            name: b.category || b.name,
+            amount: Number(b.approxAmount !== undefined ? b.approxAmount : b.budgetedAmount) || 0,
+            paidTo: b.paidTo || b.vendor || b.name || ''
+        }))
+    ].filter(i => i.name);
+
+    if (items.length === 0) {
+        container.innerHTML = `<div class="p-5 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 text-center">
+            <p class="text-sm font-bold text-slate-600">Nothing to quick-fill yet</p>
+            <p class="text-xs text-slate-500 font-medium mt-1">Add staff or recurring bills in Master Settings.</p>
+        </div>`;
+        modal.classList.remove("hidden");
+        return;
+    }
 
     container.innerHTML = items.map(i => `
         <button onclick="quickPayItem(${escapeHtml(JSON.stringify(i.name))}, ${i.amount}, ${escapeHtml(JSON.stringify(i.paidTo))})" class="p-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-left transition flex items-center justify-between">
@@ -3851,13 +4172,21 @@ function exportToExcel(type = 'filtered') {
     XLSX.utils.book_append_sheet(workbook, sheet2, "Monthly Summary Matrix");
 
     // ---------------- Sheet 3: Staff Payments Ledger ----------------
+    const exportStaff = getConfiguredStaff();
+    const exportStaffCats = getStaffCategorySet();
+    const staffLabelFor = (category) => {
+        const match = exportStaff.find(st => staffCategoryOf(st).toLowerCase() === String(category || '').trim().toLowerCase());
+        if (!match) return category || "Staff";
+        const role = match.role ? ` (${match.role})` : '';
+        return `${staffDisplayName(match)}${role}`;
+    };
     const staffRecords = sortedExpenses
-        .filter(i => i.category === "Maid - Madhuri" || i.category === "Chef - Nilima Nikose")
+        .filter(i => isStaffExpense(i, exportStaffCats))
         .map(item => {
             const d = new Date(item.date);
             return {
                 "Payment Date": item.date,
-                "Staff Member": item.category === "Maid - Madhuri" ? "Madhuri (Maid)" : "Nilima Nikose (Chef)",
+                "Staff Member": staffLabelFor(item.category),
                 "For Month": `${MONTHS[d.getMonth()]} ${d.getFullYear()}`,
                 "Amount Paid (INR)": Number(item.amount),
                 "Paid By": item.paidBy || "Not Specified",
@@ -4018,6 +4347,11 @@ window.updateGlobalsFromConfig = function(config) {
             localStorage.setItem('household_monthly_budget_limit', String(monthlyBudgetLimit));
         } catch (e) {}
     }
+
+    // The dashboard view mode, and which sections exist at all, are household
+    // settings - so they follow the config rather than a per-device toggle.
+    applyDashboardModeFromConfig(false);
+    renderDashboardModeControl();
 };
 
 // ============================================================

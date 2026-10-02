@@ -1633,6 +1633,157 @@ def audit_budget_counts_everything(page, audit, api):
     )
 
 
+def audit_design_system(page, audit, api):
+    """The v6 design pass: every theme has to reach every tab, and every icon
+    has to actually draw. Both failed silently before - the dark theme styled
+    the handful of components that had explicit overrides and left the rest
+    light, and two Font Awesome Pro glyph names rendered as nothing on the
+    Free CDN build."""
+    print("\n[G] design system: themes reach every tab, icons render")
+
+    goto_tab(page, "dashboard")
+    page.wait_for_timeout(1200)
+
+    # --- Icons -------------------------------------------------------------
+    # A glyph that is not in the loaded Font Awesome set lays out at zero
+    # width. Walk every tab so dynamically rendered icons are included too.
+    broken = {}
+    for tab in ("dashboard", "expenses", "staff", "matrix", "settings", "admin", "audit"):
+        try:
+            goto_tab(page, tab)
+        except Exception:
+            continue
+        page.wait_for_timeout(900)
+        found = page.evaluate(
+            """() => {
+                const base = new Set(['fa-solid', 'fa-regular', 'fa-brands', 'fa-fw']);
+                return Array.from(document.querySelectorAll('i.fa-solid, i.fa-regular, i.fa-brands'))
+                    .filter(i => i.offsetParent !== null && i.getBoundingClientRect().height > 0)
+                    .filter(i => Math.round(i.getBoundingClientRect().width) === 0)
+                    .map(i => [...i.classList].find(c => c.startsWith('fa-') && !base.has(c)) || '(unknown)');
+            }"""
+        )
+        for name in found:
+            broken.setdefault(name, tab)
+
+    audit.record(
+        "G every icon on every tab renders",
+        not broken,
+        "these glyph names draw nothing: "
+        + ", ".join("%s (on %s)" % (k, v) for k, v in sorted(broken.items())),
+    )
+
+    # --- Themes ------------------------------------------------------------
+    def surfaces():
+        return page.evaluate(
+            r"""() => {
+                const lum = (c) => {
+                    const m = (c || '').match(/-?[\d.]+/g);
+                    if (!m || m.length < 3) return null;
+                    const [r, g, b] = m.slice(0, 3).map(Number);
+                    // sRGB values can arrive 0-1 from color() notation.
+                    const sc = (v) => (v <= 1 ? v * 255 : v);
+                    return (0.2126 * sc(r) + 0.7152 * sc(g) + 0.0722 * sc(b)) / 255;
+                };
+                // Scan every visible element with an opaque background, not a
+                // hand-picked set. An earlier version sampled five selectors and
+                // de-duplicated on the first 40 characters of className - which
+                // happens to be identical for the indigo and pink member chips,
+                // so the near-white one was never looked at and the check passed
+                // with the whole dark bridge disabled.
+                const sample = [];
+                for (const el of document.querySelectorAll('body *')) {
+                    const r = el.getBoundingClientRect();
+                    // Status dots are 8-10px, textless, and deliberately bright:
+                    // they are indicators, not surfaces. Everything from a chip
+                    // or icon tile upwards stays in scope.
+                    if (r.width < 18 || r.height < 18) continue;
+                    const s = getComputedStyle(el);
+                    if (s.visibility === 'hidden' || s.display === 'none') continue;
+                    const bg = s.backgroundColor;
+                    const alpha = (bg.match(/-?[\d.]+/g) || [])[3];
+                    if (alpha !== undefined && Number(alpha) < 0.5) continue;
+                    const l = lum(bg);
+                    if (l === null) continue;
+                    sample.push({
+                        key: (el.tagName.toLowerCase() + '.' + (el.className || '')).trim().slice(0, 90),
+                        l: l,
+                        bg: bg
+                    });
+                }
+                return {body: lum(getComputedStyle(document.body).backgroundColor), sample};
+            }"""
+        )
+
+    goto_tab(page, "dashboard")
+    page.wait_for_timeout(800)
+
+    page.evaluate("() => changeTheme('indigo')")
+    page.wait_for_timeout(1200)
+    light = surfaces()
+
+    page.evaluate("() => changeTheme('dark')")
+    page.wait_for_timeout(1400)
+    dark = surfaces()
+
+    audit.record(
+        "G the dark theme actually darkens the page",
+        dark["body"] is not None and light["body"] is not None and dark["body"] < 0.25 < light["body"],
+        "body luminance light=%s dark=%s" % (light["body"], dark["body"]),
+    )
+
+    # Nothing styled by the app may stay near-white on a dark page: that is
+    # exactly what the unmapped Tailwind utilities used to do.
+    glare = [x for x in dark["sample"] if x["l"] is not None and x["l"] > 0.72]
+    audit.record(
+        "G no surface stays near-white in the dark theme",
+        not glare,
+        "near-white surfaces remain: "
+        + "; ".join("%s -> %s" % (g["key"], g["bg"]) for g in glare[:5]),
+    )
+
+    # And every tab, not only the dashboard.
+    per_tab_glare = {}
+    for tab in ("expenses", "staff", "settings", "admin", "audit"):
+        try:
+            goto_tab(page, tab)
+        except Exception:
+            continue
+        page.wait_for_timeout(900)
+        bad = [x for x in surfaces()["sample"] if x["l"] is not None and x["l"] > 0.72]
+        if bad:
+            per_tab_glare[tab] = bad[0]["key"]
+
+    audit.record(
+        "G the dark theme reaches every tab, not just the dashboard",
+        not per_tab_glare,
+        "still light on: " + ", ".join("%s (%s)" % (k, v) for k, v in per_tab_glare.items()),
+    )
+
+    # Amounts line up: a finance UI with proportional figures jitters.
+    goto_tab(page, "dashboard")
+    page.wait_for_timeout(800)
+    audit.record(
+        "G amounts use fixed-width figures",
+        page.evaluate(
+            """() => {
+                const s = getComputedStyle(document.body).fontVariantNumeric || '';
+                return s.includes('tabular-nums');
+            }"""
+        ),
+        "body is not set to tabular-nums, so money columns will not align",
+    )
+
+    page.evaluate("() => changeTheme('indigo')")
+    page.wait_for_timeout(1000)
+    audit.record(
+        "G the theme is restored after the audit",
+        page.evaluate("() => document.documentElement.getAttribute('data-theme')") == "indigo",
+        "theme left as %r"
+        % page.evaluate("() => document.documentElement.getAttribute('data-theme')"),
+    )
+
+
 def audit_logout(page, audit, api):
     """Section E: signing out must actually end the session. A token left in
     localStorage, or household data still cached after logout, means the next
@@ -2278,7 +2429,8 @@ def main():
                           (audit_attendance_follows_period, "D attendance calendar"),
                           (audit_expense_view_toggle, "D expense view toggle"),
                           (audit_dashboard_mode, "D dashboard follows master config"),
-                          (audit_budget_counts_everything, "D budget counts every expense")):
+                          (audit_budget_counts_everything, "D budget counts every expense"),
+                          (audit_design_system, "G design system")):
             try:
                 fn(page, audit, api)
             except Exception as e:

@@ -1354,7 +1354,7 @@ function getCategoryIcon(catName) {
     if (c.includes('wifi') || c.includes('internet')) return '<i class="fa-solid fa-wifi text-cyan-600"></i>';
     if (c.includes('dish') || c.includes('dth') || c.includes('tv')) return '<i class="fa-solid fa-tv text-purple-600"></i>';
     if (c.includes('shopping') || c.includes('misc')) return '<i class="fa-solid fa-bag-shopping text-indigo-600"></i>';
-    if (c.includes('income') || c.includes('accepted')) return '<i class="fa-solid fa-arrow-down-left text-emerald-600"></i>';
+    if (c.includes('income') || c.includes('accepted')) return '<i class="fa-solid fa-arrow-down text-emerald-600"></i>';
     if (c.includes('settlement') || c.includes('transfer')) return '<i class="fa-solid fa-arrow-right-arrow-left text-teal-600"></i>';
     return '<i class="fa-solid fa-receipt text-indigo-500"></i>';
 }

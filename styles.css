@@ -1388,3 +1388,886 @@ button[data-busy="1"] {
         min-width: 720px;
     }
 }
+
+/* =================================================================
+   GHARKHATA v6 — ADVANCE DESIGN SYSTEM
+   =================================================================
+   A systems-level pass over every tab. It deliberately changes no
+   markup contract: every id, every handler and every .hidden toggle
+   behaves exactly as before. What changes is the visual language.
+
+   Why a token bridge (section B): the markup styles itself with
+   Tailwind utilities (bg-white, text-slate-900, border-slate-200 and
+   friends). Those are hard-coded light values, so the dark theme used
+   to be a patchwork - dark cards with light insets, invisible table
+   headers, washed-out borders. Mapping the utilities onto semantic
+   tokens makes every tab follow the theme instead of only the handful
+   of components that had explicit overrides.
+   ================================================================= */
+
+/* -----------------------------------------------------------------
+   A. SEMANTIC SURFACE / INK / LINE TOKENS
+   Four surface depths, three ink weights, two hairlines. Themes
+   redefine these and nothing else.
+   ----------------------------------------------------------------- */
+:root {
+    --surface-0: #eef1f8;            /* the page itself          */
+    --surface-1: #ffffff;            /* cards                    */
+    --surface-2: #f7f9fc;            /* insets inside a card     */
+    --surface-3: #eef2f7;            /* raised chips, table head */
+    --surface-4: #0f172a;            /* inverted blocks          */
+
+    --ink-1: #0f172a;                /* headings, amounts        */
+    --ink-2: #475569;                /* body                     */
+    --ink-3: #8795ab;                /* labels, captions         */
+    --ink-inv: #f8fafc;
+
+    --line-1: rgba(15, 23, 42, 0.07);  /* hairline               */
+    --line-2: rgba(15, 23, 42, 0.13);  /* defined edge           */
+
+    --accent: #4f46e5;
+    --accent-soft: rgba(79, 70, 229, 0.10);
+    --accent-ink: #ffffff;
+
+    --tint-strength: 10%;
+
+    /* Layered elevation. Two shadows each: a tight contact shadow
+       and a wide ambient one, which reads as depth rather than blur. */
+    --elev-1: 0 1px 2px rgba(15, 23, 42, .05), 0 1px 3px rgba(15, 23, 42, .04);
+    --elev-2: 0 1px 2px rgba(15, 23, 42, .05), 0 8px 20px -6px rgba(15, 23, 42, .10);
+    --elev-3: 0 2px 4px rgba(15, 23, 42, .06), 0 18px 40px -12px rgba(15, 23, 42, .18);
+    --elev-4: 0 4px 8px rgba(15, 23, 42, .08), 0 32px 64px -16px rgba(15, 23, 42, .28);
+
+    --ring: 0 0 0 3px rgba(79, 70, 229, .32);
+}
+
+/* Each theme restates only the tokens it changes. */
+[data-theme="indigo"] { --accent: #4f46e5; --accent-soft: rgba(79,70,229,.10); }
+[data-theme="emerald"] { --accent: #059669; --accent-soft: rgba(5,150,105,.12); }
+[data-theme="rose"]    { --accent: #e11d48; --accent-soft: rgba(225,29,72,.12); }
+[data-theme="ocean"]   { --accent: #0284c7; --accent-soft: rgba(2,132,199,.12); }
+[data-theme="amber"]   { --accent: #d97706; --accent-soft: rgba(217,119,6,.14); }
+[data-theme="purple"]  { --accent: #9333ea; --accent-soft: rgba(147,51,234,.12); }
+[data-theme="slate"]   { --accent: #475569; --accent-soft: rgba(71,85,105,.12); }
+
+[data-theme="dark"] {
+    --surface-0: #070b16;
+    --surface-1: #121a2b;
+    --surface-2: #18223a;
+    --surface-3: #1f2b45;
+    --surface-4: #060a14;
+
+    --ink-1: #f1f5f9;
+    --ink-2: #b6c2d4;
+    --ink-3: #7e8ca3;
+    --ink-inv: #0b1120;
+
+    --line-1: rgba(148, 163, 184, 0.13);
+    --line-2: rgba(148, 163, 184, 0.24);
+
+    --accent: #818cf8;
+    --accent-soft: rgba(129, 140, 248, 0.16);
+    --accent-ink: #0b1120;
+
+    --tint-strength: 18%;
+
+    --elev-1: 0 1px 2px rgba(0, 0, 0, .40);
+    --elev-2: 0 1px 2px rgba(0, 0, 0, .40), 0 8px 20px -6px rgba(0, 0, 0, .55);
+    --elev-3: 0 2px 4px rgba(0, 0, 0, .45), 0 18px 40px -12px rgba(0, 0, 0, .65);
+    --elev-4: 0 4px 8px rgba(0, 0, 0, .50), 0 32px 64px -16px rgba(0, 0, 0, .75);
+
+    --ring: 0 0 0 3px rgba(129, 140, 248, .40);
+}
+
+/* Per-theme ground. Each theme keeps its character through one token
+   instead of its own body rule. */
+[data-theme="indigo"]  { --surface-0: #eef1f8; }
+[data-theme="emerald"] { --surface-0: #edf9f3; }
+[data-theme="rose"]    { --surface-0: #fdf1f3; }
+[data-theme="ocean"]   { --surface-0: #edf5fd; }
+[data-theme="amber"]   { --surface-0: #fdf8ea; }
+[data-theme="purple"]  { --surface-0: #f7f1fd; }
+[data-theme="slate"]   { --surface-0: #f1f4f9; }
+
+/* The page ground. A single soft wash instead of a hard flat fill, so cards
+   read as sitting on something.
+   This has to out-specify and out-rank the old per-theme body rules: most of
+   them set a gradient through the `background` shorthand, which silently
+   resets background-color to transparent. The page looked fine only because
+   the gradient covered it, and nothing downstream could reason about the
+   actual ground colour. */
+[data-theme] body {
+    background-color: var(--surface-0) !important;
+    background-image:
+        radial-gradient(60rem 40rem at 12% -10%, var(--accent-soft), transparent 60%),
+        radial-gradient(50rem 36rem at 100% 0%, rgba(14, 165, 233, .07), transparent 55%) !important;
+    background-attachment: fixed !important;
+    background-repeat: no-repeat !important;
+    color: var(--ink-2) !important;
+}
+[data-theme="dark"] body {
+    background-image:
+        radial-gradient(60rem 40rem at 12% -10%, rgba(99, 102, 241, .18), transparent 60%),
+        radial-gradient(50rem 36rem at 100% 0%, rgba(14, 165, 233, .12), transparent 55%) !important;
+}
+
+/* -----------------------------------------------------------------
+   B. TAILWIND UTILITY BRIDGE
+   The markup is styled with utilities; these map the ones actually
+   used onto the tokens above. Scoped to the themed document so the
+   default light theme keeps Tailwind's own values where they are
+   already right, and every other theme gets a coherent surface.
+   ----------------------------------------------------------------- */
+[data-theme] .bg-white      { background-color: var(--surface-1) !important; }
+[data-theme] .bg-slate-50   { background-color: var(--surface-2) !important; }
+[data-theme] .bg-slate-100  { background-color: var(--surface-3) !important; }
+[data-theme] .bg-slate-200  { background-color: var(--surface-3) !important; }
+
+[data-theme] .text-slate-900,
+[data-theme] .text-slate-800 { color: var(--ink-1) !important; }
+[data-theme] .text-slate-700,
+[data-theme] .text-slate-600 { color: var(--ink-2) !important; }
+[data-theme] .text-slate-500,
+[data-theme] .text-slate-400 { color: var(--ink-3) !important; }
+
+[data-theme] .border-slate-100 { border-color: var(--line-1) !important; }
+[data-theme] .border-slate-200,
+[data-theme] .border-slate-300 { border-color: var(--line-2) !important; }
+
+/* Inverted blocks (table heads, dark panels) keep their contrast by
+   moving with the theme rather than staying pinned to slate-900. */
+[data-theme] .bg-slate-900,
+[data-theme] .bg-slate-950 { background-color: var(--surface-4) !important; }
+[data-theme] .bg-slate-800 { background-color: var(--surface-4) !important; }
+
+/* -----------------------------------------------------------------
+   B2. DARK BRIDGE - GENERATED
+   Every tinted Tailwind utility this app actually uses, mapped onto
+   the token layer. Generated from the markup and the two renderers
+   rather than listed by hand, because the member chips, badges and
+   status pills are built in JS and kept drifting out of the hand-
+   written list - which is how a near-white "Pallavi" chip and an
+   unreadable "Filters:" pill survived on a dark background.
+   ----------------------------------------------------------------- */
+/* Near-white tinted panels become a card inset. */
+[data-theme="dark"] [class~="bg-amber-50"],
+[data-theme="dark"] [class~="bg-amber-50/30"],
+[data-theme="dark"] [class~="bg-amber-50/40"],
+[data-theme="dark"] [class~="bg-amber-50/50"],
+[data-theme="dark"] [class~="bg-amber-50/60"],
+[data-theme="dark"] [class~="bg-amber-50/70"],
+[data-theme="dark"] [class~="bg-amber-50/80"],
+[data-theme="dark"] [class~="bg-cyan-50"],
+[data-theme="dark"] [class~="bg-emerald-50"],
+[data-theme="dark"] [class~="bg-emerald-50/40"],
+[data-theme="dark"] [class~="bg-emerald-50/60"],
+[data-theme="dark"] [class~="bg-emerald-50/70"],
+[data-theme="dark"] [class~="bg-indigo-50"],
+[data-theme="dark"] [class~="bg-indigo-50/40"],
+[data-theme="dark"] [class~="bg-indigo-50/50"],
+[data-theme="dark"] [class~="bg-indigo-50/60"],
+[data-theme="dark"] [class~="bg-indigo-50/70"],
+[data-theme="dark"] [class~="bg-indigo-50/80"],
+[data-theme="dark"] [class~="bg-indigo-50/90"],
+[data-theme="dark"] [class~="bg-pink-50"],
+[data-theme="dark"] [class~="bg-purple-50"],
+[data-theme="dark"] [class~="bg-purple-50/40"],
+[data-theme="dark"] [class~="bg-purple-50/90"],
+[data-theme="dark"] [class~="bg-red-50"],
+[data-theme="dark"] [class~="bg-rose-50"],
+[data-theme="dark"] [class~="bg-rose-50/40"],
+[data-theme="dark"] [class~="bg-sky-50"],
+[data-theme="dark"] [class~="bg-slate-50"],
+[data-theme="dark"] [class~="bg-slate-50/50"],
+[data-theme="dark"] [class~="bg-slate-50/60"],
+[data-theme="dark"] [class~="bg-slate-50/70"],
+[data-theme="dark"] [class~="bg-slate-50/80"],
+[data-theme="dark"] [class~="bg-slate-50/90"],
+[data-theme="dark"] [class~="bg-violet-50"],
+[data-theme="dark"] [class~="bg-violet-50/70"] {
+    background-color: var(--surface-2) !important;
+}
+/* Neutral chips sit one step above the inset. */
+[data-theme="dark"] [class~="bg-slate-100"],
+[data-theme="dark"] [class~="bg-slate-100/70"],
+[data-theme="dark"] [class~="bg-slate-100/80"],
+[data-theme="dark"] [class~="bg-slate-200"] {
+    background-color: var(--surface-3) !important;
+}
+/* Inverted panels stay the darkest surface. */
+[data-theme="dark"] [class~="bg-indigo-950"],
+[data-theme="dark"] [class~="bg-indigo-950/80"],
+[data-theme="dark"] [class~="bg-slate-800"],
+[data-theme="dark"] [class~="bg-slate-800/50"],
+[data-theme="dark"] [class~="bg-slate-800/80"],
+[data-theme="dark"] [class~="bg-slate-800/90"],
+[data-theme="dark"] [class~="bg-slate-900"],
+[data-theme="dark"] [class~="bg-slate-900/90"],
+[data-theme="dark"] [class~="bg-slate-900/95"],
+[data-theme="dark"] [class~="bg-slate-950"],
+[data-theme="dark"] [class~="bg-slate-950/50"],
+[data-theme="dark"] [class~="bg-slate-950/70"],
+[data-theme="dark"] [class~="bg-slate-950/75"],
+[data-theme="dark"] [class~="bg-slate-950/85"] {
+    background-color: var(--surface-4) !important;
+}
+/* Accent chips keep their hue, at a weight that
+   works on a dark card. */
+[data-theme="dark"] [class~="bg-amber-100"] {
+    background-color: rgba(245,158,11, .20) !important;
+}
+[data-theme="dark"] [class~="bg-amber-200"] {
+    background-color: rgba(245,158,11, .28) !important;
+}
+[data-theme="dark"] [class~="bg-blue-100"] {
+    background-color: rgba(59,130,246, .20) !important;
+}
+[data-theme="dark"] [class~="bg-cyan-100"] {
+    background-color: rgba(6,182,212, .20) !important;
+}
+[data-theme="dark"] [class~="bg-emerald-100"] {
+    background-color: rgba(16,185,129, .20) !important;
+}
+[data-theme="dark"] [class~="bg-emerald-200"] {
+    background-color: rgba(16,185,129, .28) !important;
+}
+[data-theme="dark"] [class~="bg-indigo-100"],
+[data-theme="dark"] [class~="bg-indigo-100/70"] {
+    background-color: rgba(99,102,241, .20) !important;
+}
+[data-theme="dark"] [class~="bg-indigo-200"] {
+    background-color: rgba(99,102,241, .28) !important;
+}
+[data-theme="dark"] [class~="bg-orange-100"] {
+    background-color: rgba(249,115,22, .20) !important;
+}
+[data-theme="dark"] [class~="bg-pink-100"] {
+    background-color: rgba(236,72,153, .20) !important;
+}
+[data-theme="dark"] [class~="bg-purple-100"] {
+    background-color: rgba(168,85,247, .20) !important;
+}
+[data-theme="dark"] [class~="bg-purple-200"] {
+    background-color: rgba(168,85,247, .28) !important;
+}
+[data-theme="dark"] [class~="bg-red-100"] {
+    background-color: rgba(239,68,68, .20) !important;
+}
+[data-theme="dark"] [class~="bg-rose-100"] {
+    background-color: rgba(244,63,94, .20) !important;
+}
+[data-theme="dark"] [class~="bg-sky-100"] {
+    background-color: rgba(14,165,233, .20) !important;
+}
+[data-theme="dark"] [class~="bg-teal-100"] {
+    background-color: rgba(20,184,166, .20) !important;
+}
+[data-theme="dark"] [class~="bg-violet-100"] {
+    background-color: rgba(139,92,246, .20) !important;
+}
+/* Deep accent text is unreadable on a dark card; lift each
+   hue to its 300 weight. */
+[data-theme="dark"] [class~="text-amber-600"],
+[data-theme="dark"] [class~="text-amber-700"],
+[data-theme="dark"] [class~="text-amber-800"],
+[data-theme="dark"] [class~="text-amber-900"],
+[data-theme="dark"] [class~="text-amber-950"] {
+    color: #fcd34d !important;
+}
+[data-theme="dark"] [class~="text-blue-600"],
+[data-theme="dark"] [class~="text-blue-800"] {
+    color: #93c5fd !important;
+}
+[data-theme="dark"] [class~="text-cyan-600"],
+[data-theme="dark"] [class~="text-cyan-700"] {
+    color: #67e8f9 !important;
+}
+[data-theme="dark"] [class~="text-emerald-600"],
+[data-theme="dark"] [class~="text-emerald-700"],
+[data-theme="dark"] [class~="text-emerald-800"],
+[data-theme="dark"] [class~="text-emerald-900"],
+[data-theme="dark"] [class~="text-emerald-950"] {
+    color: #6ee7b7 !important;
+}
+[data-theme="dark"] [class~="text-indigo-600"],
+[data-theme="dark"] [class~="text-indigo-700"],
+[data-theme="dark"] [class~="text-indigo-800"],
+[data-theme="dark"] [class~="text-indigo-900"],
+[data-theme="dark"] [class~="text-indigo-950"] {
+    color: #a5b4fc !important;
+}
+[data-theme="dark"] [class~="text-orange-600"],
+[data-theme="dark"] [class~="text-orange-700"] {
+    color: #fdba74 !important;
+}
+[data-theme="dark"] [class~="text-pink-600"],
+[data-theme="dark"] [class~="text-pink-700"],
+[data-theme="dark"] [class~="text-pink-900"],
+[data-theme="dark"] [class~="text-pink-950"] {
+    color: #f9a8d4 !important;
+}
+[data-theme="dark"] [class~="text-purple-600"],
+[data-theme="dark"] [class~="text-purple-700"],
+[data-theme="dark"] [class~="text-purple-800"],
+[data-theme="dark"] [class~="text-purple-900"],
+[data-theme="dark"] [class~="text-purple-950"] {
+    color: #d8b4fe !important;
+}
+[data-theme="dark"] [class~="text-red-600"],
+[data-theme="dark"] [class~="text-red-700"] {
+    color: #fca5a5 !important;
+}
+[data-theme="dark"] [class~="text-rose-600"],
+[data-theme="dark"] [class~="text-rose-700"],
+[data-theme="dark"] [class~="text-rose-800"],
+[data-theme="dark"] [class~="text-rose-900"] {
+    color: #fda4af !important;
+}
+[data-theme="dark"] [class~="text-sky-600"],
+[data-theme="dark"] [class~="text-sky-700"],
+[data-theme="dark"] [class~="text-sky-800"],
+[data-theme="dark"] [class~="text-sky-900"] {
+    color: #7dd3fc !important;
+}
+[data-theme="dark"] [class~="text-teal-600"],
+[data-theme="dark"] [class~="text-teal-700"],
+[data-theme="dark"] [class~="text-teal-800"] {
+    color: #5eead4 !important;
+}
+[data-theme="dark"] [class~="text-violet-600"],
+[data-theme="dark"] [class~="text-violet-700"],
+[data-theme="dark"] [class~="text-violet-800"],
+[data-theme="dark"] [class~="text-violet-900"] {
+    color: #c4b5fd !important;
+}
+/* Tinted hairlines would glow white. */
+[data-theme="dark"] [class~="border-amber-100"],
+[data-theme="dark"] [class~="border-amber-100/80"],
+[data-theme="dark"] [class~="border-emerald-100"],
+[data-theme="dark"] [class~="border-emerald-100/80"],
+[data-theme="dark"] [class~="border-indigo-100"],
+[data-theme="dark"] [class~="border-indigo-100/80"],
+[data-theme="dark"] [class~="border-slate-100"],
+[data-theme="dark"] [class~="border-slate-50"],
+[data-theme="dark"] [class~="border-violet-100"],
+[data-theme="dark"] [class~="border-violet-100/80"] {
+    border-color: var(--line-1) !important;
+}
+[data-theme="dark"] [class~="border-amber-200"],
+[data-theme="dark"] [class~="border-blue-200"],
+[data-theme="dark"] [class~="border-cyan-200"],
+[data-theme="dark"] [class~="border-emerald-200"],
+[data-theme="dark"] [class~="border-indigo-200"],
+[data-theme="dark"] [class~="border-indigo-200/70"],
+[data-theme="dark"] [class~="border-indigo-200/80"],
+[data-theme="dark"] [class~="border-indigo-200/90"],
+[data-theme="dark"] [class~="border-pink-200"],
+[data-theme="dark"] [class~="border-pink-200/70"],
+[data-theme="dark"] [class~="border-purple-200"],
+[data-theme="dark"] [class~="border-purple-200/70"],
+[data-theme="dark"] [class~="border-purple-200/80"],
+[data-theme="dark"] [class~="border-red-200"],
+[data-theme="dark"] [class~="border-rose-200"],
+[data-theme="dark"] [class~="border-sky-200"],
+[data-theme="dark"] [class~="border-slate-200"],
+[data-theme="dark"] [class~="border-slate-200/60"],
+[data-theme="dark"] [class~="border-slate-200/70"],
+[data-theme="dark"] [class~="border-slate-200/80"],
+[data-theme="dark"] [class~="border-slate-200/90"],
+[data-theme="dark"] [class~="border-slate-300"],
+[data-theme="dark"] [class~="border-violet-200"],
+[data-theme="dark"] [class~="border-violet-200/70"] {
+    border-color: var(--line-2) !important;
+}
+
+/* -----------------------------------------------------------------
+   B3. DARK COVERAGE FOR BASE COMPONENTS
+   The generated bridge above only reaches Tailwind utilities. These
+   components paint themselves from hard-coded hex in the base layer,
+   so no amount of utility mapping touches them, and several only
+   appear under a condition - an active filter, a configured bill, a
+   non-zero split balance - which is why they stayed light long after
+   the rest of the app went dark.
+   ----------------------------------------------------------------- */
+
+/* Active filter chips. The one the audit caught. */
+[data-theme="dark"] .active-filter-tag {
+    background: var(--surface-3);
+    color: var(--ink-1);
+    border-color: var(--line-2);
+}
+[data-theme="dark"] .active-filter-tag button {
+    background: rgba(129, 140, 248, .22);
+    color: #c7d2fe;
+}
+
+/* Attendance calendar day states. */
+[data-theme="dark"] .att-present        { background: rgba(16, 185, 129, .18); border-color: rgba(16, 185, 129, .40); }
+[data-theme="dark"] .att-present:hover  { background: rgba(16, 185, 129, .28); }
+[data-theme="dark"] .att-leave          { background: rgba(244, 63, 94, .18);  border-color: rgba(244, 63, 94, .40); }
+[data-theme="dark"] .att-leave:hover    { background: rgba(244, 63, 94, .28); }
+[data-theme="dark"] .att-half           { background: rgba(245, 158, 11, .18); border-color: rgba(245, 158, 11, .40); }
+[data-theme="dark"] .att-half:hover     { background: rgba(245, 158, 11, .28); }
+[data-theme="dark"] .att-holiday        { background: rgba(56, 189, 248, .16); border-color: rgba(56, 189, 248, .36); }
+
+/* Bill radar cards. */
+[data-theme="dark"] .bill-card-paid  { background: linear-gradient(135deg, rgba(16, 185, 129, .20), rgba(16, 185, 129, .08)); }
+[data-theme="dark"] .bill-card-due   { background: linear-gradient(135deg, rgba(244, 63, 94, .20), rgba(244, 63, 94, .08)); }
+[data-theme="dark"] .bill-card-sched { background: linear-gradient(135deg, var(--surface-2), var(--surface-1)); }
+
+/* Settle-up balance panels. */
+[data-theme="dark"] .split-balance-positive { background: linear-gradient(135deg, rgba(16, 185, 129, .22), rgba(16, 185, 129, .10)); }
+[data-theme="dark"] .split-balance-negative { background: linear-gradient(135deg, rgba(244, 63, 94, .22), rgba(244, 63, 94, .10)); }
+
+/* Status badges keep their meaning, at a weight that reads on a dark card. */
+[data-theme="dark"] .badge-success  { background: rgba(34, 197, 94, .20);   color: #86efac; }
+[data-theme="dark"] .badge-warning  { background: rgba(245, 158, 11, .20);  color: #fcd34d; }
+[data-theme="dark"] .badge-danger   { background: rgba(244, 63, 94, .20);   color: #fda4af; }
+[data-theme="dark"] .badge-info     { background: rgba(59, 130, 246, .20);  color: #93c5fd; }
+[data-theme="dark"] .badge-neutral  { background: var(--surface-3);         color: var(--ink-2); }
+[data-theme="dark"] .badge-brand    { background: rgba(99, 102, 241, .20);  color: #a5b4fc; }
+[data-theme="dark"] .badge-personal { background: rgba(168, 85, 247, .20);  color: #d8b4fe; }
+[data-theme="dark"] .badge-payroll  { background: rgba(245, 158, 11, .20);  color: #fcd34d; }
+
+/* Raised surfaces and the audit timeline cards. */
+[data-theme="dark"] .glass-card-elevated,
+[data-theme="dark"] .audit-card-luxe {
+    background: var(--surface-1);
+    border-color: var(--line-1);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+[data-theme="dark"] .audit-card-luxe:hover { border-color: var(--line-2); }
+
+/* Chrome that is easy to forget. */
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: var(--line-2); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
+[data-theme="dark"] .expense-view-btn:hover { background: var(--surface-3); }
+[data-theme="dark"] .sidebar-link:hover { background: rgba(255, 255, 255, .06); }
+[data-theme="dark"] .toast-item { background: var(--surface-1); border-color: var(--line-2); color: var(--ink-1); }
+[data-theme="dark"] .sticky-save-bar-inner { background: var(--surface-1); border-color: var(--line-2); }
+
+/* Solid accent fills stay solid - they carry white text. */
+[data-theme="dark"] .bg-indigo-600, [data-theme="dark"] .bg-indigo-700,
+[data-theme="dark"] .bg-emerald-600, [data-theme="dark"] .bg-emerald-700,
+[data-theme="dark"] .bg-amber-600, [data-theme="dark"] .bg-rose-600,
+[data-theme="dark"] .bg-violet-600, [data-theme="dark"] .bg-purple-600 { color: #fff !important; }
+
+/* -----------------------------------------------------------------
+   C. TYPOGRAPHY & NUMERICS
+   Amounts are the primary content of this app, so they get fixed-
+   width figures: columns of money line up instead of jittering.
+   ----------------------------------------------------------------- */
+body {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "cv11" 1;
+    letter-spacing: -0.005em;
+}
+
+h1, h2, h3, h4 {
+    letter-spacing: -0.022em;
+    color: var(--ink-1);
+}
+
+/* A real hierarchy. Everything was font-black, so nothing led. */
+.kpi-card h3,
+[id^="stat"], [id^="ytd"], [id^="budget"], [id^="runway"],
+.money {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+}
+
+/* Eyebrow labels: small, wide, quiet. */
+.text-\[10px\].uppercase, .text-\[11px\].uppercase,
+.uppercase.tracking-wider, .uppercase.tracking-widest {
+    letter-spacing: 0.08em;
+}
+
+/* -----------------------------------------------------------------
+   D. SURFACES
+   Backdrop blur is expensive on phones and muddied every card. These
+   are opaque surfaces with a hairline and layered elevation instead.
+   ----------------------------------------------------------------- */
+.glass-card {
+    background: var(--surface-1);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid var(--line-1);
+    box-shadow: var(--elev-1);
+    position: relative;
+    transition: box-shadow var(--duration-base) var(--ease-smooth),
+                border-color var(--duration-base) var(--ease-smooth),
+                transform var(--duration-base) var(--ease-spring);
+}
+[data-theme="dark"] .glass-card {
+    background: var(--surface-1) !important;
+    border-color: var(--line-1) !important;
+    color: var(--ink-2) !important;
+}
+
+.glass-card-elevated {
+    background: var(--surface-1);
+    border: 1px solid var(--line-1);
+    box-shadow: var(--elev-2);
+}
+
+/* Section headers inside cards get a hairline rule that stops short
+   of the padding, which reads as deliberate rather than boxed-in. */
+.glass-card > .flex:first-child > div > h3 {
+    color: var(--ink-1);
+}
+
+.hover-lift:hover,
+.glass-card.hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--elev-3);
+    border-color: var(--line-2);
+}
+
+/* -----------------------------------------------------------------
+   E. KPI CARDS
+   Ten competing border-top colours read as noise. The accent moves to
+   a left rail plus a tinted icon chip, the value gets room, and the
+   footer becomes a quiet meta line.
+   ----------------------------------------------------------------- */
+.kpi-card {
+    background: var(--surface-1);
+    border: 1px solid var(--line-1);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--elev-1);
+    padding: 0.95rem 1rem 0.85rem 1.15rem;
+    overflow: hidden;
+    isolation: isolate;
+}
+[data-theme="dark"] .kpi-card {
+    background: var(--surface-1) !important;
+    border-color: var(--line-1) !important;
+}
+
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    border-radius: inherit;
+    opacity: 1;
+    background: var(--kpi-accent, var(--accent));
+    transition: width var(--duration-base) var(--ease-spring);
+}
+.kpi-card:hover::before { width: 5px; }
+
+.kpi-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    opacity: 0;
+    background: linear-gradient(115deg,
+        color-mix(in srgb, var(--kpi-accent, var(--accent)) 9%, transparent) 0%,
+        transparent 55%);
+    transition: opacity var(--duration-base) var(--ease-smooth);
+}
+.kpi-card:hover::after { opacity: 1; }
+
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--elev-2);
+    border-color: var(--line-2);
+}
+
+/* The accent rail replaces the old border-top treatment. */
+.kpi-card-accent { border-top: 1px solid var(--line-1); }
+.kpi-indigo  { --kpi-accent: #6366f1; }
+.kpi-emerald { --kpi-accent: #10b981; }
+.kpi-sky     { --kpi-accent: #0ea5e9; }
+.kpi-violet  { --kpi-accent: #8b5cf6; }
+.kpi-rose    { --kpi-accent: #f43f5e; }
+.kpi-amber   { --kpi-accent: #f59e0b; }
+.kpi-teal    { --kpi-accent: #14b8a6; }
+.kpi-orange  { --kpi-accent: #f97316; }
+.kpi-purple  { --kpi-accent: #a855f7; }
+.kpi-cyan    { --kpi-accent: #06b6d4; }
+
+/* The icon chip picks up the card's accent automatically. */
+.kpi-card [class*="rounded-xl"][class*="flex"][class*="items-center"][class*="justify-center"] {
+    background: color-mix(in srgb, var(--kpi-accent, var(--accent)) 13%, transparent) !important;
+    color: var(--kpi-accent, var(--accent)) !important;
+    border-radius: var(--radius-md);
+}
+
+/* Eyebrow labels wrap to a second line rather than truncating. "Household
+   Expenses" was rendering as "HOUSEHOLD EXPE..." in a five-column grid,
+   which is the one word on the card that has to be readable.
+   The :not() guards are deliberate: this is the only rule in the layer that
+   sets `display`, and an unguarded one would out-rank Tailwind's .hidden and
+   resurrect an element the app had hidden. */
+.kpi-card > div > div > p:first-child:not(.hidden):not([hidden]),
+.kpi-card p.uppercase:not(.hidden):not([hidden]) {
+    white-space: normal;
+    text-overflow: clip;
+    letter-spacing: 0.045em;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Value line: bigger, tighter, calmer colour. */
+.kpi-card h3 {
+    color: var(--ink-1);
+    font-weight: 800;
+    line-height: 1.15;
+}
+
+/* Footer meta line sits on a hairline, not a hard border. */
+.kpi-card .border-t { border-top-color: var(--line-1) !important; }
+
+/* -----------------------------------------------------------------
+   F. NAVIGATION
+   ----------------------------------------------------------------- */
+.glass-nav {
+    background: color-mix(in srgb, var(--surface-4) 94%, transparent);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid rgba(255, 255, 255, .07);
+}
+
+.tab-btn {
+    min-height: 44px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: rgba(226, 232, 240, .72);
+}
+.tab-btn:hover { color: #fff; background: rgba(255, 255, 255, .07); }
+.tab-btn.active {
+    background: var(--accent) !important;
+    background-image: linear-gradient(135deg,
+        color-mix(in srgb, var(--accent) 100%, #fff 0%),
+        color-mix(in srgb, var(--accent) 72%, #fff 28%)) !important;
+    color: var(--accent-ink) !important;
+    box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.tab-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.bnav-btn {
+    min-height: 56px;
+    color: var(--ink-3);
+    transition: color var(--duration-fast) var(--ease-smooth);
+}
+.bnav-btn.active { color: var(--accent); }
+.bnav-btn.active i { color: var(--accent); }
+.bnav-btn.active::after {
+    background: var(--accent);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.bnav-btn:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--radius-sm); }
+
+.fab-add {
+    background: linear-gradient(135deg, var(--accent),
+        color-mix(in srgb, var(--accent) 65%, #fff 35%));
+    box-shadow: 0 10px 30px -8px color-mix(in srgb, var(--accent) 75%, transparent),
+                var(--elev-2);
+}
+.fab-add:focus-visible { outline: none; box-shadow: var(--ring), var(--elev-3); }
+
+/* The hero header: a richer mesh, and text that survives both themes. */
+.luxury-header {
+    background:
+        radial-gradient(40rem 20rem at 85% -40%, color-mix(in srgb, var(--accent) 55%, transparent), transparent 70%),
+        radial-gradient(30rem 18rem at 0% 120%, rgba(14, 165, 233, .35), transparent 70%),
+        linear-gradient(135deg, #1b2440 0%, #141b30 45%, #0c1222 100%);
+    border: 1px solid rgba(255, 255, 255, .08);
+    box-shadow: var(--elev-3);
+}
+[data-theme="dark"] .luxury-header {
+    background:
+        radial-gradient(40rem 20rem at 85% -40%, color-mix(in srgb, var(--accent) 42%, transparent), transparent 70%),
+        linear-gradient(135deg, #141c30 0%, #0d1424 50%, #070b16 100%);
+}
+
+/* -----------------------------------------------------------------
+   G. DATA DISPLAY
+   ----------------------------------------------------------------- */
+
+/* Table heads stay put while a long ledger scrolls. */
+.table-scroll-container thead th,
+.overflow-x-auto > table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--surface-4);
+    color: var(--ink-inv);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    box-shadow: inset 0 -1px 0 var(--line-2);
+}
+[data-theme="dark"] .overflow-x-auto > table thead th { color: #cbd5e1; }
+
+/* Quiet zebra plus a readable hover, instead of hover alone. */
+tbody tr:nth-child(even) { background: color-mix(in srgb, var(--ink-1) 2.2%, transparent); }
+tbody tr { transition: background-color var(--duration-fast) var(--ease-smooth); }
+tbody tr:hover { background: var(--accent-soft) !important; }
+tbody td { border-color: var(--line-1) !important; }
+
+/* Money columns align. */
+td[class*="text-right"], th[class*="text-right"],
+#spendingMatrixTbody td { font-variant-numeric: tabular-nums; }
+
+/* Horizontal scrollers advertise themselves rather than hiding
+   content off the right edge on a phone. */
+.table-scroll-container, .overflow-x-auto {
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+}
+
+.tx-row { border-bottom: 1px solid var(--line-1); }
+.tx-row:hover { background: var(--accent-soft); }
+
+.badge {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    border: 1px solid transparent;
+}
+
+/* Progress bars read as a track plus a fill, not a floating sliver. */
+#budgetProgressBar, #runwayProgressBar {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25);
+}
+#budgetProgressBar { transition: width 600ms var(--ease-spring), background-color 300ms; }
+
+/* Charts need a surface that follows the theme. */
+canvas { border-radius: var(--radius-md); }
+
+/* -----------------------------------------------------------------
+   H. CONTROLS
+   ----------------------------------------------------------------- */
+select, input, textarea {
+    background: var(--surface-1);
+    border: 1px solid var(--line-2);
+    color: var(--ink-1);
+    border-radius: var(--radius-md);
+    transition: border-color var(--duration-fast) var(--ease-smooth),
+                box-shadow var(--duration-fast) var(--ease-smooth),
+                background-color var(--duration-fast) var(--ease-smooth);
+}
+select:focus, input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--ring);
+}
+[data-theme="dark"] select,
+[data-theme="dark"] input,
+[data-theme="dark"] textarea {
+    background-color: var(--surface-2) !important;
+    border-color: var(--line-2) !important;
+    color: var(--ink-1) !important;
+}
+::placeholder { color: var(--ink-3); opacity: 1; }
+
+/* Every interactive control clears the 44px touch target. */
+button, [role="button"], .btn-primary, .btn-secondary, .btn-danger {
+    min-height: 44px;
+}
+button.min-h-\[36px\], .kpi-card button { min-height: 36px; }
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--accent),
+        color-mix(in srgb, var(--accent) 70%, #fff 30%));
+    color: var(--accent-ink);
+    box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--accent) 80%, transparent);
+    font-weight: 700;
+}
+.btn-primary:hover { box-shadow: 0 10px 26px -8px color-mix(in srgb, var(--accent) 85%, transparent); }
+.btn-primary:focus-visible, .btn-secondary:focus-visible, .btn-danger:focus-visible {
+    outline: none; box-shadow: var(--ring);
+}
+
+.btn-secondary {
+    background: var(--surface-2);
+    color: var(--ink-2);
+    border: 1px solid var(--line-2);
+}
+
+/* Modals: a calmer scrim and a surface that matches the theme. */
+.modal-backdrop {
+    background: color-mix(in srgb, var(--surface-4) 62%, transparent);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+.modal-content {
+    background: var(--surface-1);
+    border: 1px solid var(--line-1);
+    box-shadow: var(--elev-4);
+    border-radius: var(--radius-xl);
+}
+[data-theme="dark"] .modal-content { background: var(--surface-1) !important; }
+
+/* Field errors must stay loud - the audit asserts they appear. */
+.field-error.is-visible { color: #e11d48; font-weight: 700; }
+[data-theme="dark"] .field-error.is-visible { color: #fda4af; }
+
+/* -----------------------------------------------------------------
+   I. MOTION
+   Sections stagger in rather than all popping at once. Anyone who has
+   asked their system to calm down gets none of it.
+   ----------------------------------------------------------------- */
+.section-enter > * {
+    animation: v6Rise var(--duration-slow) var(--ease-spring) backwards;
+}
+.section-enter > *:nth-child(1) { animation-delay: 0ms; }
+.section-enter > *:nth-child(2) { animation-delay: 45ms; }
+.section-enter > *:nth-child(3) { animation-delay: 90ms; }
+.section-enter > *:nth-child(4) { animation-delay: 135ms; }
+.section-enter > *:nth-child(5) { animation-delay: 180ms; }
+.section-enter > *:nth-child(n+6) { animation-delay: 220ms; }
+
+@keyframes v6Rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+        scroll-behavior: auto !important;
+    }
+    .section-enter > * { animation: none !important; }
+}
+
+/* -----------------------------------------------------------------
+   J. RESPONSIVE REFINEMENTS
+   ----------------------------------------------------------------- */
+@media (max-width: 480px) {
+    /* Tighter gutters buy back ~16px of content width on a 360px
+       phone without letting anything touch the edge. */
+    main, .tab-view { padding-left: 0; padding-right: 0; }
+
+    .kpi-card { padding: 0.8rem 0.85rem 0.7rem 1rem; border-radius: var(--radius-md); }
+    .kpi-card h3 { font-size: 1.125rem; }
+    .glass-card { border-radius: var(--radius-lg); }
+
+    /* Long headings wrap instead of forcing the row wide. */
+    h2, h3 { overflow-wrap: anywhere; }
+}
+
+@media (min-width: 1280px) {
+    /* On a wide screen the dashboard was a very long single column of
+       full-width cards. Give the grid more room before it stops. */
+    .tab-view > .grid { gap: 1.5rem; }
+}
+
+/* Printing keeps the new tokens from leaking a dark theme onto paper. */
+@media print {
+    :root, [data-theme] {
+        --surface-0: #fff; --surface-1: #fff; --surface-2: #fff;
+        --surface-3: #f1f5f9; --surface-4: #0f172a;
+        --ink-1: #0f172a; --ink-2: #334155; --ink-3: #64748b;
+        --line-1: #e2e8f0; --line-2: #cbd5e1;
+    }
+    .glass-card, .kpi-card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+    .section-enter > * { animation: none !important; }
+}

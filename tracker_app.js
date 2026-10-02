@@ -2652,11 +2652,17 @@ function renderBudgetProgress(householdSpent, personalSpent = 0, combinedSpent =
 
     const effectiveBudget = (window.masterConfig && Number(window.masterConfig.monthlyBudgetLimit)) || monthlyBudgetLimit || 50000;
 
-    if (spentVal) spentVal.textContent = formatINR(householdSpent);
+    // The monthly budget measures every expense in the period - household and
+    // personal together. It used to count household spending only, so personal
+    // spending could run past the cap without the bar ever moving.
+    const totalSpent = Number(combinedSpent) || (Number(householdSpent) + Number(personalSpent)) || 0;
+
+    if (spentVal) spentVal.textContent = formatINR(totalSpent);
     if (capVal) capVal.textContent = formatINR(effectiveBudget);
 
-    const pct = Math.min(100, Math.round((householdSpent / effectiveBudget) * 100));
-    const remaining = Math.max(0, effectiveBudget - householdSpent);
+    const rawPct = effectiveBudget > 0 ? Math.round((totalSpent / effectiveBudget) * 100) : 0;
+    const pct = Math.min(100, rawPct);
+    const remaining = Math.max(0, effectiveBudget - totalSpent);
 
     if (progressBar) {
         progressBar.style.width = `${pct}%`;
@@ -2670,17 +2676,21 @@ function renderBudgetProgress(householdSpent, personalSpent = 0, combinedSpent =
     }
 
     if (remText) remText.textContent = `Remaining: ${formatINR(remaining)}`;
-    if (pctText) pctText.textContent = `${pct}% utilized`;
+    if (pctText) pctText.textContent = `${rawPct}% utilized`;
 
+    // Both halves count towards the cap, so show what each contributed.
+    const share = (v) => (totalSpent > 0 ? Math.round((Number(v) / totalSpent) * 100) : 0);
     if (householdSubtext) {
-        householdSubtext.textContent = `Household: ${formatINR(householdSpent)} (${pct}%)`;
+        householdSubtext.textContent = `Household: ${formatINR(householdSpent)} (${share(householdSpent)}%)`;
     }
     if (personalSubtext) {
-        personalSubtext.textContent = `Personal: ${formatINR(personalSpent)} (tracked in Personal Tab)`;
+        personalSubtext.textContent = `Personal: ${formatINR(personalSpent)} (${share(personalSpent)}%)`;
     }
 
     if (pill) {
-        if (pct > 100) {
+        // Compare against the unclamped figure - the clamped one can never
+        // exceed 100, so "Over Budget" used to be unreachable.
+        if (rawPct > 100) {
             pill.className = "text-xs font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800";
             pill.textContent = "Over Budget";
         } else if (pct >= 85) {

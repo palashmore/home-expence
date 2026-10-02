@@ -24,7 +24,12 @@ const REPO = path.join(__dirname, '..');
 const DATA = path.join(REPO, 'data');
 const dryRun = process.argv.includes('--dry-run');
 
-// gist filename -> how to build its contents
+// gist filename -> how to build its contents.
+//
+// H001 uses the unprefixed names for backwards compatibility; every other
+// household gets <id>_<file>.json, which is what cloudFileFor() in
+// api/_storage.js resolves to. Per-household files are added below for each
+// household found in data/households.json.
 const FILES = {
     'expenses.json':             () => passthrough('expenses.json', []),
     'config.json':               () => passthrough('config.json', {}),
@@ -34,6 +39,34 @@ const FILES = {
     'directory_users.json':      () => snapshot('users.json', 'users'),
     'directory_households.json': () => snapshot('households.json', 'households')
 };
+
+// Seed a file per household beyond H001, from data/households/<id>/.
+for (const h of (readLocalSafe('households.json', []) || [])) {
+    const id = h && h.householdId;
+    if (!id || id === 'H001') continue;
+    FILES[`${id}_expenses.json`] = () => perHousehold(id, 'expenses.json', []);
+    FILES[`${id}_config.json`] = () => perHousehold(id, 'config.json', {});
+    FILES[`${id}_staff_attendance.json`] = () => perHousehold(id, 'attendance.json', {});
+    FILES[`${id}_audit_log.json`] = () => perHousehold(id, 'audit_log.json', []);
+}
+
+function readLocalSafe(name, fallback) {
+    try {
+        return readLocal(name, fallback);
+    } catch (e) {
+        return fallback;
+    }
+}
+
+function perHousehold(id, name, fallback) {
+    const p = path.join(DATA, 'households', id, name);
+    if (!fs.existsSync(p)) return fallback;
+    try {
+        return JSON.parse(fs.readFileSync(p, 'utf8'));
+    } catch (e) {
+        return fallback;
+    }
+}
 
 function readLocal(name, fallback) {
     const p = path.join(DATA, name);

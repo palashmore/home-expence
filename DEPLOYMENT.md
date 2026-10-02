@@ -192,18 +192,38 @@ read from the environment, never printed and never written to disk. It uploads
 all seven files, then reads the gist back to confirm each one arrived and warns
 if the gist is public.
 
-### What persists on Vercel
+### Which files the Gist holds
 
-Everything the app writes for household `H001` now goes to the Gist and is read
-back from it: expenses, config, attendance, audit history, **and the user and
-household directory**. Creating a household or a user, changing a role or
-resetting a password survives a cold start.
+Everything the app persists for a household now goes to the Gist and is read
+back from it. `H001` uses the original unprefixed names; every other household
+gets its own prefixed set, so households can never overwrite each other.
 
-The directory is stored as two extra Gist files, created automatically on the
-first write:
+| File | Scope | Contents |
+|---|---|---|
+| `expenses.json` | H001 | the ledger |
+| `config.json` | H001 | categories, staff, bills, budget, members, split rules |
+| `staff_attendance.json` | H001 | attendance marks |
+| `audit_log.json` | H001 | change history |
+| `<id>_expenses.json` | H002+ | that household's ledger |
+| `<id>_config.json` | H002+ | that household's settings |
+| `<id>_staff_attendance.json` | H002+ | that household's attendance |
+| `<id>_audit_log.json` | H002+ | that household's history |
+| `directory_users.json` | global | every user account (versioned snapshot) |
+| `directory_households.json` | global | every household (versioned snapshot) |
+| `push_subscriptions.json` | global | device push registrations |
 
-| File | Contents |
-|---|---|
+**Deliberately not in the Gist:** `vapid_keys.json` and anything holding a
+secret - those are environment variables. Receipts and backups are not synced
+either; they stay local and do not survive a cold start on Vercel.
+
+The two `directory_*` files are versioned snapshots rather than merged
+record-by-record, so a deletion is never undone by a stale copy, and an empty
+cloud snapshot can never wipe a populated directory.
+
+`npm run seed-gist` builds and uploads this entire set from `data/`, including a
+per-household set for every household it finds.
+
+---|---|
 | `directory_users.json` | every user account |
 | `directory_households.json` | every household |
 

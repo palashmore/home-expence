@@ -119,7 +119,13 @@ def attach_listeners(page, audit):
 
 
 def login(page, username=OWNER[0], password=OWNER[1]):
-    page.goto(BASE_URL, wait_until="domcontentloaded")
+    # One retry: the first navigation in a freshly created context occasionally
+    # loses the race with Chromium's startup on a loaded machine, and a retry is
+    # far better than failing the whole suite over it.
+    try:
+        page.goto(BASE_URL, wait_until="domcontentloaded", timeout=45000)
+    except PWError:
+        page.goto(BASE_URL, wait_until="domcontentloaded", timeout=45000)
     page.wait_for_selector("#loginForm", timeout=20000)
     page.fill("#loginUsername", username)
     page.fill("#loginPassword", password)
@@ -1367,7 +1373,10 @@ def audit_logout(page, audit, api):
     # Going back must not re-expose the previous session's screens. If history
     # has nowhere to go the browser lands on about:blank, where localStorage is
     # inaccessible - that is not a finding, so treat it as "nothing exposed".
-    page.go_back()
+    try:
+        page.go_back(wait_until="domcontentloaded", timeout=15000)
+    except PWError:
+        pass          # nowhere to go back to; nothing was re-exposed
     page.wait_for_timeout(1500)
     try:
         after_back = page.evaluate("""() => ({
@@ -1405,6 +1414,38 @@ def make_api(page):
             [method, path, body],
         )
     return api
+
+
+# One reusable browser context for the short-lived "can this user sign in?"
+# probes. Each probe used to open its own context; eleven Chromium contexts in a
+# single run made the suite flaky on Windows, failing at a different point each
+# time with ERR_FAILED while the server stayed healthy.
+_PROBE = {"ctx": None, "page": None}
+
+
+def probe_page(browser):
+    """A signed-out page in a reused context, with storage cleared."""
+    if _PROBE["ctx"] is None:
+        _PROBE["ctx"] = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+        _PROBE["page"] = _PROBE["ctx"].new_page()
+    page = _PROBE["page"]
+    try:
+        _PROBE["ctx"].clear_cookies()
+        page.goto(BASE_URL, wait_until="domcontentloaded", timeout=45000)
+        page.evaluate("() => { try { localStorage.clear(); sessionStorage.clear(); } catch (e) {} }")
+    except PWError:
+        pass
+    return page
+
+
+def close_probe():
+    if _PROBE["ctx"] is not None:
+        try:
+            _PROBE["ctx"].close()
+        except Exception:
+            pass
+    _PROBE["ctx"] = None
+    _PROBE["page"] = None
 
 
 def audit_two_device_sync(browser, audit):
@@ -1722,8 +1763,7 @@ def audit_admin_management(browser, audit):
                      f"role is {made_user.get('role')!r}")
 
         # The user must actually be able to sign in, in their own context.
-        probe = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
-        ppage = probe.new_page()
+        ppage = probe_page(browser)
         try:
             login(ppage, new_username, "QaUser@12345")
             audit.record(
@@ -1735,7 +1775,7 @@ def audit_admin_management(browser, audit):
             audit.record("E the created user can sign in and is scoped to their household",
                          False, f"login failed: {str(e)[:120]}")
         finally:
-            probe.close()
+            pass
 
         # --- edit the user ----------------------------------------------------
         page.evaluate("(id) => openEditUserModal(id)", user_id)
@@ -1760,8 +1800,7 @@ def audit_admin_management(browser, audit):
                      f"role is {edited_user.get('role')!r}")
 
         # A VIEWER must be refused writes - the role change has to have teeth.
-        probe2 = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
-        ppage2 = probe2.new_page()
+        ppage2 = probe_page(browser)
         try:
             login(ppage2, new_username, "QaUser@12345")
             papi = make_api(ppage2)
@@ -1775,7 +1814,7 @@ def audit_admin_management(browser, audit):
                 f"the VIEWER write was accepted: {str(res)[:120]}",
             )
         finally:
-            probe2.close()
+            pass
 
         # --- password reset ---------------------------------------------------
         page.evaluate("(id) => openEditUserModal(id)", user_id)
@@ -1784,8 +1823,7 @@ def audit_admin_management(browser, audit):
         page.evaluate("submitEditUser()")
         page.wait_for_timeout(2500)
 
-        probe3 = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
-        ppage3 = probe3.new_page()
+        ppage3 = probe_page(browser)
         try:
             login(ppage3, new_username, "QaReset@98765")
             audit.record("E an admin password reset lets the user sign in with the new password",
@@ -1794,10 +1832,9 @@ def audit_admin_management(browser, audit):
             audit.record("E an admin password reset lets the user sign in with the new password",
                          False, f"login with the new password failed: {str(e)[:120]}")
         finally:
-            probe3.close()
+            pass
 
-        probe4 = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
-        ppage4 = probe4.new_page()
+        ppage4 = probe_page(browser)
         try:
             ppage4.goto(BASE_URL, wait_until="domcontentloaded")
             ppage4.wait_for_selector("#loginForm", timeout=20000)
@@ -1809,7 +1846,7 @@ def audit_admin_management(browser, audit):
             audit.record("E the old password stops working after a reset", not still_in,
                          "the previous password still signs the user in")
         finally:
-            probe4.close()
+            pass
 
         # --- deactivate ---------------------------------------------------------
         page.evaluate("(id) => openEditUserModal(id)", user_id)
@@ -1824,8 +1861,7 @@ def audit_admin_management(browser, audit):
                      deactivated.get("status") in ("disabled", "inactive"),
                      f"status is {deactivated.get('status')!r}")
 
-        probe5 = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
-        ppage5 = probe5.new_page()
+        ppage5 = probe_page(browser)
         try:
             ppage5.goto(BASE_URL, wait_until="domcontentloaded")
             ppage5.wait_for_selector("#loginForm", timeout=20000)
@@ -1837,11 +1873,10 @@ def audit_admin_management(browser, audit):
             audit.record("E a deactivated user cannot sign in", not got_in,
                          "a deactivated user was still able to sign in")
         finally:
-            probe5.close()
+            pass
 
         # --- non-admins must not reach any of this ------------------------------
-        probe6 = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
-        ppage6 = probe6.new_page()
+        ppage6 = probe_page(browser)
         try:
             login(ppage6, "palash", "Household123!")          # OWNER, not admin
             papi6 = make_api(ppage6)
@@ -1852,9 +1887,10 @@ def audit_admin_management(browser, audit):
                 f"an OWNER received the admin overview: {str(ov)[:120]}",
             )
         finally:
-            probe6.close()
+            pass
 
     finally:
+        close_probe()
         ctx.close()
 
 

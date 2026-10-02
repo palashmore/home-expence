@@ -192,14 +192,42 @@ read from the environment, never printed and never written to disk. It uploads
 all seven files, then reads the gist back to confirm each one arrived and warns
 if the gist is public.
 
-### Which files the Gist holds
+### What the Gist holds: one file
 
-Everything the app persists for a household now goes to the Gist and is read
-back from it. `H001` uses the original unprefixed names; every other household
-gets its own prefixed set, so households can never overwrite each other.
+Everything lives in a single JSON document, `gharkhata.json`. Adding a household
+or a user never adds a Gist file.
 
-| File | Scope | Contents |
-|---|---|---|
+```json
+{
+  "updatedAt": "2026-10-02T...",
+  "users":      [ ... ],          // every account, across all households
+  "households": [ ... ],          // every household
+  "pushSubscriptions": [ ... ],
+  "data": {
+    "H001": { "config": {...}, "expenses": [...], "attendance": {...}, "auditLog": [...] },
+    "H002": { "config": {...}, "expenses": [...], "attendance": {...}, "auditLog": [...] }
+  }
+}
+```
+
+Each household's master configuration, ledger, attendance and history is its own
+slice under `data.<householdId>`, so households never overwrite each other.
+
+Writes are a read-modify-write of the whole document and are **serialised** in
+process: creating a household and a user in quick succession would otherwise
+have the second write discard the first.
+
+**Not in the Gist:** `vapid_keys.json` or anything secret - those are
+environment variables. Receipts and backups are not synced either.
+
+If your Gist still has the older per-file layout (`expenses.json`,
+`config.json`, `directory_users.json` and so on), it is migrated into
+`gharkhata.json` automatically the first time the app needs it. The old files
+are left in place, untouched, and simply stop being read.
+
+`npm run seed-gist` builds the whole document from `data/` and uploads it.
+
+---|---|---|
 | `expenses.json` | H001 | the ledger |
 | `config.json` | H001 | categories, staff, bills, budget, members, split rules |
 | `staff_attendance.json` | H001 | attendance marks |

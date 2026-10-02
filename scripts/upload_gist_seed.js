@@ -24,31 +24,41 @@ const REPO = path.join(__dirname, '..');
 const DATA = path.join(REPO, 'data');
 const dryRun = process.argv.includes('--dry-run');
 
-// gist filename -> how to build its contents.
-//
-// H001 uses the unprefixed names for backwards compatibility; every other
-// household gets <id>_<file>.json, which is what cloudFileFor() in
-// api/_storage.js resolves to. Per-household files are added below for each
-// household found in data/households.json.
-const FILES = {
-    'expenses.json':             () => passthrough('expenses.json', []),
-    'config.json':               () => passthrough('config.json', {}),
-    'staff_attendance.json':     () => passthrough('staff_attendance.json', {}),
-    'audit_log.json':            () => passthrough('audit_log.json', []),
-    'push_subscriptions.json':   () => passthrough('push_subscriptions.json', []),
-    'directory_users.json':      () => snapshot('users.json', 'users'),
-    'directory_households.json': () => snapshot('households.json', 'households')
-};
+// Everything lives in ONE Gist file. See api/_cloud_store.js for the shape:
+//   { updatedAt, users, households, pushSubscriptions, data: { H001: {...}, H002: {...} } }
+const STORE_FILE = 'gharkhata.json';
 
-// Seed a file per household beyond H001, from data/households/<id>/.
-for (const h of (readLocalSafe('households.json', []) || [])) {
-    const id = h && h.householdId;
-    if (!id || id === 'H001') continue;
-    FILES[`${id}_expenses.json`] = () => perHousehold(id, 'expenses.json', []);
-    FILES[`${id}_config.json`] = () => perHousehold(id, 'config.json', {});
-    FILES[`${id}_staff_attendance.json`] = () => perHousehold(id, 'attendance.json', {});
-    FILES[`${id}_audit_log.json`] = () => perHousehold(id, 'audit_log.json', []);
+function buildStore() {
+    const households = readLocalSafe('households.json', []) || [];
+    const doc = {
+        updatedAt: new Date().toISOString(),
+        users: readLocalSafe('users.json', []) || [],
+        households: households,
+        pushSubscriptions: readLocalSafe('push_subscriptions.json', []) || [],
+        data: {}
+    };
+
+    const ids = new Set(['H001', ...households.map(h => h && h.householdId).filter(Boolean)]);
+    for (const id of ids) {
+        doc.data[id] = {
+            config: id === 'H001'
+                ? (readLocalSafe('config.json', {}) || perHousehold(id, 'config.json', {}))
+                : perHousehold(id, 'config.json', {}),
+            expenses: id === 'H001'
+                ? (readLocalSafe('expenses.json', []) || [])
+                : perHousehold(id, 'expenses.json', []),
+            attendance: id === 'H001'
+                ? (readLocalSafe('staff_attendance.json', {}) || {})
+                : perHousehold(id, 'attendance.json', {}),
+            auditLog: id === 'H001'
+                ? (readLocalSafe('audit_log.json', []) || [])
+                : perHousehold(id, 'audit_log.json', [])
+        };
+    }
+    return doc;
 }
+
+const FILES = { [STORE_FILE]: buildStore };
 
 function readLocalSafe(name, fallback) {
     try {
@@ -92,6 +102,10 @@ function snapshot(sourceName, key) {
 }
 
 function describe(name, value) {
+    if (value && value.data && value.users) {
+        const households = Object.keys(value.data);
+        return `${value.users.length} users, ${households.length} households (${households.join(', ')})`;
+    }
     if (Array.isArray(value)) return `${value.length} records`;
     if (value && Array.isArray(value.users)) return `${value.users.length} users`;
     if (value && Array.isArray(value.households)) return `${value.households.length} households`;

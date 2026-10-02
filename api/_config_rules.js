@@ -54,6 +54,24 @@ function validateConfigPayload(body) {
         }
     }
 
+    if (Array.isArray(body.categories)) {
+        body.categories.forEach((cat, i) => {
+            if (!cat || cat.monthlyBudget === undefined || cat.monthlyBudget === null) return;
+            const n = parseAmount(cat.monthlyBudget);
+            if (n === null) {
+                errors.push({
+                    field: `categories[${i}].monthlyBudget`,
+                    message: `Budget for '${cat.name || 'category'}' must be a number.`
+                });
+            } else if (n < 0) {
+                errors.push({
+                    field: `categories[${i}].monthlyBudget`,
+                    message: `Budget for '${cat.name || 'category'}' cannot be negative.`
+                });
+            }
+        });
+    }
+
     if (Array.isArray(body.staff)) {
         body.staff.forEach((s, i) => {
             const where = `staff[${i}]`;

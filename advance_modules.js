@@ -2178,6 +2178,14 @@
                 </div>
               </div>
               <div class="flex items-center gap-1 shrink-0">
+                <label class="cat-budget-wrap" title="Monthly budget for ${esc(c.name || '')}. Leave blank for no limit.">
+                  <span class="cat-budget-rupee">&#8377;</span>
+                  <input type="number" min="0" step="any" inputmode="decimal"
+                    class="cat-budget-input ${c.type === 'expense' ? '' : 'hidden'}"
+                    value="${c.monthlyBudget === undefined || c.monthlyBudget === null ? '' : Number(c.monthlyBudget)}"
+                    placeholder="No limit"
+                    onchange="adminSetCategoryBudget(${jsName}, this.value)">
+                </label>
                 <button onclick="adminEditCategory(${jsName})" class="cat-edit-btn p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition" title="Edit category" aria-label="Edit category ${esc(c.name || '')}">
                   <i class="fa-solid fa-pen text-xs"></i>
                 </button>
@@ -2920,6 +2928,38 @@
   };
 
   // 1. Staff Modals & Actions
+  // Per-category monthly budget. Stored on the category itself, so it survives
+  // the config round-trip (the server spreads unknown category properties) and
+  // follows a rename without a second structure to keep in step.
+  window.adminSetCategoryBudget = async function (categoryName, rawValue) {
+    const config = window.masterConfig || {};
+    const cats = Array.isArray(config.categories) ? [...config.categories] : [];
+    const idx = cats.findIndex(c => c && c.name === categoryName);
+    if (idx === -1) return false;
+
+    const text = String(rawValue == null ? '' : rawValue).trim();
+    let budget = null;                       // blank clears the limit
+    if (text !== '') {
+      const n = Number(text.replace(/,/g, ''));
+      if (!Number.isFinite(n) || n < 0) {
+        if (window.showToast) {
+          window.showToast('error', 'Budget not saved',
+            'Enter a budget of 0 or more, or leave it blank for no limit.');
+        }
+        return false;
+      }
+      budget = n;
+    }
+
+    cats[idx] = { ...cats[idx] };
+    if (budget === null) delete cats[idx].monthlyBudget;
+    else cats[idx].monthlyBudget = budget;
+
+    const ok = await saveMasterConfig({ categories: cats });
+    if (ok && window.renderAllViews) window.renderAllViews();
+    return ok;
+  };
+
   window.openAdminAddStaffModal = function () {
     const modal = document.getElementById('adminAddStaffModal');
     if (modal) modal.classList.remove('hidden');

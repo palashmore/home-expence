@@ -2663,3 +2663,38 @@ button.min-h-\[36px\], .kpi-card button { min-height: 36px; }
 
 .has-field-error .pw-input,
 .pw-input.has-field-error { border-color: #e11d48; }
+
+/* Per-category budget input in Master Settings, and the over-budget state on
+   the dashboard bars. */
+.cat-budget-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin-right: 0.25rem;
+}
+.cat-budget-rupee {
+    position: absolute;
+    left: 0.45rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--ink-3);
+    pointer-events: none;
+}
+.cat-budget-input {
+    width: 6.25rem;
+    min-height: 36px;
+    padding: 0.25rem 0.4rem 0.25rem 1.25rem;
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius-sm);
+    background: var(--surface-1);
+    font-size: 0.6875rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-1);
+}
+.cat-budget-input::placeholder { font-weight: 600; color: var(--ink-3); }
+.cat-budget-input:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+
+.cat-bar-fill.is-over { background: linear-gradient(90deg, #fb7185, #e11d48) !important; }
+.cat-bar-pct.is-over { color: #e11d48; font-weight: 700; }
+[data-theme="dark"] .cat-bar-pct.is-over { color: #fda4af; }

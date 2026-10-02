@@ -110,6 +110,20 @@ function isStaffExpense(item, categorySet) {
     const set = categorySet || getStaffCategorySet();
     return set.has(String((item && item.category) || '').trim().toLowerCase());
 }
+// A category's own monthly budget, or null when none is set. Budgets live on
+// the category object so they follow a rename and travel with the config.
+function categoryBudgetFor(categoryName) {
+    const cats = (window.masterConfig && Array.isArray(window.masterConfig.categories))
+        ? window.masterConfig.categories
+        : [];
+    const target = String(categoryName || '').trim().toLowerCase();
+    const hit = cats.find(c => c && String(c.name || '').trim().toLowerCase() === target);
+    if (!hit || hit.monthlyBudget === undefined || hit.monthlyBudget === null) return null;
+    const n = Number(hit.monthlyBudget);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+}
+window.categoryBudgetFor = categoryBudgetFor;
+
 function getConfiguredBills() {
     const list = (window.masterConfig && Array.isArray(window.masterConfig.recurringBills))
         ? window.masterConfig.recurringBills
@@ -2304,7 +2318,22 @@ function renderCategoryPieChart(filteredData) {
             legendContainer.innerHTML = ranked.map(({ cat, colour }) => {
                 const amt = catTotals[cat];
                 const pct = totalSpent > 0 ? ((amt / totalSpent) * 100).toFixed(1) : 0;
-                const width = topAmount > 0 ? Math.max(3, (amt / topAmount) * 100) : 0;
+                // With a budget set the bar means "how much of your limit is
+                // gone", which is the reference pattern. Without one it is a
+                // share of total spend, scaled to the largest category - two
+                // different meanings, so each says which it is.
+                const budget = categoryBudgetFor(cat);
+                const hasBudget = budget !== null && budget > 0;
+                const width = hasBudget
+                    ? Math.min(100, (amt / budget) * 100)
+                    : (topAmount > 0 ? Math.max(3, (amt / topAmount) * 100) : 0);
+                const over = hasBudget && amt > budget;
+                const remaining = hasBudget ? budget - amt : 0;
+                const caption = hasBudget
+                    ? (over
+                        ? `${formatINR(amt - budget)} over the ${formatINR(budget)} budget`
+                        : `${formatINR(remaining)} left of ${formatINR(budget)}`)
+                    : `${pct}% of spend`;
                 return `
                     <button type="button" onclick="filterByCategory(${escapeHtml(JSON.stringify(cat))})"
                         class="cat-bar-row" title="Filter by ${escapeHtml(cat)}">
@@ -2316,9 +2345,10 @@ function renderCategoryPieChart(filteredData) {
                             <span class="cat-bar-amt">${formatINR(amt)}</span>
                         </span>
                         <span class="cat-bar-track">
-                            <span class="cat-bar-fill" style="width: ${width}%; background-color: ${colour}"></span>
+                            <span class="cat-bar-fill${over ? ' is-over' : ''}"
+                                style="width: ${width}%;${over ? '' : ` background-color: ${colour}`}"></span>
                         </span>
-                        <span class="cat-bar-pct">${pct}% of spend</span>
+                        <span class="cat-bar-pct${over ? ' is-over' : ''}">${caption}</span>
                     </button>
                 `;
             }).join("");

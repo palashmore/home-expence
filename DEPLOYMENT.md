@@ -204,14 +204,31 @@ or a user never adds a Gist file.
   "households": [ ... ],          // every household
   "pushSubscriptions": [ ... ],
   "data": {
-    "H001": { "config": {...}, "expenses": [...], "attendance": {...}, "auditLog": [...] },
-    "H002": { "config": {...}, "expenses": [...], "attendance": {...}, "auditLog": [...] }
+    "H001": {
+      "config":     { ... },      // this household's master configuration
+      "users":      [ { "userId": "U001", "role": "OWNER" } ],
+      "expenses":   [ ... ],
+      "attendance": { ... },
+      "auditLog":   [ ... ]
+    },
+    "H002": { "config": {...}, "users": [...], "expenses": [...], "attendance": {...}, "auditLog": [...] }
   }
 }
 ```
 
-Each household's master configuration, ledger, attendance and history is its own
-slice under `data.<householdId>`, so households never overwrite each other.
+`users`, `households` and `pushSubscriptions` are directory-level. Everything
+household-specific - master configuration, members, ledger, attendance and audit
+history - is a slice under `data.<householdId>`, so households never overwrite
+each other and adding one never adds a file.
+
+`data.<id>.users` is a derived membership index: it is recomputed from the user
+directory on every write, so it cannot drift. The user records stay the single
+source of truth; no ids, roles or fields are renamed.
+
+Migration is validated before it is trusted: every household in the directory
+must have a slice with all five keys, and every user must point at a household
+that exists. A document that fails those checks is discarded and the old files
+are left in charge.
 
 Writes are a read-modify-write of the whole document and are **serialised** in
 process: creating a household and a user in quick succession would otherwise

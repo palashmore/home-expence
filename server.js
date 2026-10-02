@@ -204,7 +204,11 @@ if (require.main === module) {
         console.log(` 📲 Closed-App Mobile Push Notifications: Enabled`);
         console.log(`=======================================================`);
 
-        // Closed-App Scheduled Push Reminders Background Worker (Runs every 4 hours)
+        // Local development only. On Vercel this never fires - functions are
+        // frozen between requests, so a timer started during a request simply
+        // does not run, which is why reminders never went out in production.
+        // There, vercel.json's `crons` entry calls
+        // /api/notifications?action=check_and_send once a day instead.
         setInterval(async () => {
             try {
                 if (notificationsHandler.checkAndSendScheduledReminders) {

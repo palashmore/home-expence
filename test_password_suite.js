@@ -50,6 +50,10 @@ async function login(username, password) {
     return json.token;
 }
 
+function authed(token) {
+    return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+}
+
 async function changePassword(token, body) {
     const res = await fetch(`${BASE_URL}/api/auth`, {
         method: 'POST',
@@ -251,6 +255,106 @@ async function testAdminStillHasFullAccess() {
     assert(restored.status === 200, 'restored the member password');
 }
 
+async function testPasswordChangeEndsSessions() {
+    console.log('\n--- TEST 8: changing a password ends sessions opened before it ---');
+
+    const oldToken = await login(MEMBER.username, MEMBER.password);
+
+    // The old token works right now.
+    const beforeRes = await fetch(`${BASE_URL}/api/notifications?action=list_in_app`, {
+        headers: { Authorization: `Bearer ${oldToken}` }
+    });
+    assert(beforeRes.status === 200, `the session works before the change (got ${beforeRes.status})`);
+
+    const temp = 'Rotate#Session1';
+    const changed = await changePassword(oldToken, {
+        currentPassword: MEMBER.password, newPassword: temp, confirmPassword: temp
+    });
+    assert(changed.status === 200, 'the password was changed');
+
+    // A self-contained token used to stay valid here until it expired.
+    const afterRes = await fetch(`${BASE_URL}/api/notifications?action=list_in_app`, {
+        headers: { Authorization: `Bearer ${oldToken}` }
+    });
+    assert(afterRes.status === 401,
+        `the token issued before the change is now refused (got ${afterRes.status})`);
+
+    // A fresh sign-in works.
+    const freshToken = await login(MEMBER.username, temp);
+    const freshRes = await fetch(`${BASE_URL}/api/notifications?action=list_in_app`, {
+        headers: { Authorization: `Bearer ${freshToken}` }
+    });
+    assert(freshRes.status === 200, 'a session opened after the change works');
+
+    // Restore.
+    await changePassword(freshToken, {
+        currentPassword: temp, newPassword: MEMBER.password, confirmPassword: MEMBER.password
+    });
+    const restored = await rawLogin(MEMBER.username, MEMBER.password);
+    assert(restored.status === 200, 'restored the member password');
+}
+
+async function testAdminResetEndsTargetSessions() {
+    console.log('\n--- TEST 9: an admin reset signs the target out ---');
+
+    const stolenToken = await login(MEMBER.username, MEMBER.password);
+    const adminToken = await login(ADMIN.username, ADMIN.password);
+    const temp = 'AdminRotate#9';
+
+    const reset = await fetch(`${BASE_URL}/api/auth`, {
+        method: 'POST',
+        headers: authed(adminToken),
+        body: JSON.stringify({ action: 'edit_user', userId: 'U002', password: temp })
+    });
+    assert(reset.status === 200, 'the admin reset the password');
+
+    // Resetting a compromised account has to remove the intruder, not just
+    // change what they would type next time.
+    const stolen = await fetch(`${BASE_URL}/api/notifications?action=list_in_app`, {
+        headers: { Authorization: `Bearer ${stolenToken}` }
+    });
+    assert(stolen.status === 401,
+        `a session held from before the reset is refused (got ${stolen.status})`);
+
+    // Restore.
+    await fetch(`${BASE_URL}/api/auth`, {
+        method: 'POST',
+        headers: authed(adminToken),
+        body: JSON.stringify({ action: 'edit_user', userId: 'U002', password: MEMBER.password })
+    });
+    const back = await rawLogin(MEMBER.username, MEMBER.password);
+    assert(back.status === 200, 'restored the member password');
+}
+
+async function testDeactivationEndsSessions() {
+    console.log('\n--- TEST 10: deactivating a user ends their session too ---');
+
+    const victimToken = await login(MEMBER.username, MEMBER.password);
+    const adminToken = await login(ADMIN.username, ADMIN.password);
+
+    const off = await fetch(`${BASE_URL}/api/auth`, {
+        method: 'POST',
+        headers: authed(adminToken),
+        body: JSON.stringify({ action: 'edit_user', userId: 'U002', status: 'inactive' })
+    });
+    assert(off.status === 200, 'the user was deactivated');
+
+    const held = await fetch(`${BASE_URL}/api/notifications?action=list_in_app`, {
+        headers: { Authorization: `Bearer ${victimToken}` }
+    });
+    assert(held.status === 401,
+        `a deactivated user's existing session is refused (got ${held.status})`);
+
+    // Restore.
+    await fetch(`${BASE_URL}/api/auth`, {
+        method: 'POST',
+        headers: authed(adminToken),
+        body: JSON.stringify({ action: 'edit_user', userId: 'U002', status: 'active' })
+    });
+    const back = await rawLogin(MEMBER.username, MEMBER.password);
+    assert(back.status === 200, 'the user can sign in again');
+}
+
 (async () => {
     console.log('====================================================');
     console.log(' AUTHENTICATION & PASSWORD SUITE');
@@ -263,6 +367,9 @@ async function testAdminStillHasFullAccess() {
     await testCannotTargetAnotherAccount();
     await testUnauthenticated();
     await testAdminStillHasFullAccess();
+    await testPasswordChangeEndsSessions();
+    await testAdminResetEndsTargetSessions();
+    await testDeactivationEndsSessions();
 
     console.log('\n====================================================');
     console.log(`📊 Test Results: ${passed} PASSED, ${failed} FAILED`);

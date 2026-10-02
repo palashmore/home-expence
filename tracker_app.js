@@ -1560,8 +1560,10 @@ function resetToCurrentMonth() {
     dashboardFilters.dateFrom = null;
     dashboardFilters.dateTo = null;
     dashboardFilters.searchVal = "";
+    activePeriodPreset = 'this-month';
 
     syncFilterControlsToState();
+    updatePeriodSwitch();
     if (window.syncPersonalFilterWithPaidBy) {
         window.syncPersonalFilterWithPaidBy("all");
     }
@@ -1610,10 +1612,37 @@ function syncFilterControlsToState() {
 }
 
 // Quick Filter Chips handlers
+// Which preset the period switch is showing as active. A custom date range
+// entered by hand clears it, because none of the presets describes it.
+let activePeriodPreset = 'this-month';
+
+function toYmd(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function quickFilterPeriod(period) {
     triggerHaptic('tap');
     const cur = getCurrentPeriod();
-    if (period === 'this-month') {
+    const now = new Date();
+
+    // Day and week are genuine date ranges; month and year are month/year
+    // selections. getFilteredExpenses gives a range precedence over the
+    // month/year pair, so the two must not both be set.
+    let from = null;
+    let to = null;
+
+    if (period === 'today') {
+        from = to = toYmd(now);
+        dashboardFilters.month = "all";
+        dashboardFilters.year = "all";
+    } else if (period === 'this-week') {
+        const start = new Date(now);
+        start.setDate(now.getDate() - ((now.getDay() + 6) % 7));   // back to Monday
+        from = toYmd(start);
+        to = toYmd(now);
+        dashboardFilters.month = "all";
+        dashboardFilters.year = "all";
+    } else if (period === 'this-month') {
         dashboardFilters.month = cur.monthName;
         dashboardFilters.year = cur.yearStr;
     } else if (period === 'last-month') {
@@ -1627,11 +1656,38 @@ function quickFilterPeriod(period) {
         dashboardFilters.month = "all";
         dashboardFilters.year = "all";
     }
-    dashboardFilters.dateFrom = null;
-    dashboardFilters.dateTo = null;
+
+    dashboardFilters.dateFrom = from;
+    dashboardFilters.dateTo = to;
+    activePeriodPreset = period;
     syncFilterControlsToState();
+    updatePeriodSwitch();
     renderAllViews();
 }
+
+// The phone period switch. Ids are fixed, so this is cheap to call often.
+const PERIOD_SWITCH_BUTTONS = {
+    'today': 'mPeriodToday',
+    'this-week': 'mPeriodWeek',
+    'this-month': 'mPeriodMonth',
+    'this-year': 'mPeriodYear'
+};
+const PERIOD_SWITCH_LABELS = {
+    'today': 'Today',
+    'this-week': 'This Week',
+    'this-month': 'This Month',
+    'this-year': 'This Year',
+    'last-month': 'Last Month',
+    'all-time': 'All Time'
+};
+
+function updatePeriodSwitch() {
+    for (const [preset, id] of Object.entries(PERIOD_SWITCH_BUTTONS)) {
+        const btn = document.getElementById(id);
+        if (btn) btn.setAttribute('aria-pressed', String(preset === activePeriodPreset));
+    }
+}
+window.updatePeriodSwitch = updatePeriodSwitch;
 
 function quickFilterPaidBy(member) {
     dashboardFilters.paidBy = (dashboardFilters.paidBy === member) ? "all" : member;
@@ -1660,6 +1716,8 @@ function applyCustomDateRange() {
 
     if (fromInput && fromInput.value) dashboardFilters.dateFrom = fromInput.value;
     if (toInput && toInput.value) dashboardFilters.dateTo = toInput.value;
+    activePeriodPreset = null;
+    updatePeriodSwitch();
 
     renderAllViews();
 }
@@ -1667,6 +1725,10 @@ function applyCustomDateRange() {
 function clearCustomDateRange() {
     dashboardFilters.dateFrom = null;
     dashboardFilters.dateTo = null;
+    activePeriodPreset = (dashboardFilters.month === 'all' && dashboardFilters.year === 'all')
+        ? 'all-time'
+        : (dashboardFilters.month === 'all' ? 'this-year' : 'this-month');
+    updatePeriodSwitch();
     const fromInput = document.getElementById("filterDateFrom");
     const toInput = document.getElementById("filterDateTo");
     if (fromInput) fromInput.value = "";
@@ -2080,6 +2142,7 @@ function renderDashboard(filtered) {
 
     // 8. Budget & Checklist & Tables
     renderBudgetProgress(totalHouseholdSpent, totalPersonalSpent, totalCombinedSpent);
+    renderMobileHero(totalDisplaySpent, totalIncome, netCashFlow, modeLabel);
     renderChecklistUI(checklistStatus.items);
     renderTopExpensesTable(activeExpenseItems);
     renderRecentTransactionsTable(visualData);
@@ -2218,15 +2281,36 @@ function renderCategoryPieChart(filteredData) {
         if (labels.length === 0) {
             legendContainer.innerHTML = `<span class="text-slate-400 italic col-span-3 text-center">No category data</span>`;
         } else {
-            legendContainer.innerHTML = labels.map((cat, idx) => {
+            // A ranked breakdown with a bar per category reads far faster than
+            // a grid of percentages, and matches the "Spending Breakdown" panel
+            // the reference designs use. The bar is scaled to the largest
+            // category, not to the total, so small ones stay visible.
+            const topAmount = Math.max(...labels.map(c => catTotals[c]), 0);
+            // Ranked biggest first. The chart's own label order follows the
+            // dataset, which is not what a reader scanning for their largest
+            // outgoing wants.
+            const ranked = labels
+                .map((cat, idx) => ({ cat, colour: colors[idx % colors.length] }))
+                .sort((a, b) => catTotals[b.cat] - catTotals[a.cat]);
+            legendContainer.innerHTML = ranked.map(({ cat, colour }) => {
                 const amt = catTotals[cat];
                 const pct = totalSpent > 0 ? ((amt / totalSpent) * 100).toFixed(1) : 0;
+                const width = topAmount > 0 ? Math.max(3, (amt / topAmount) * 100) : 0;
                 return `
-                    <div onclick="filterByCategory(${escapeHtml(JSON.stringify(cat))})" class="flex items-center space-x-1.5 cursor-pointer hover:bg-slate-100 p-1 rounded-lg transition" title="Click to filter by ${cat}">
-                        <span class="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style="background-color: ${colors[idx % colors.length]}"></span>
-                        <span class="truncate font-semibold text-slate-700">${cat}:</span>
-                        <span class="font-bold text-slate-900">${pct}%</span>
-                    </div>
+                    <button type="button" onclick="filterByCategory(${escapeHtml(JSON.stringify(cat))})"
+                        class="cat-bar-row" title="Filter by ${escapeHtml(cat)}">
+                        <span class="cat-bar-top">
+                            <span class="cat-bar-name">
+                                <span class="cat-bar-dot" style="background-color: ${colour}"></span>
+                                <span class="truncate">${escapeHtml(cat)}</span>
+                            </span>
+                            <span class="cat-bar-amt">${formatINR(amt)}</span>
+                        </span>
+                        <span class="cat-bar-track">
+                            <span class="cat-bar-fill" style="width: ${width}%; background-color: ${colour}"></span>
+                        </span>
+                        <span class="cat-bar-pct">${pct}% of spend</span>
+                    </button>
                 `;
             }).join("");
         }
@@ -2236,13 +2320,16 @@ function renderCategoryPieChart(filteredData) {
 
     categoryPieChartInstance = new Chart(canvas.getContext('2d'), {
         type: 'doughnut',
+        plugins: [donutCenterTotal(totalSpent)],
         data: {
             labels: labels,
             datasets: [{
                 data: data,
                 backgroundColor: colors.slice(0, labels.length),
                 borderWidth: 2,
-                borderColor: '#ffffff',
+                // The slice gap has to be the card colour, not white, or every
+                // segment gets a bright outline on a dark card.
+                borderColor: surfaceColor(),
                 hoverOffset: 6
             }]
         },
@@ -2426,13 +2513,19 @@ function renderMonthlyTrendChart(allExpenses) {
                 {
                     label: `Expenses (Debit)`,
                     data: expenseData,
-                    backgroundColor: '#ef4444',
+                    // The period being viewed is drawn solid; the rest of the
+                    // year is dimmed, so the bar you are reading about is
+                    // obvious at a glance. Every reference chart does this.
+                    backgroundColor: expenseData.map((_, idx) =>
+                        isHighlightedBucket(idx, labels.length) ? '#ef4444' : 'rgba(239, 68, 68, .34)'),
                     borderRadius: 6
                 },
                 {
                     label: `Income / Inflow`,
                     data: incomeData,
-                    backgroundColor: '#10b981',
+                    backgroundColor: incomeData.map((_, idx) =>
+                        isHighlightedBucket(idx, labels.length)
+                            ? '#10b981' : 'rgba(16, 185, 129, .34)'),
                     borderRadius: 6
                 }
             ]
@@ -2637,6 +2730,80 @@ function renderHouseholdSpendingMatrix(filteredData) {
             </tr>
         `;
     }).join("");
+}
+
+// ================= PHONE HOME HERO =================
+// One figure, a progress track and three supporting stats - the shape every
+// reference design uses. The references lead with an account balance, which
+// this app has no source for: it tracks expenses, income and budgets, not a
+// bank balance. Remaining budget is the honest equivalent and the one number
+// that is actually actionable, with spend, net flow and the cap beneath it.
+function renderMobileHero(totalSpent, totalIncome, netCashFlow, modeLabel) {
+    const host = document.getElementById("mHeroPrimaryVal");
+    if (!host) return;
+
+    const budget = (window.masterConfig && Number(window.masterConfig.monthlyBudgetLimit))
+        || monthlyBudgetLimit || 0;
+    const spent = Number(totalSpent) || 0;
+    const remaining = budget - spent;
+    const rawPct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
+
+    const setText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    };
+
+    // With no budget configured there is nothing to be "remaining" from, so the
+    // card leads with the spend instead of showing a negative of the whole total.
+    if (budget > 0) {
+        setText("mHeroPrimaryLabel", remaining >= 0 ? "Remaining Budget" : "Over Budget By");
+        host.textContent = formatINR(Math.abs(remaining));
+        host.classList.toggle("is-over", remaining < 0);
+        setText("mHeroBarNote", `${rawPct}% of budget used`);
+    } else {
+        setText("mHeroPrimaryLabel", `Total Spent · ${modeLabel || 'Household'}`);
+        host.textContent = formatINR(spent);
+        host.classList.remove("is-over");
+        setText("mHeroBarNote", "No budget set in Master Settings");
+    }
+
+    const bar = document.getElementById("mHeroBar");
+    if (bar) {
+        bar.style.width = `${Math.min(100, Math.max(0, rawPct))}%`;
+        bar.classList.toggle("is-warn", rawPct >= 75 && rawPct <= 100);
+        bar.classList.toggle("is-over", rawPct > 100);
+    }
+
+    setText("mHeroSpent", formatINR(spent));
+    setText("mHeroNet", (Number(netCashFlow) >= 0 ? "+" : "-") + formatINR(Math.abs(Number(netCashFlow) || 0)));
+    setText("mHeroBudget", budget > 0 ? formatINR(budget) : "Not set");
+
+    const net = document.getElementById("mHeroNet");
+    if (net) net.classList.toggle("is-negative", Number(netCashFlow) < 0);
+
+    setText("mHeroPeriod", PERIOD_SWITCH_LABELS[activePeriodPreset] || currentPeriodLabel());
+
+    // The mode chip mirrors the desktop badge rather than keeping its own state.
+    const chip = document.getElementById("mHeroModeChip");
+    if (chip) {
+        const meta = DASHBOARD_MODE_META[getDashboardMode()] || DASHBOARD_MODE_META.household;
+        const icon = chip.querySelector('i');
+        const text = chip.querySelector('span');
+        if (icon) icon.className = `fa-solid ${meta.icon}`;
+        if (text) text.textContent = meta.label;
+    }
+}
+window.renderMobileHero = renderMobileHero;
+
+// What the period reads as when no preset is active (a hand-entered range).
+function currentPeriodLabel() {
+    if (dashboardFilters.dateFrom || dashboardFilters.dateTo) {
+        return `${formatDisplayDate(dashboardFilters.dateFrom)} - ${formatDisplayDate(dashboardFilters.dateTo)}`;
+    }
+    if (dashboardFilters.month === 'all') {
+        return dashboardFilters.year === 'all' ? 'All Time' : dashboardFilters.year;
+    }
+    return `${dashboardFilters.month} ${dashboardFilters.year}`;
 }
 
 // ================= BUDGET, RECURRING & YTD =================
@@ -2923,6 +3090,88 @@ if (typeof window !== "undefined" && window.matchMedia) {
     } catch (e) {}
 }
 
+// Day grouping for the ledger. Keyed on the local calendar date so entries
+// never drift across a day boundary the way an ISO-string compare can.
+function dayGroupKey(dateStr) {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 'unknown';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function dayGroupLabel(dateStr) {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 'Undated';
+    const today = new Date();
+    const key = dayGroupKey(dateStr);
+    if (key === dayGroupKey(today)) return 'Today';
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    if (key === dayGroupKey(yesterday)) return 'Yesterday';
+    // Same year reads better without it: "18 March" rather than "18 March 2026".
+    const sameYear = d.getFullYear() === today.getFullYear();
+    return d.toLocaleDateString('en-IN', sameYear
+        ? { day: 'numeric', month: 'long' }
+        : { day: 'numeric', month: 'long', year: 'numeric' });
+}
+window.dayGroupLabel = dayGroupLabel;
+
+// Chart colours that follow the theme. Chart.js paints to a canvas, so it
+// cannot inherit CSS - the values have to be read out and handed to it.
+function themeInk(step) {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(step);
+    return (v || '').trim() || '#0f172a';
+}
+function surfaceColor() { return themeInk('--surface-1'); }
+
+// The hole in a doughnut is wasted unless it carries the total. Every
+// reference design puts the figure there.
+function donutCenterTotal(total) {
+    return {
+        id: 'donutCenterTotal',
+        afterDraw(chart) {
+            const meta = chart.getDatasetMeta(0);
+            if (!meta || !meta.data || !meta.data.length) return;
+            const { ctx } = chart;
+            const { x, y } = meta.data[0];
+            const r = meta.data[0].innerRadius || 0;
+            if (r < 28) return;                      // too small to letter
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            ctx.fillStyle = themeInk('--ink-3');
+            ctx.font = `700 ${Math.max(9, Math.round(r * 0.19))}px ${CHART_FONT}`;
+            ctx.fillText('TOTAL', x, y - r * 0.34);
+
+            ctx.fillStyle = themeInk('--ink-1');
+            const size = Math.max(13, Math.round(r * 0.36));
+            ctx.font = `800 ${size}px ${CHART_FONT}`;
+            let label = formatINR(total);
+            // Long totals get a compact form rather than spilling past the hole.
+            if (ctx.measureText(label).width > r * 1.7) {
+                label = total >= 1e7 ? `₹${(total / 1e7).toFixed(2)}Cr`
+                      : total >= 1e5 ? `₹${(total / 1e5).toFixed(2)}L`
+                      : `₹${Math.round(total / 1000)}k`;
+                ctx.font = `800 ${Math.round(size * 0.95)}px ${CHART_FONT}`;
+            }
+            ctx.fillText(label, x, y + r * 0.08);
+            ctx.restore();
+        }
+    };
+}
+const CHART_FONT = "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif";
+
+// Which bar the dashboard period maps to: a month index for the 12-month
+// view, a quarter index for the quarterly one. "all" highlights nothing,
+// because no single bucket is being reported on.
+function isHighlightedBucket(idx, bucketCount) {
+    if (dashboardFilters.month === 'all') return false;
+    const monthIdx = MONTHS.indexOf(dashboardFilters.month);
+    if (monthIdx < 0) return false;
+    return bucketCount === 4 ? Math.floor(monthIdx / 3) === idx : monthIdx === idx;
+}
+
 function renderExpenseTable(filteredData) {
     applyExpenseView(getStoredExpenseView());
 
@@ -2967,14 +3216,31 @@ function renderExpenseTable(filteredData) {
     }).join("");
 
     // Mobile Card List Render (< md, min touch targets 44px, progressive disclosure)
+    // Cards are grouped under a date heading carrying that day's total, so a
+    // long ledger reads as days rather than one undifferentiated stream.
     if (mobileCards) {
+        let lastGroupKey = null;
         mobileCards.innerHTML = sorted.map(item => {
             const isIncome = item.category === "Accepted Payments (Income)";
             const catIcon = getCategoryIcon(item.category);
             const notes = (item.notes || item.description || '').trim();
             const recipient = (item.paidTo || item.vendor || '').trim();
 
-            return `
+            let groupHeader = '';
+            const groupKey = dayGroupKey(item.date);
+            if (groupKey !== lastGroupKey) {
+                lastGroupKey = groupKey;
+                const dayItems = sorted.filter(x => dayGroupKey(x.date) === groupKey);
+                const dayNet = dayItems.reduce((acc, x) => acc +
+                    (x.category === "Accepted Payments (Income)" ? 0 : Number(x.amount) || 0), 0);
+                groupHeader = `
+                <div class="tx-group-head">
+                    <span class="tx-group-label">${escapeHtml(dayGroupLabel(item.date))}</span>
+                    <span class="tx-group-total">${formatINR(dayNet)}</span>
+                </div>`;
+            }
+
+            return groupHeader + `
                 <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/90 hover:shadow-md transition space-y-3">
                     <!-- Top Bar: Category & Date -->
                     <div class="flex items-start justify-between gap-2">

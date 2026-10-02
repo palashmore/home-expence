@@ -645,6 +645,14 @@ function updateUser(userId, updates, actor = 'System') {
         current.passwordHash = updates.passwordHash;
     }
 
+    // The credential generation. Tokens carry the value they were issued
+    // against, so moving this forward ends every session opened beforehand.
+    // updateUser copies named fields only, so without this the stamp would be
+    // dropped silently and sessions would survive a password change.
+    if (updates.passwordChangedAt) {
+        current.passwordChangedAt = Number(updates.passwordChangedAt);
+    }
+
     current.updatedAt = new Date().toISOString();
     users[idx] = current;
     persistUsers(users);

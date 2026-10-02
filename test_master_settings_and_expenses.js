@@ -238,10 +238,38 @@ async function runTests() {
     // Test 6: Role-Based Permission Enforcement for VIEWER
     console.log('\n--- TEST 6: Role-Based Permission Enforcement for VIEWER ---');
     try {
+        // The viewer has to be a real account. This used to mint a token for
+        // U999, a userId that was never created - which passed only because
+        // tokens were accepted without checking the account still exists. Now
+        // that a token for an unknown or disabled user is refused, a fabricated
+        // viewer gets 401 and the role check it exists to prove never runs.
+        const adminLogin = await makeRequest({
+            method: 'POST', urlPath: '/api/auth',
+            headers: { 'Content-Type': 'application/json' },
+            body: { action: 'login', username: 'admin', password: 'Admin@123' }
+        });
+        const adminTok = adminLogin.data && adminLogin.data.token;
+        const viewerName = `guest_viewer_${Date.now().toString().slice(-6)}`;
+        await makeRequest({
+            method: 'POST', urlPath: '/api/auth',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminTok}` },
+            body: {
+                action: 'create_user', username: viewerName, password: 'Viewer@12345',
+                name: 'Guest Viewer', role: 'VIEWER', householdId: 'H001'
+            }
+        });
+        const viewerLogin = await makeRequest({
+            method: 'POST', urlPath: '/api/auth',
+            headers: { 'Content-Type': 'application/json' },
+            body: { action: 'login', username: viewerName, password: 'Viewer@12345' }
+        });
+        const realViewerToken = viewerLogin.data && viewerLogin.data.token;
+        assert(!!realViewerToken, 'a real VIEWER account was created and can sign in');
+
         const expRes = await makeRequest({
             method: 'POST',
             urlPath: '/api/expenses',
-            headers: { 'Authorization': `Bearer ${viewerToken}` },
+            headers: { 'Authorization': `Bearer ${realViewerToken}` },
             body: { date: '2026-09-29', amount: 100, category: 'Test', paidBy: 'Palash' }
         });
         assert(expRes.statusCode === 403, `VIEWER creating expense blocked with 403 Forbidden`);
@@ -249,7 +277,7 @@ async function runTests() {
         const delRes = await makeRequest({
             method: 'DELETE',
             urlPath: '/api/expenses?id=some-id',
-            headers: { 'Authorization': `Bearer ${viewerToken}` }
+            headers: { 'Authorization': `Bearer ${realViewerToken}` }
         });
         assert(delRes.statusCode === 403, `VIEWER deleting expense blocked with 403 Forbidden`);
     } catch (err) {

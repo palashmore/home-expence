@@ -294,7 +294,15 @@ async function sendPushToHouseholdMembers({ householdId, title, body, url, tag, 
         await writeSubscriptions(cleanedSubs);
     }
 
-    return { delivered, total: targetSubs.length };
+    // "delivered" means the push service accepted the message for that
+    // subscription. No server can know whether the handset displayed it, so
+    // this is deliberately not called a delivery confirmation.
+    return {
+        accepted: delivered,
+        failed: targetSubs.length - delivered,
+        expired: targetSubs.length - remainingEndpoints.size,
+        total: targetSubs.length
+    };
 }
 
 // Background Reminder Scanner: Evaluates bills & staff cutoffs
@@ -440,7 +448,16 @@ function buildHouseholdReminders({ config, expenses, today = new Date() }) {
 // effectively never happened in production.
 async function checkAndSendScheduledReminders({ today = new Date() } = {}) {
     const subs = await readSubscriptions();
-    if (!subs.length) return { status: 'no_subscriptions', households: 0, sentCount: 0 };
+    // Same shape on every path, so a caller never has to handle two.
+    if (!subs.length) {
+        return {
+            status: 'no_subscriptions',
+            households: 0, evaluated: 0, sentCount: 0,
+            pushAccepted: 0, pushFailed: 0, pushExpiredRemoved: 0,
+            perHousehold: {}, subscribersCount: 0,
+            leadDays: REMINDER_LEAD_DAYS
+        };
+    }
 
     let households = [];
     try {
@@ -451,6 +468,9 @@ async function checkAndSendScheduledReminders({ today = new Date() } = {}) {
 
     let sentCount = 0;
     let evaluated = 0;
+    let accepted = 0;
+    let failed = 0;
+    let expired = 0;
     const perHousehold = {};
 
     for (const household of households) {
@@ -476,7 +496,7 @@ async function checkAndSendScheduledReminders({ today = new Date() } = {}) {
 
             // Household-scoped dispatch: this is the only function that filters
             // subscriptions by household.
-            await sendPushToHouseholdMembers({
+            const outcome = await sendPushToHouseholdMembers({
                 householdId,
                 title: reminder.title,
                 body: reminder.body,
@@ -487,6 +507,12 @@ async function checkAndSendScheduledReminders({ today = new Date() } = {}) {
             markReminderSent(dedupeKey);
             sentHere++;
             sentCount++;
+            // Count what the push service actually accepted. This used to
+            // report the number of loop iterations, so a reminder that reached
+            // nobody still looked like a success.
+            accepted += Number(outcome && outcome.accepted) || 0;
+            failed += Number(outcome && outcome.failed) || 0;
+            expired += Number(outcome && outcome.expired) || 0;
         }
 
         if (sentHere) perHousehold[householdId] = sentHere;
@@ -496,7 +522,14 @@ async function checkAndSendScheduledReminders({ today = new Date() } = {}) {
         status: 'ok',
         households: households.length,
         evaluated,
+        // Reminders dispatched (one per bill per day).
         sentCount,
+        // What the push services did with them. `accepted` is the honest
+        // ceiling on delivery: a handset that has silenced notifications still
+        // counts as accepted, so this is not proof anything was seen.
+        pushAccepted: accepted,
+        pushFailed: failed,
+        pushExpiredRemoved: expired,
         perHousehold,
         subscribersCount: subs.length,
         leadDays: REMINDER_LEAD_DAYS

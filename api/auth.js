@@ -106,6 +106,11 @@ function generateSessionToken(user, household) {
         householdId: user.householdId || household.householdId,
         householdName: household?.householdName || 'Household',
         role: user.role || 'MEMBER',
+        // The credential generation this token was issued against. If the
+        // password changes afterwards, the stored value moves past this one and
+        // the token stops verifying - which is what ends sessions opened before
+        // the change.
+        pwAt: Number(user.passwordChangedAt) || 0,
         iat: Date.now(),
         exp: Date.now() + SESSION_EXPIRY_MS
     });
@@ -164,7 +169,34 @@ function authenticateRequest(req) {
     }
 
     const session = verifySessionToken(token);
-    return session || null;
+    if (!session) return null;
+
+    // A self-contained token proves only that we issued it. It says nothing
+    // about whether the account still exists, is still enabled, or still has
+    // the password it was issued against - so a stolen token used to survive a
+    // password change, a deactivation and even a deletion, until it expired.
+    //
+    // This is a local file read, not a network call, so it costs microseconds
+    // on a request that is about to read household data anyway.
+    let users;
+    try {
+        users = storage.getAllUsers();
+    } catch (e) {
+        // Storage is momentarily unreadable. Fail open rather than signing
+        // everybody out over a transient error - the signature was still valid.
+        return session;
+    }
+    if (!Array.isArray(users) || users.length === 0) return session;
+
+    const user = users.find(u => u && u.userId === session.userId);
+    if (!user) return null;                       // deleted account
+    if (user.status && String(user.status).toLowerCase() !== 'active') return null;   // disabled
+
+    const changedAt = Number(user.passwordChangedAt) || 0;
+    const issuedFor = Number(session.pwAt) || 0;
+    if (changedAt > issuedFor) return null;       // issued before the current password
+
+    return session;
 }
 
 // ==========================================
@@ -444,7 +476,10 @@ module.exports = async function handler(req, res) {
 
                 try {
                     storage.updateUser(session.userId,
-                        { passwordHash: hashPassword(newPassword) },
+                        {
+                            passwordHash: hashPassword(newPassword),
+                            passwordChangedAt: Date.now()
+                        },
                         session.username);
                 } catch (err) {
                     return res.status(400).json({ success: false, error: err.message });
@@ -693,6 +728,10 @@ module.exports = async function handler(req, res) {
                 // If password is being reset
                 if (body.password && String(body.password).trim().length >= 6) {
                     updates.passwordHash = hashPassword(String(body.password).trim());
+                    // An administrator resetting a compromised account must also
+                    // sign the intruder out, not just change what they would
+                    // need to type next time.
+                    updates.passwordChangedAt = Date.now();
                 }
 
                 try {

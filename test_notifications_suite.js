@@ -263,6 +263,68 @@ async function testScanIsHouseholdScoped() {
         `the schedule is a valid cron expression (got "${crons[0] && crons[0].schedule}")`);
 }
 
+function testCategoryBudgets() {
+    console.log('\n--- TEST 8: per-category budgets ---');
+    const rules = require('./api/_config_rules.js');
+
+    const bad = rules.validateConfigPayload({
+        categories: [{ name: 'Groceries', monthlyBudget: 'lots' }]
+    });
+    assert(bad.some(e => /monthlyBudget/.test(e.field)),
+        'a non-numeric category budget is rejected');
+
+    const negative = rules.validateConfigPayload({
+        categories: [{ name: 'Groceries', monthlyBudget: -5 }]
+    });
+    assert(negative.some(e => /monthlyBudget/.test(e.field)),
+        'a negative category budget is rejected');
+
+    const good = rules.validateConfigPayload({
+        categories: [{ name: 'Groceries', monthlyBudget: 4000 },
+                     { name: 'Fuel' }]
+    });
+    assert(good.length === 0,
+        `a valid budget and a category without one both pass (got ${good.length} errors)`);
+
+    const zero = rules.validateConfigPayload({
+        categories: [{ name: 'Groceries', monthlyBudget: 0 }]
+    });
+    assert(zero.length === 0, 'a budget of zero is allowed');
+
+    // The budget lives on the category rather than in a structure of its own,
+    // so it has to survive the config round-trip.
+    const store = require('./api/_cloud_store.js');
+    const native = {
+        categories: [{ name: 'Groceries', icon: 'G', type: 'expense', monthlyBudget: 4000 }],
+        staff: [], recurringBills: [], monthlyBudgetLimit: 50000
+    };
+    const back = store.fromStoredConfig(store.toStoredConfig(native));
+    assert(back.categories[0].monthlyBudget === 4000,
+        `the category budget survives the round trip (got ${back.categories[0].monthlyBudget})`);
+}
+
+async function testPushOutcomesAreReported() {
+    console.log('\n--- TEST 9: the scan reports what push services accepted ---');
+    const admin = await login(ADMIN.username, ADMIN.password);
+    const res = await fetch(`${BASE_URL}/api/notifications?action=check_and_send`, {
+        headers: authed(admin.token)
+    });
+    const json = await res.json();
+    const r = json.result || {};
+
+    assert(res.status === 200, `the scan ran (got ${res.status})`);
+    assert('sentCount' in r, 'it reports how many reminders were dispatched');
+    assert('pushAccepted' in r && 'pushFailed' in r,
+        'and separately what the push services accepted and refused');
+    assert('pushExpiredRemoved' in r,
+        'and how many dead subscriptions were pruned');
+
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('./api/notifications.js'), 'utf8');
+    assert(/accepted \+= Number/.test(src),
+        'the counts come from the dispatch result, not from counting loop turns');
+}
+
 (async () => {
     console.log('====================================================');
     console.log(' NOTIFICATIONS & BILL REMINDERS SUITE');
@@ -275,6 +337,8 @@ async function testScanIsHouseholdScoped() {
     await testTriggerRequiresCredential();
     await testExpenseNotifiesHouseholdOnly();
     await testScanIsHouseholdScoped();
+    testCategoryBudgets();
+    await testPushOutcomesAreReported();
 
     console.log('\n====================================================');
     console.log(`📊 Test Results: ${passed} PASSED, ${failed} FAILED`);

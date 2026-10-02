@@ -571,7 +571,13 @@ def audit_no_silent_defaults(page, audit, api):
     page.evaluate("saveAdminConfigFromUI()")
 
     # Check the form state the owner would actually see, before anything else
-    # re-renders the view.
+    # re-renders the view. The save is async, so wait for the message to appear
+    # rather than reading the DOM in the same tick - reading immediately made
+    # this check intermittently fail on a validation that was working.
+    try:
+        page.wait_for_selector(".field-error.is-visible", timeout=3000)
+    except PWError:
+        pass
     msg_shown = page.evaluate(
         """() => {
             const p = document.querySelector('.field-error.is-visible');
@@ -1501,6 +1507,132 @@ def audit_dashboard_mode(page, audit, api):
     )
 
 
+def audit_budget_counts_everything(page, audit, api):
+    """The monthly budget must measure every expense in the period, household
+    and personal together. It used to count household spending only, so
+    personal spending could run past the cap without the bar ever moving."""
+    print("\n[D] the monthly budget counts every expense")
+
+    goto_tab(page, "dashboard")
+    page.wait_for_timeout(1000)
+
+    # Show a period that actually has both kinds of expense in it.
+    page.evaluate(
+        """() => {
+            const m = document.getElementById('filterMonth');
+            const y = document.getElementById('filterYear');
+            if (m) m.value = 'all';
+            if (y) y.value = 'all';
+            onFilterChange();
+        }"""
+    )
+    page.wait_for_timeout(1500)
+
+    audit.record(
+        "D the budget is labelled Monthly Budget, not Monthly Household Budget",
+        page.evaluate(
+            "() => !/Monthly Household Budget/.test(document.body.innerText)"
+        ),
+        "the dashboard still says 'Monthly Household Budget'",
+    )
+
+    state = page.evaluate(
+        r"""() => {
+            const num = (id) => {
+                const el = document.getElementById(id);
+                if (!el) return null;
+                const m = (el.textContent || '').replace(/[^0-9.]/g, '');
+                return m === '' ? null : Number(m);
+            };
+            const sub = (id) => {
+                const el = document.getElementById(id);
+                if (!el) return null;
+                const m = (el.textContent || '').match(/[\d,]+(?:\.\d+)?/);
+                return m ? Number(m[0].replace(/,/g, '')) : null;
+            };
+            const items = (window.getFilteredExpenses ? window.getFilteredExpenses() : [])
+                .filter(i => i.category !== 'Accepted Payments (Income)');
+            const sum = (list) => list.reduce((a, b) => a + Number(b.amount), 0);
+            const personal = items.filter(i => window.isPersonalExpense(i));
+            const household = items.filter(i => !window.isPersonalExpense(i));
+            return {
+                shown: num('budgetSpentVal'),
+                cap: num('budgetCapVal'),
+                subHousehold: sub('budgetHouseholdSubtext'),
+                subPersonal: sub('budgetPersonalSubtext'),
+                dataHousehold: Math.round(sum(household)),
+                dataPersonal: Math.round(sum(personal)),
+                dataAll: Math.round(sum(items)),
+                mode: (window.dashboardFilters || {}).scope
+            };
+        }"""
+    )
+
+    def close(a, b, tol=2):
+        return a is not None and b is not None and abs(a - b) <= tol
+
+    audit.record(
+        "D the budget bar shows household plus personal spending",
+        close(state["shown"], state["dataAll"]),
+        "bar shows %s, all expenses total %s" % (state["shown"], state["dataAll"]),
+    )
+    audit.record(
+        "D the budget bar is not the household-only figure",
+        state["dataPersonal"] == 0 or not close(state["shown"], state["dataHousehold"]),
+        "bar shows %s which equals household-only %s, with %s personal unaccounted for"
+        % (state["shown"], state["dataHousehold"], state["dataPersonal"]),
+    )
+    audit.record(
+        "D the household and personal subtotals match the data",
+        close(state["subHousehold"], state["dataHousehold"])
+        and close(state["subPersonal"], state["dataPersonal"]),
+        "subtotals read household=%s personal=%s, data says %s / %s"
+        % (state["subHousehold"], state["subPersonal"],
+           state["dataHousehold"], state["dataPersonal"]),
+    )
+    audit.record(
+        "D the two subtotals add up to the figure on the bar",
+        close((state["subHousehold"] or 0) + (state["subPersonal"] or 0), state["shown"]),
+        "%s + %s != %s"
+        % (state["subHousehold"], state["subPersonal"], state["shown"]),
+    )
+
+    # Over-budget must be reachable: the pill used to compare a value clamped
+    # at 100 against "> 100", so it could never fire.
+    cfg = read_config(api)
+    original_cap = cfg.get("monthlyBudgetLimit")
+    try:
+        tiny = max(1, int((state["dataAll"] or 1000) / 2))
+        api("POST", "/api/config", {"monthlyBudgetLimit": tiny})
+        page.evaluate("async () => { await window.loadMasterConfig(); }")
+        page.wait_for_timeout(1600)
+        page.evaluate("() => renderDashboard(getFilteredExpenses())")
+        page.wait_for_timeout(900)
+        over = page.evaluate(
+            """() => ({
+                pill: (document.getElementById('budgetAlertPill') || {}).textContent,
+                pct: (document.getElementById('budgetPercentText') || {}).textContent
+            })"""
+        )
+        audit.record(
+            "D exceeding the cap actually reports Over Budget",
+            over["pill"] is not None and "Over Budget" in over["pill"],
+            "pill reads %r at %r" % (over["pill"], over["pct"]),
+        )
+    finally:
+        if original_cap is not None:
+            api("POST", "/api/config", {"monthlyBudgetLimit": original_cap})
+            page.evaluate("async () => { await window.loadMasterConfig(); }")
+            page.wait_for_timeout(1500)
+
+    restored = read_config(api)
+    audit.record(
+        "D the budget cap is restored after the audit",
+        str(restored.get("monthlyBudgetLimit")) == str(original_cap),
+        "cap is %r, expected %r" % (restored.get("monthlyBudgetLimit"), original_cap),
+    )
+
+
 def audit_logout(page, audit, api):
     """Section E: signing out must actually end the session. A token left in
     localStorage, or household data still cached after logout, means the next
@@ -2145,7 +2277,8 @@ def main():
                           (audit_expense_round_trip, "D expense round-trip"),
                           (audit_attendance_follows_period, "D attendance calendar"),
                           (audit_expense_view_toggle, "D expense view toggle"),
-                          (audit_dashboard_mode, "D dashboard follows master config")):
+                          (audit_dashboard_mode, "D dashboard follows master config"),
+                          (audit_budget_counts_everything, "D budget counts every expense")):
             try:
                 fn(page, audit, api)
             except Exception as e:

@@ -35,6 +35,110 @@ const LEGACY_FILES = {
 // already stores per household - the shapes are unchanged, only their location.
 const HOUSEHOLD_KEYS = ['config', 'users', 'expenses', 'attendance', 'auditLog'];
 
+// ---------------------------------------------------------------------------
+// SCHEMA ADAPTERS
+//
+// The document stores config and attendance in an organised shape, while the
+// application keeps using the shapes it always has. These translate between the
+// two and are exactly reversible, so no value, key or record is ever lost.
+//
+//   config    native: flat { staff, categories, recurringBills, familyMembers,
+//                            paymentMethods, householdCycle, monthlyBudgetLimit,
+//                            splitRules, ...anything else }
+//             stored: { masterConfig, categories, budgets, settings }
+//
+//   attendance native: { "<staff name>": { baseSalary, billingCycleDay,
+//                                          months: { "YYYY-MM": {...} } } }
+//              stored: { staff: [...], records: [...] }
+// ---------------------------------------------------------------------------
+
+const CONFIG_CATEGORY_KEY = 'categories';
+const CONFIG_SETTINGS_KEYS = ['householdCycle', 'householdId', 'updatedAt'];
+
+function toStoredConfig(native) {
+    if (!native || typeof native !== 'object' || Array.isArray(native)) {
+        return { masterConfig: {}, categories: [], budgets: [], settings: {} };
+    }
+    // Already in the stored shape - leave it be.
+    if (native.masterConfig && !native.staff && !native.splitRules) return native;
+
+    const stored = { masterConfig: {}, categories: [], budgets: [], settings: {} };
+    for (const [key, value] of Object.entries(native)) {
+        if (key === CONFIG_CATEGORY_KEY) {
+            stored.categories = Array.isArray(value) ? value : [];
+        } else if (key === 'monthlyBudgetLimit') {
+            if (value !== undefined && value !== null) {
+                stored.budgets.push({ period: 'monthly', limit: value });
+            }
+        } else if (CONFIG_SETTINGS_KEYS.includes(key)) {
+            stored.settings[key] = value;
+        } else {
+            // staff, recurringBills, familyMembers, paymentMethods, splitRules,
+            // staffConfig and anything this app grows later.
+            stored.masterConfig[key] = value;
+        }
+    }
+    return stored;
+}
+
+function fromStoredConfig(stored) {
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return {};
+    // A config still in the native flat shape passes straight through.
+    if (!stored.masterConfig && !stored.settings && !Array.isArray(stored.budgets)) {
+        return stored;
+    }
+
+    const native = { ...(stored.masterConfig || {}) };
+    if (Array.isArray(stored.categories)) native.categories = stored.categories;
+    for (const budget of (stored.budgets || [])) {
+        if (budget && budget.period === 'monthly' && budget.limit !== undefined) {
+            native.monthlyBudgetLimit = budget.limit;
+        }
+    }
+    Object.assign(native, stored.settings || {});
+    return native;
+}
+
+function toStoredAttendance(native) {
+    if (!native || typeof native !== 'object' || Array.isArray(native)) {
+        return { staff: [], records: [] };
+    }
+    // Already stored shape.
+    if (Array.isArray(native.staff) && Array.isArray(native.records)) return native;
+
+    const stored = { staff: [], records: [] };
+    for (const [name, entry] of Object.entries(native)) {
+        if (!entry || typeof entry !== 'object') continue;
+        const { months, ...rest } = entry;
+        stored.staff.push({ name, ...rest });
+        for (const [month, record] of Object.entries(months || {})) {
+            stored.records.push({ staffName: name, month, ...(record || {}) });
+        }
+    }
+    return stored;
+}
+
+function fromStoredAttendance(stored) {
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return {};
+    // Native keyed shape passes straight through.
+    if (!Array.isArray(stored.staff) || !Array.isArray(stored.records)) return stored;
+
+    const native = {};
+    for (const member of stored.staff) {
+        if (!member || !member.name) continue;
+        const { name, ...rest } = member;
+        native[name] = { ...rest, months: {} };
+    }
+    for (const record of stored.records) {
+        if (!record || !record.staffName || !record.month) continue;
+        const { staffName, month, ...rest } = record;
+        if (!native[staffName]) native[staffName] = { months: {} };
+        if (!native[staffName].months) native[staffName].months = {};
+        native[staffName].months[month] = rest;
+    }
+    return native;
+}
+
 function emptyStore() {
     return {
         updatedAt: new Date().toISOString(),
@@ -46,7 +150,13 @@ function emptyStore() {
 }
 
 function emptySlice() {
-    return { config: {}, users: [], expenses: [], attendance: {}, auditLog: [] };
+    return {
+        users: [],
+        config: { masterConfig: {}, categories: [], budgets: [], settings: {} },
+        expenses: [],
+        attendance: { staff: [], records: [] },
+        auditLog: []
+    };
 }
 
 /**
@@ -69,10 +179,13 @@ function deriveHouseholdMembership(doc) {
 
     // A slice exists for every known household, and for any household that
     // already has data, so nothing is ever orphaned.
+    // SYSTEM is a pseudo-household for the administrator account; it owns no
+    // data and must never be given a slice.
     const ids = new Set([
         ...Object.keys(doc.data || {}),
         ...(doc.households || []).map(h => h && h.householdId).filter(Boolean)
-    ]);
+    ].filter(id => id && id !== 'SYSTEM'));
+    delete doc.data.SYSTEM;
 
     for (const id of ids) {
         const slice = (doc.data[id] && typeof doc.data[id] === 'object') ? doc.data[id] : emptySlice();
@@ -147,12 +260,18 @@ async function migrateFromLegacy() {
     ]);
 
     for (const id of ids) {
+        if (id === 'SYSTEM') continue;          // pseudo-household, owns no data
         const slice = emptySlice();
         for (const [key, base] of Object.entries(LEGACY_FILES)) {
             const name = id === 'H001' ? base : `${id}_${base}`;
             try {
                 const value = await cloudSync.readJson(name);
-                if (value !== null && value !== undefined) { slice[key] = value; found = true; }
+                if (value === null || value === undefined) continue;
+                found = true;
+                // Store config and attendance organised; everything else as-is.
+                if (key === 'config') slice.config = toStoredConfig(value);
+                else if (key === 'attendance') slice.attendance = toStoredAttendance(value);
+                else slice[key] = value;
             } catch (e) {}
         }
         store.data[id] = slice;
@@ -198,10 +317,39 @@ function validateStore(doc) {
 
     // Every user must still point at a household that exists, or at SYSTEM.
     const knownHouseholds = new Set(doc.households.map(h => h && h.householdId));
+    const seenUserIds = new Set();
     for (const u of doc.users) {
         if (!u || !u.userId) { problems.push('a user has no userId'); continue; }
+        if (seenUserIds.has(u.userId)) problems.push(`duplicate user id ${u.userId}`);
+        seenUserIds.add(u.userId);
         if (u.householdId && u.householdId !== 'SYSTEM' && !knownHouseholds.has(u.householdId)) {
             problems.push(`user ${u.userId} points at unknown household ${u.householdId}`);
+        }
+    }
+
+    // The SYSTEM pseudo-household must never own data.
+    if (doc.data.SYSTEM !== undefined) problems.push('data.SYSTEM must not exist');
+
+    // Membership entries must reference real users, with no duplicates.
+    for (const [id, slice] of Object.entries(doc.data)) {
+        const seen = new Set();
+        for (const m of (slice.users || [])) {
+            if (!m || !m.userId) { problems.push(`${id} has a membership entry with no userId`); continue; }
+            if (!seenUserIds.has(m.userId)) problems.push(`${id} references unknown user ${m.userId}`);
+            if (seen.has(m.userId)) problems.push(`${id} lists ${m.userId} twice`);
+            seen.add(m.userId);
+        }
+    }
+
+    // No duplicate expense or audit ids within a household.
+    for (const [id, slice] of Object.entries(doc.data)) {
+        for (const [key, label] of [['expenses', 'expense'], ['auditLog', 'audit entry']]) {
+            const ids = new Set();
+            for (const rec of (slice[key] || [])) {
+                if (!rec || rec.id === undefined) continue;
+                if (ids.has(rec.id)) problems.push(`${id} has a duplicate ${label} id ${rec.id}`);
+                ids.add(rec.id);
+            }
         }
     }
     return problems;
@@ -269,20 +417,36 @@ function sliceOf(doc, householdId) {
     return (slice && typeof slice === 'object') ? slice : null;
 }
 
-/** Read one household's `key` ("expenses" | "config" | "attendance" | "auditLog"). */
+/**
+ * Read one household's `key` ("expenses" | "config" | "attendance" | "auditLog")
+ * in the shape the application expects.
+ */
 async function readHouseholdSlice(householdId, key) {
     const doc = await readStore();
     const slice = sliceOf(doc, householdId);
-    return slice ? (slice[key] === undefined ? null : slice[key]) : null;
+    if (!slice || slice[key] === undefined) return null;
+
+    if (key === 'config') return fromStoredConfig(slice.config);
+    if (key === 'attendance') return fromStoredAttendance(slice.attendance);
+    return slice[key];
 }
 
-/** Replace one household's `key`, leaving every other household untouched. */
+/**
+ * Replace one household's `key`, leaving every other household untouched.
+ * The value arrives in the application's native shape and is stored organised.
+ */
 async function writeHouseholdSlice(householdId, key, value) {
     return updateStore((doc) => {
         if (!doc.data[householdId] || typeof doc.data[householdId] !== 'object') {
-            doc.data[householdId] = {};
+            doc.data[householdId] = emptySlice();
         }
-        doc.data[householdId][key] = value;
+        if (key === 'config') {
+            doc.data[householdId].config = toStoredConfig(value);
+        } else if (key === 'attendance') {
+            doc.data[householdId].attendance = toStoredAttendance(value);
+        } else {
+            doc.data[householdId][key] = value;
+        }
     });
 }
 
@@ -325,6 +489,10 @@ module.exports = {
     // exported for tests
     emptyStore,
     emptySlice,
+    toStoredConfig,
+    fromStoredConfig,
+    toStoredAttendance,
+    fromStoredAttendance,
     migrateFromLegacy,
     validateStore,
     deriveHouseholdMembership,

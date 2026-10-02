@@ -377,6 +377,7 @@ async function run() {
         const { scratch, dataDir, tmpDir } = makeScratch();
         const cloud = {};
         let storage = freshStorage(cloud, dataDir, tmpDir);
+        const cloudStore_ = require('./api/_cloud_store.js');
 
         await storage.saveHouseholdConfig('H001', { categories: [{ name: 'H1 Cat' }], marker: 'one' }, 'test');
         await storage.saveHouseholdConfig('H002', { categories: [{ name: 'H2 Cat' }], marker: 'two' }, 'test');
@@ -397,8 +398,9 @@ async function run() {
             "H002's ledger is in the document");
         check(slice(cloud, 'H002', 'attendance') !== undefined,
             "H002's attendance is in the document");
-        check(slice(cloud, 'H001', 'config').marker === 'one'
-              && slice(cloud, 'H002', 'config').marker === 'two',
+        const cfg1 = cloudStore_.fromStoredConfig(slice(cloud, 'H001', 'config'));
+        const cfg2 = cloudStore_.fromStoredConfig(slice(cloud, 'H002', 'config'));
+        check(cfg1.marker === 'one' && cfg2.marker === 'two',
             'the two households do not overwrite each other');
 
         coldStart(dataDir, tmpDir);
@@ -470,10 +472,20 @@ async function run() {
                 'push subscriptions carry over and stay global');
             check((doc.data.H001.expenses || []).length === 2,
                 'H001 keeps both expenses (' + (doc.data.H001.expenses || []).length + ')');
-            check(doc.data.H001.config.monthlyBudgetLimit === 50000,
+            const h1cfg = cloudStore.fromStoredConfig(doc.data.H001.config);
+            check(h1cfg.monthlyBudgetLimit === 50000,
                 "H001's master config carries over unchanged");
-            check(Object.keys(doc.data.H001.attendance || {}).length === 1,
-                "H001's attendance carries over keyed by staff name");
+            check(Array.isArray(doc.data.H001.config.categories)
+                  && doc.data.H001.config.categories.length === 1,
+                'config is stored organised: categories live under config.categories');
+            check((doc.data.H001.config.budgets || []).some(b => b.limit === 50000),
+                'the monthly budget is stored under config.budgets');
+            check((doc.data.H001.attendance.staff || []).length === 1
+                  && (doc.data.H001.attendance.records || []).length === 1,
+                "H001's attendance is stored as staff[] + records[]");
+            const h1att = cloudStore.fromStoredAttendance(doc.data.H001.attendance);
+            check(((h1att['Chef - X'] || {}).months || {})['2026-09'].days['3'] === 'L',
+                'attendance round-trips back to the shape the app reads');
             check((doc.data.H001.auditLog || []).length === 1,
                 "H001's audit history carries over");
 
@@ -497,6 +509,56 @@ async function run() {
         broken.households = [{ householdId: 'H009', householdName: 'Ghost' }];
         check(cloudStore.validateStore(broken).some(p => p.indexOf('H009') !== -1),
             'validation rejects a household with no data slice');
+
+        fs.rmSync(scratch, { recursive: true, force: true });
+    }
+
+    // ---------------------------------------------------------------
+    console.log('\n--- TEST 11: a new household gets a complete slice, SYSTEM never does ---');
+    {
+        const { scratch, dataDir, tmpDir } = makeScratch();
+        const cloud = {};
+        const storage = freshStorage(cloud, dataDir, tmpDir);
+        const cs = require('./api/_cloud_store.js');
+
+        const h = storage.createHousehold({ householdName: 'Sixth Home', initialBudget: 15000 }, 'admin');
+        storage.createUser({ username: 'sixth', name: 'Sixth', passwordHash: 's:h',
+            householdId: h.householdId, role: 'OWNER' }, 'admin');
+        await storage.flushPendingCloudWrites();
+        await storage.saveHouseholdConfig(h.householdId, { categories: [{ name: 'C' }], monthlyBudgetLimit: 15000 }, 'admin');
+
+        const doc = cloud[STORE];
+        const sliceNew = (doc.data || {})[h.householdId] || {};
+        check(['users', 'config', 'expenses', 'attendance', 'auditLog']
+                .every(k => sliceNew[k] !== undefined),
+            'a new household gets all five keys (' + Object.keys(sliceNew).join(', ') + ')');
+        check(Object.keys(doc).sort().join(',') === 'data,households,pushSubscriptions,updatedAt,users',
+            'the document keeps exactly the agreed root keys (' + Object.keys(doc).sort().join(',') + ')');
+        check(Object.keys(cloud).length === 1,
+            'creating a household and a user added no extra Gist file');
+        check(doc.data.SYSTEM === undefined,
+            'no data slice is created for SYSTEM');
+
+        const members = (sliceNew.users || []).map(u => u.userId + ':' + u.role).join(',');
+        check(members.indexOf(':OWNER') !== -1,
+            'the new user appears in that household membership (' + members + ')');
+
+        check(sliceNew.config.masterConfig !== undefined
+                && Array.isArray(sliceNew.config.categories)
+                && Array.isArray(sliceNew.config.budgets)
+                && sliceNew.config.settings !== undefined,
+            'the new config is stored organised');
+        check(Array.isArray(sliceNew.attendance.staff) && Array.isArray(sliceNew.attendance.records),
+            'the new attendance is stored as staff[] + records[]');
+
+        // The app still reads its native shapes back.
+        const native = await storage.getHouseholdConfig(h.householdId, true);
+        check(native.monthlyBudgetLimit === 15000 && Array.isArray(native.categories),
+            'the application reads the config back in its native flat shape');
+
+        // (Cross-household isolation is covered by TEST 9, which uses two real
+        // households; this fixture starts from an empty directory so the new
+        // household is H001 itself.)
 
         fs.rmSync(scratch, { recursive: true, force: true });
     }

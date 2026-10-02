@@ -200,49 +200,57 @@ or a user never adds a Gist file.
 ```json
 {
   "updatedAt": "2026-10-02T...",
-  "users":      [ ... ],          // every account, across all households
-  "households": [ ... ],          // every household
+  "users":      [ ... ],          // authoritative user directory
+  "households": [ ... ],          // authoritative household directory
   "pushSubscriptions": [ ... ],
   "data": {
     "H001": {
-      "config":     { ... },      // this household's master configuration
       "users":      [ { "userId": "U001", "role": "OWNER" } ],
+      "config":     { "masterConfig": {}, "categories": [], "budgets": [], "settings": {} },
       "expenses":   [ ... ],
-      "attendance": { ... },
+      "attendance": { "staff": [], "records": [] },
       "auditLog":   [ ... ]
     },
-    "H002": { "config": {...}, "users": [...], "expenses": [...], "attendance": {...}, "auditLog": [...] }
+    "H002": { "...the same five keys..." }
   }
 }
 ```
 
-`users`, `households` and `pushSubscriptions` are directory-level. Everything
-household-specific - master configuration, members, ledger, attendance and audit
-history - is a slice under `data.<householdId>`, so households never overwrite
-each other and adding one never adds a file.
+`users`, `households` and `pushSubscriptions` stay at the root and remain the
+source of truth. Everything household-specific is a slice under
+`data.<householdId>`. `data.<id>.users` is a membership index derived from the
+user directory on every write, so it cannot drift. **`data.SYSTEM` is never
+created** - SYSTEM is a pseudo-household for the administrator account.
 
-`data.<id>.users` is a derived membership index: it is recomputed from the user
-directory on every write, so it cannot drift. The user records stay the single
-source of truth; no ids, roles or fields are renamed.
+The stored shapes for `config` and `attendance` are organised, while the
+application keeps reading and writing the shapes it always has. `api/_cloud_store.js`
+translates between them, and the translation is exactly reversible:
 
-Migration is validated before it is trusted: every household in the directory
-must have a slice with all five keys, and every user must point at a household
-that exists. A document that fails those checks is discarded and the old files
-are left in charge.
+| Stored | Native (what the app sees) |
+|---|---|
+| `config.masterConfig` | `staff`, `recurringBills`, `familyMembers`, `paymentMethods`, `splitRules`, and any field added later |
+| `config.categories` | `categories` |
+| `config.budgets` | `monthlyBudgetLimit` |
+| `config.settings` | `householdCycle`, `householdId`, `updatedAt` |
+| `attendance.staff[]` + `attendance.records[]` | attendance keyed by staff name, with `months` |
 
-Writes are a read-modify-write of the whole document and are **serialised** in
-process: creating a household and a user in quick succession would otherwise
-have the second write discard the first.
+Writes are a read-modify-write of the whole document, **serialised** in process
+and always awaited, so a serverless instance cannot be frozen before the write
+lands and two concurrent writes cannot discard each other.
 
 **Not in the Gist:** `vapid_keys.json` or anything secret - those are
-environment variables. Receipts and backups are not synced either.
+environment variables. Receipts and backups are not synced.
 
-If your Gist still has the older per-file layout (`expenses.json`,
-`config.json`, `directory_users.json` and so on), it is migrated into
-`gharkhata.json` automatically the first time the app needs it. The old files
-are left in place, untouched, and simply stop being read.
+Migration from the old seven-file layout runs once, is validated before it is
+trusted, and never deletes or modifies the originals. To build and check the
+document yourself before uploading:
 
-`npm run seed-gist` builds the whole document from `data/` and uploads it.
+```bash
+node scripts/build_gharkhata.js <folder-of-old-gist-files> gharkhata.json
+```
+
+It refuses to write unless every record count matches and the records are
+byte-identical to the source.
 
 ---|---|---|
 | `expenses.json` | H001 | the ledger |

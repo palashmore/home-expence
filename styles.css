@@ -2612,3 +2612,54 @@ button.min-h-\[36px\], .kpi-card button { min-height: 36px; }
     font-weight: 600;
     color: var(--ink-3);
 }
+
+/* =================================================================
+   PASSWORD FIELDS — reveal toggle
+   The eye sits inside the field rather than beside it, so revealing a
+   password never reflows the form, and it is a real 44px target.
+   ================================================================= */
+.pw-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.pw-input {
+    width: 100%;
+    padding: 0.65rem 3rem 0.65rem 0.9rem;
+    background: var(--surface-1);
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ink-1);
+    /* A masked password should not be read as money. */
+    font-variant-numeric: normal;
+    letter-spacing: 0.02em;
+}
+.pw-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--ring);
+}
+.pw-eye {
+    position: absolute;
+    right: 0.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    border-radius: var(--radius-sm);
+    color: var(--ink-3);
+    transition: color var(--duration-fast) var(--ease-smooth),
+                background-color var(--duration-fast) var(--ease-smooth);
+}
+.pw-eye:hover { color: var(--ink-1); background: var(--accent-soft); }
+.pw-eye[aria-pressed="true"] { color: var(--accent); }
+.pw-eye:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.has-field-error .pw-input,
+.pw-input.has-field-error { border-color: #e11d48; }

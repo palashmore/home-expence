@@ -56,9 +56,22 @@ module.exports = async function handler(req, res) {
             if (staffName && monthKey) {
                 const attendance = await storage.getHouseholdAttendance(householdId) || {};
                 if (!attendance[staffName]) {
+                    // Seed from this household's configured staff, never from
+                    // another household's salary figures.
+                    let staffConf = null;
+                    try {
+                        const cfg = await storage.getHouseholdConfig(householdId);
+                        const list = (cfg && Array.isArray(cfg.staff)) ? cfg.staff : [];
+                        staffConf = list.find(s => s && (
+                            s.name === staffName ||
+                            s.shortName === staffName ||
+                            (s.shortName && staffName.includes(s.shortName))
+                        )) || null;
+                    } catch (e) {}
+
                     attendance[staffName] = {
-                        baseSalary: staffName.includes('Nilima') ? 4500 : 800,
-                        billingCycleDay: staffName.includes('Nilima') ? 30 : 21,
+                        baseSalary: staffConf ? (Number(staffConf.baseSalary) || 0) : 0,
+                        billingCycleDay: staffConf ? (Number(staffConf.billingCycleDay) || 0) : 0,
                         months: {}
                     };
                 }

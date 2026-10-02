@@ -14,22 +14,29 @@ const EXCEL_IMPORT_PATH = 'C:\\Users\\lenovo\\Downloads\\DOC-20260924-WA0001.xls
 let receiptStore = {};
 
 // Helper: Calculate Staff Billing Cycle
-function calculateStaffBillingCycle(category, dateStr) {
+function calculateStaffBillingCycle(category, dateStr, staffList) {
     if (!dateStr) return 'Standard';
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return 'Standard';
 
-    const year = d.getFullYear();
-    const month = d.getMonth(); // 0-11
+    // The cycle day comes from the household's own staff configuration. It used
+    // to be hardcoded to two named staff members, which was wrong for every
+    // other household.
+    const staff = Array.isArray(staffList) ? staffList : [];
+    const target = String(category || '').trim().toLowerCase();
+    const match = staff.find(s => {
+        if (!s) return false;
+        const cat = String(s.category || s.name || '').trim().toLowerCase();
+        return cat && cat === target;
+    });
+    const cycleDay = match ? Number(match.billingCycleDay) : 0;
+    if (!cycleDay || cycleDay < 1) return 'Standard';
 
-    if (category === 'Maid - Madhuri') {
-        return `${year}-${String(month + 1).padStart(2, '0')}-21`;
-    } else if (category === 'Chef - Nilima Nikose') {
-        const lastDay = new Date(year, month + 1, 0).getDate();
-        const targetDay = Math.min(30, lastDay);
-        return `${year}-${String(month + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
-    }
-    return 'Standard';
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const day = Math.min(cycleDay, lastDay);
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 // Helper: Read records from the Server JSON file

@@ -33,8 +33,17 @@ function parseDay(raw) {
  * the payload is acceptable. Only validates keys actually present in the body,
  * so a partial update is not forced to resend everything.
  */
+const DASHBOARD_MODES = ['household', 'personal', 'combined'];
+
 function validateConfigPayload(body) {
     const errors = [];
+
+    if (body.dashboardMode !== undefined && !DASHBOARD_MODES.includes(body.dashboardMode)) {
+        errors.push({
+            field: 'dashboardMode',
+            message: `Dashboard mode must be one of: ${DASHBOARD_MODES.join(', ')}.`
+        });
+    }
 
     if (body.monthlyBudgetLimit !== undefined) {
         const n = parseAmount(body.monthlyBudgetLimit);
@@ -145,6 +154,7 @@ function countReferences(expenses, spec, value) {
 }
 
 module.exports = {
+    DASHBOARD_MODES,
     parseAmount,
     parseDay,
     validateConfigPayload,

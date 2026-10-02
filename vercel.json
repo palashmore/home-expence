@@ -44,5 +44,11 @@
         }
       ]
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/notifications?action=check_and_send",
+      "schedule": "30 3 * * *"
+    }
   ]
 }

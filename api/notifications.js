@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const webpush = require('web-push');
+const crypto = require('crypto');
 const cloudSync = require('./_cloud_sync');
 const db = require('./_db');
 const { authenticateRequest } = require('./auth');
@@ -297,115 +298,209 @@ async function sendPushToHouseholdMembers({ householdId, title, body, url, tag, 
 }
 
 // Background Reminder Scanner: Evaluates bills & staff cutoffs
-async function checkAndSendScheduledReminders() {
-    const subs = await readSubscriptions();
-    if (!subs.length) return { status: 'no_subscriptions' };
+// How many days before a due date reminders begin, and how they repeat.
+// Daily from REMINDER_LEAD_DAYS before the due day, on the day itself, and
+// daily while overdue - stopping the moment a matching payment exists.
+const REMINDER_LEAD_DAYS = 5;
+const OVERDUE_REMINDER_DAYS = 7;
 
-    const expenses = await db.getAllExpenses(false);
-    let config = null;
-    try {
-        config = await cloudSync.readJson('config.json');
-    } catch (e) {}
-    if (!config && fs.existsSync(CONFIG_FILE)) {
-        try { config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch (e) {}
+// Tags already dispatched today, so a cron that runs more than once - or
+// anyone hitting the endpoint by hand - cannot send the same reminder twice.
+const sentReminderTags = new Map();
+
+function reminderAlreadySent(tag) {
+    const today = new Date().toISOString().slice(0, 10);
+    for (const [k, day] of sentReminderTags) {
+        if (day !== today) sentReminderTags.delete(k);
     }
+    return sentReminderTags.get(tag) === today;
+}
 
-    // Only the household's own recurring bills. There is no default list: a
-    // household that configured none must not be reminded about someone
-    // else's utilities or staff salaries.
-    const bills = Array.isArray(config?.recurringBills) ? config.recurringBills : [];
+function markReminderSent(tag) {
+    sentReminderTags.set(tag, new Date().toISOString().slice(0, 10));
+}
 
-    const today = new Date();
-    const currentDay = today.getDate();
-    const currentMonth = today.getMonth() + 1;
-    const currentYear = today.getFullYear();
+function clampDueDay(dueDay, year, month) {
+    const lastDay = new Date(year, month, 0).getDate();
+    return Math.min(Math.max(1, Number(dueDay) || 1), lastDay);
+}
 
-    const currentMonthExpenses = expenses.filter(e => {
-        if (!e.date) return false;
+// Does a payment for this bill already exist in the current month?
+function billLooksPaid(bill, monthExpenses) {
+    const bCat = String(bill.category || '').trim().toLowerCase();
+    const bName = String(bill.name || '').trim().toLowerCase();
+    return monthExpenses.some(e => {
+        const cat = String(e.category || '').trim().toLowerCase();
+        const paidTo = String(e.paidTo || e.vendor || '').trim().toLowerCase();
+        if (cat && bCat && (cat === bCat || cat.includes(bCat))) return true;
+        if (paidTo && bName && paidTo.includes(bName)) return true;
+        return false;
+    });
+}
+
+// Build the reminders due for ONE household. Pure, so it can be tested
+// against a fixed date without sending anything.
+function buildHouseholdReminders({ config, expenses, today = new Date() }) {
+    const out = [];
+    const bills = Array.isArray(config && config.recurringBills) ? config.recurringBills : [];
+    const staff = Array.isArray(config && config.staff) ? config.staff : [];
+
+    const day = today.getDate();
+    const month = today.getMonth() + 1;
+    const year = today.getFullYear();
+    const stamp = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+    const monthExpenses = (expenses || []).filter(e => {
+        if (!e.date || e.isDeleted) return false;
         const d = new Date(e.date);
-        return (d.getMonth() + 1) === currentMonth && d.getFullYear() === currentYear;
+        return !isNaN(d.getTime()) && (d.getMonth() + 1) === month && d.getFullYear() === year;
     });
 
-    const notificationsToSend = [];
+    const money = (n) => `\u20B9${Number(n || 0).toLocaleString('en-IN')}`;
 
-    // 1. Scan recurring bills
     for (const bill of bills) {
-        if (bill.active === false) continue;
-        const dueDay = Number(bill.dueDay) || 1;
-        const daysDiff = dueDay - currentDay;
+        if (!bill || bill.active === false) continue;
+        if (billLooksPaid(bill, monthExpenses)) continue;
 
-        // Check if paid
-        const isPaid = currentMonthExpenses.some(e => {
-            const cat = (e.category || '').toLowerCase();
-            const paidTo = (e.paidTo || e.vendor || '').toLowerCase();
-            const bCat = (bill.category || '').toLowerCase();
-            const bName = (bill.name || '').toLowerCase();
-            return (cat && bCat && (cat === bCat || cat.includes(bCat))) ||
-                   (paidTo && bName && paidTo.includes(bName));
-        });
+        const dueDay = clampDueDay(bill.dueDay, year, month);
+        const daysUntil = dueDay - day;
 
-        if (isPaid) continue;
+        // Outside the window in either direction: nothing to say today.
+        if (daysUntil > REMINDER_LEAD_DAYS) continue;
+        if (daysUntil < -OVERDUE_REMINDER_DAYS) continue;
 
-        if (daysDiff === 0) {
-            notificationsToSend.push({
-                title: `${bill.icon || '⏰'} ${bill.name} Due Today!`,
-                body: `Expected amount: ₹${Number(bill.approxAmount).toLocaleString('en-IN')}. Due date is today (${dueDay}th). Tap to record payment.`,
-                url: '/#tab-expenses',
-                tag: `due-today-${bill.id || bill.name}-${currentYear}-${currentMonth}`
-            });
-        } else if (daysDiff < 0 && Math.abs(daysDiff) <= 5) {
-            notificationsToSend.push({
-                title: `🚨 OVERDUE: ${bill.name}`,
-                body: `Payment of ₹${Number(bill.approxAmount).toLocaleString('en-IN')} was due on ${dueDay}th (${Math.abs(daysDiff)} days ago). Tap to pay.`,
-                url: '/#tab-expenses',
-                tag: `overdue-${bill.id || bill.name}-${currentYear}-${currentMonth}`
-            });
-        } else if (daysDiff === 1 || daysDiff === 2) {
-            notificationsToSend.push({
-                title: `📅 Upcoming: ${bill.name}`,
-                body: `Due in ${daysDiff} day${daysDiff > 1 ? 's' : ''} on ${dueDay}th (~₹${Number(bill.approxAmount).toLocaleString('en-IN')}).`,
-                url: '/#tab-expenses',
-                tag: `upcoming-${bill.id || bill.name}-${currentYear}-${currentMonth}`
-            });
+        const amount = Number(bill.approxAmount !== undefined ? bill.approxAmount : bill.budgetedAmount) || 0;
+        const amountPart = amount > 0 ? ` of about ${money(amount)}` : '';
+
+        let title;
+        let body;
+        if (daysUntil > 0) {
+            title = `\u{1F4C5} ${bill.name} due in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`;
+            body = `Payment${amountPart} is due on day ${dueDay}. It has not been recorded yet.`;
+        } else if (daysUntil === 0) {
+            title = `\u23F0 ${bill.name} is due today`;
+            body = `Payment${amountPart} is due today and has not been recorded yet.`;
+        } else {
+            title = `\u26A0\uFE0F ${bill.name} is ${-daysUntil} day${daysUntil === -1 ? '' : 's'} overdue`;
+            body = `Payment${amountPart} was due on day ${dueDay} and has not been recorded.`;
         }
+
+        out.push({
+            title,
+            body,
+            url: '/#tab-expenses',
+            // The date is in the tag, so one reminder per bill per day.
+            tag: `bill-${String(bill.id || bill.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${stamp}`,
+            type: 'BILL_REMINDER'
+        });
     }
 
-    // 2. Scan staff salary cutoffs, from this household's own staff list.
-    // These used to be two hardcoded people on two hardcoded dates.
-    const staffList = Array.isArray(config?.staff) ? config.staff : [];
-    for (const st of staffList) {
+    // Staff payday reminders follow the same window, from each member's own
+    // cycle day, and only for staff this household configured.
+    for (const st of staff) {
         if (!st || st.active === false) continue;
         const cycleDay = Number(st.billingCycleDay);
         if (!cycleDay || cycleDay < 1) continue;
 
-        const lastDay = new Date(currentYear, currentMonth, 0).getDate();
-        if (currentDay !== Math.min(cycleDay, lastDay)) continue;
-
         const category = String(st.category || st.name || '').trim();
         if (!category) continue;
-        const alreadyPaid = currentMonthExpenses.some(
-            e => String(e.category || '').trim().toLowerCase() === category.toLowerCase());
-        if (alreadyPaid) continue;
+        if (monthExpenses.some(e => String(e.category || '').trim().toLowerCase() === category.toLowerCase())) continue;
+
+        const payday = clampDueDay(cycleDay, year, month);
+        const daysUntil = payday - day;
+        if (daysUntil > REMINDER_LEAD_DAYS || daysUntil < -OVERDUE_REMINDER_DAYS) continue;
 
         const person = String(st.shortName || st.name || category).trim();
         const salary = Number(st.baseSalary) || 0;
-        notificationsToSend.push({
-            title: `\u{1F9D1}‍\u{1F373} ${person} Salary Cutoff Today`,
-            body: `Billing cycle closes today` +
-                (salary > 0 ? ` (Base: ₹${salary.toLocaleString('en-IN')})` : '') +
-                `. Please verify attendance and record payment.`,
+        const salaryPart = salary > 0 ? ` (${money(salary)})` : '';
+
+        out.push({
+            title: daysUntil > 0
+                ? `\u{1F9D1}\u200D\u{1F373} ${person}'s salary due in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`
+                : daysUntil === 0
+                    ? `\u{1F9D1}\u200D\u{1F373} ${person}'s salary is due today`
+                    : `\u26A0\uFE0F ${person}'s salary is ${-daysUntil} day${daysUntil === -1 ? '' : 's'} overdue`,
+            body: `Payday is day ${payday}${salaryPart}. Check attendance and record the payment.`,
             url: '/#tab-staff',
-            tag: `cutoff-${category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${currentYear}-${currentMonth}`
+            tag: `salary-${category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${stamp}`,
+            type: 'SALARY_REMINDER'
         });
     }
 
-    let sentCount = 0;
-    for (const notif of notificationsToSend) {
-        await sendPushToAll(notif);
-        sentCount++;
+    return out;
+}
+
+// Walk every household and dispatch its own reminders to its own members.
+//
+// This used to read one global config.json and all expenses regardless of
+// household, then fan out through sendPushToAll - which pushes to EVERY
+// subscriber on the system. One household's bill names and amounts would have
+// landed on every other household's phones. It only stayed invisible because
+// the setInterval that called it never runs on a serverless host, so the scan
+// effectively never happened in production.
+async function checkAndSendScheduledReminders({ today = new Date() } = {}) {
+    const subs = await readSubscriptions();
+    if (!subs.length) return { status: 'no_subscriptions', households: 0, sentCount: 0 };
+
+    let households = [];
+    try {
+        households = storage.getAllHouseholds() || [];
+    } catch (e) {
+        households = [];
     }
 
-    return { evaluatedBills: bills.length, sentCount, subscribersCount: subs.length };
+    let sentCount = 0;
+    let evaluated = 0;
+    const perHousehold = {};
+
+    for (const household of households) {
+        const householdId = household && household.householdId;
+        if (!householdId) continue;
+
+        let config = null;
+        let expenses = [];
+        try {
+            config = await storage.getHouseholdConfig(householdId);
+            expenses = await storage.getHouseholdExpenses(householdId);
+        } catch (e) {
+            continue;
+        }
+
+        const reminders = buildHouseholdReminders({ config, expenses, today });
+        evaluated += reminders.length;
+        let sentHere = 0;
+
+        for (const reminder of reminders) {
+            const dedupeKey = `${householdId}:${reminder.tag}`;
+            if (reminderAlreadySent(dedupeKey)) continue;
+
+            // Household-scoped dispatch: this is the only function that filters
+            // subscriptions by household.
+            await sendPushToHouseholdMembers({
+                householdId,
+                title: reminder.title,
+                body: reminder.body,
+                url: reminder.url,
+                tag: reminder.tag,
+                type: reminder.type
+            });
+            markReminderSent(dedupeKey);
+            sentHere++;
+            sentCount++;
+        }
+
+        if (sentHere) perHousehold[householdId] = sentHere;
+    }
+
+    return {
+        status: 'ok',
+        households: households.length,
+        evaluated,
+        sentCount,
+        perHousehold,
+        subscribersCount: subs.length,
+        leadDays: REMINDER_LEAD_DAYS
+    };
 }
 
 module.exports = async function handler(req, res) {
@@ -453,6 +548,46 @@ module.exports = async function handler(req, res) {
             }
 
             if (action === 'check_and_send') {
+                // This fans push notifications out to every household, so it is
+                // not something an anonymous caller may trigger. It used to sit
+                // here with no check at all, while list_in_app directly above
+                // required a session.
+                //
+                // Two callers are legitimate: the scheduler, which presents
+                // CRON_SECRET, and an administrator testing from the console.
+                const cronSecret = (process.env.CRON_SECRET || '').trim();
+                const presented = String(
+                    req.headers['x-cron-secret'] ||
+                    (req.headers.authorization || '').replace(/^Bearer\s+/i, '') ||
+                    ''
+                ).trim();
+
+                let authorised = false;
+                if (cronSecret && presented && presented.length === cronSecret.length) {
+                    try {
+                        authorised = crypto.timingSafeEqual(
+                            Buffer.from(presented), Buffer.from(cronSecret));
+                    } catch (e) {
+                        authorised = false;
+                    }
+                }
+
+                if (!authorised) {
+                    const session = authenticateRequest(req);
+                    if (!session) {
+                        return res.status(401).json({
+                            success: false,
+                            error: "Unauthorized: scheduler credential or an administrator session is required."
+                        });
+                    }
+                    if (session.role !== 'ADMIN' && session.role !== 'SYSTEM_ADMIN') {
+                        return res.status(403).json({
+                            success: false,
+                            error: "Forbidden: only an administrator may trigger the reminder scan."
+                        });
+                    }
+                }
+
                 const result = await checkAndSendScheduledReminders();
                 return res.status(200).json({
                     success: true,
@@ -605,5 +740,7 @@ module.exports.sendPushToHouseholdMembers = sendPushToHouseholdMembers;
 module.exports.recordHouseholdInAppNotification = recordHouseholdInAppNotification;
 module.exports.getHouseholdInAppNotifications = getHouseholdInAppNotifications;
 module.exports.checkAndSendScheduledReminders = checkAndSendScheduledReminders;
+module.exports.buildHouseholdReminders = buildHouseholdReminders;
+module.exports.REMINDER_LEAD_DAYS = REMINDER_LEAD_DAYS;
 module.exports.readSubscriptions = readSubscriptions;
 module.exports.writeSubscriptions = writeSubscriptions;

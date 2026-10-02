@@ -3219,6 +3219,17 @@ function renderExpenseTable(filteredData) {
     // Cards are grouped under a date heading carrying that day's total, so a
     // long ledger reads as days rather than one undifferentiated stream.
     if (mobileCards) {
+        // Day totals in a single pass. Recomputing them with a filter each time
+        // a group starts is O(groups x items): invisible at a hundred expenses,
+        // and millions of Date constructions for a few thousand spread over a
+        // few hundred days - on every ledger render.
+        const dayTotals = new Map();
+        for (const x of sorted) {
+            if (x.category === "Accepted Payments (Income)") continue;
+            const k = dayGroupKey(x.date);
+            dayTotals.set(k, (dayTotals.get(k) || 0) + (Number(x.amount) || 0));
+        }
+
         let lastGroupKey = null;
         mobileCards.innerHTML = sorted.map(item => {
             const isIncome = item.category === "Accepted Payments (Income)";
@@ -3230,9 +3241,8 @@ function renderExpenseTable(filteredData) {
             const groupKey = dayGroupKey(item.date);
             if (groupKey !== lastGroupKey) {
                 lastGroupKey = groupKey;
-                const dayItems = sorted.filter(x => dayGroupKey(x.date) === groupKey);
-                const dayNet = dayItems.reduce((acc, x) => acc +
-                    (x.category === "Accepted Payments (Income)" ? 0 : Number(x.amount) || 0), 0);
+                // A day of pure income has no expense total, which reads as 0.
+                const dayNet = dayTotals.get(groupKey) || 0;
                 groupHeader = `
                 <div class="tx-group-head">
                     <span class="tx-group-label">${escapeHtml(dayGroupLabel(item.date))}</span>

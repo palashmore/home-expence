@@ -1,4 +1,5 @@
 const fs = require('fs');
+const permsRegistry = require('./_permissions');
 const path = require('path');
 const cloudSync = require('./_cloud_sync');
 const cloudStore = require('./_cloud_store');
@@ -605,6 +606,20 @@ function updateUser(userId, updates, actor = 'System') {
     if (updates.name) current.name = String(updates.name).trim();
     if (updates.role) current.role = String(updates.role).trim().toUpperCase();
     if (updates.status) current.status = String(updates.status).trim().toLowerCase();
+
+    // A per-user permission list. An empty array is meaningful - it means
+    // "stop overriding, go back to whatever the role allows" - so it is stored
+    // by deleting the field rather than by writing []. Passing undefined leaves
+    // any existing override alone; this whitelist silently drops fields it does
+    // not name, which is how passwordChangedAt once went missing.
+    if (updates.permissions !== undefined) {
+        const list = permsRegistry.sanitizePermissions(updates.permissions);
+        if (list && list.length) {
+            current.permissions = list;
+        } else {
+            delete current.permissions;
+        }
+    }
 
     // Check household transfer
     if (updates.householdId && updates.householdId !== current.householdId) {

@@ -1,4 +1,5 @@
-const { authenticateRequest } = require('./auth');
+const { authenticateRequest, sessionCan } = require('./auth');
+const { PERMISSIONS: P } = require('./_permissions');
 const storage = require('./_storage');
 const notifications = require('./notifications');
 const rules = require('./_config_rules');
@@ -71,7 +72,7 @@ module.exports = async function handler(req, res) {
         // POST / PUT: Update config for authenticated household
         if (req.method === 'POST' || req.method === 'PUT') {
             // Permission check: Viewer role cannot modify household master configuration
-            if (session.role === 'VIEWER') {
+            if (!sessionCan(session, P.SETTINGS_MANAGE)) {
                 return res.status(403).json({
                     success: false,
                     error: "Forbidden: Viewer role has read-only permissions and cannot modify household configuration."

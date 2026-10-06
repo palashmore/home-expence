@@ -7,7 +7,15 @@ const paths = require('./_paths');
 
 const DATA_DIR = paths.DATA_DIR;
 const DATA_FILE = path.join(DATA_DIR, 'expenses.json');
+// Read-only seed that ships with the repository. It is never written to:
+// see SEED_MIRROR below.
 const FALLBACK_FILE = path.join(__dirname, '..', 'initial_expenses.json');
+// The mirror copy follows DATA_DIR. It used to be FALLBACK_FILE itself, so
+// every save wrote into the repository working tree regardless of
+// HOMEEXPENSES_DATA_DIR - which meant a test run, or an API probe, silently
+// edited a tracked file. The suites only asserted that data/ was unchanged, so
+// nothing caught it.
+const SEED_MIRROR = path.join(DATA_DIR, 'initial_expenses.json');
 const EXCEL_IMPORT_PATH = 'C:\\Users\\lenovo\\Downloads\\DOC-20260924-WA0001.xlsx';
 
 // Receipts store in memory / tmp
@@ -145,9 +153,9 @@ function writeExpensesToFile(data) {
         console.warn('Warning: Could not write to data/expenses.json (serverless filesystem may be read-only):', err.message);
     }
 
-    // 2. Also update initial_expenses.json for redundancy
+    // 2. Mirror alongside the active data directory, not into the repository.
     try {
-        fs.writeFileSync(FALLBACK_FILE, JSON.stringify(data, null, 2), 'utf8');
+        fs.writeFileSync(SEED_MIRROR, JSON.stringify(data, null, 2), 'utf8');
     } catch (err) {}
 
     // 3. Fallback for Vercel /tmp environment

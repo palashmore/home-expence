@@ -1,6 +1,7 @@
 // Staff Attendance & Leave API Route (/api/attendance)
 // Multi-Tenant Household-Scoped Domestic Staff Attendance Engine
-const { authenticateRequest } = require('./auth');
+const { authenticateRequest, sessionCan } = require('./auth');
+const { PERMISSIONS: P } = require('./_permissions');
 const storage = require('./_storage');
 const notifications = require('./notifications');
 
@@ -34,7 +35,7 @@ module.exports = async function handler(req, res) {
         }
 
         if (req.method === 'POST') {
-            if (session.role === 'VIEWER') {
+            if (!sessionCan(session, P.ATTENDANCE_MANAGE)) {
                 return res.status(403).json({
                     success: false,
                     error: "Forbidden: Viewer role has read-only access and cannot modify attendance records."

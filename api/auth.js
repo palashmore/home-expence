@@ -2,6 +2,7 @@
 // Multi-Tenant Household Identity & Session Security Engine
 const crypto = require('crypto');
 const storage = require('./_storage');
+const perms = require('./_permissions');
 
 // Session tokens are signed with this. The previous fallback was a literal
 // string committed to this repository, so anyone reading the source could forge
@@ -184,9 +185,15 @@ function authenticateRequest(req) {
     } catch (e) {
         // Storage is momentarily unreadable. Fail open rather than signing
         // everybody out over a transient error - the signature was still valid.
+        // The token still names a role, so authorisation keeps working; it just
+        // cannot see a per-user override until storage comes back.
+        session.permissions = perms.permissionsFor(session.role);
         return session;
     }
-    if (!Array.isArray(users) || users.length === 0) return session;
+    if (!Array.isArray(users) || users.length === 0) {
+        session.permissions = perms.permissionsFor(session.role);
+        return session;
+    }
 
     const user = users.find(u => u && u.userId === session.userId);
     if (!user) return null;                       // deleted account
@@ -196,7 +203,25 @@ function authenticateRequest(req) {
     const issuedFor = Number(session.pwAt) || 0;
     if (changedAt > issuedFor) return null;       // issued before the current password
 
+    // The token records the role the account had when it was issued. Authorise
+    // against the record instead, so a demotion - or a per-user permission the
+    // admin just revoked - takes effect on the next request rather than at the
+    // user's next sign-in.
+    if (user.role) session.role = user.role;
+    session.permissions = perms.permissionsFor(user);
+
     return session;
+}
+
+// The one question every route should ask. Taking a session rather than a role
+// means a per-user override is honoured everywhere automatically; the previous
+// scattered `session.role === 'ADMIN'` comparisons could not see one.
+function sessionCan(session, permission) {
+    if (!session) return false;
+    const held = Array.isArray(session.permissions)
+        ? session.permissions
+        : perms.permissionsFor(session.role);
+    return held.indexOf(permission) !== -1;
 }
 
 // ==========================================
@@ -298,7 +323,11 @@ module.exports = async function handler(req, res) {
                             householdName: h ? h.householdName : u.householdId,
                             role: u.role,
                             status: u.status,
-                            createdAt: u.createdAt
+                            createdAt: u.createdAt,
+                            // What this account may do right now, and whether
+                            // that is an explicit list or the role's defaults.
+                            permissions: perms.permissionsFor(u),
+                            permissionsAreCustom: perms.hasExplicitPermissions(u)
                         };
                     });
 
@@ -307,7 +336,16 @@ module.exports = async function handler(req, res) {
                     households: households,
                     users: users,
                     activeHouseholdId: session.householdId,
-                    currentUserRole: session.role
+                    currentUserRole: session.role,
+                    // The catalogue the permission editor renders. Served from
+                    // the same registry the API enforces, so the checkboxes
+                    // cannot drift away from what is actually checked.
+                    permissionCatalog: perms.ALL_PERMISSIONS,
+                    permissionPresets: perms.ROLE_PRESETS,
+                    rolePermissions: perms.ROLE_PERMISSIONS,
+                    myPermissions: Array.isArray(session.permissions)
+                        ? session.permissions
+                        : perms.permissionsFor(session.role)
                 });
             }
 
@@ -324,6 +362,9 @@ module.exports = async function handler(req, res) {
                     });
                 }
                 const activeRole = userRec ? userRec.role : session.role;
+                // A per-user override lives on the record, so when we have the
+                // record we answer from it rather than from the role alone.
+                const hasOverride = !!userRec && perms.hasExplicitPermissions(userRec);
                 const isSysAdmin = activeRole === 'SYSTEM_ADMIN' || activeRole === 'ADMIN';
                 const activeHouseholdId = userRec ? userRec.householdId : session.householdId;
                 const hh = storage.getHouseholdById(activeHouseholdId);
@@ -339,7 +380,14 @@ module.exports = async function handler(req, res) {
                         name: userRec ? userRec.name : session.name,
                         householdId: finalHouseholdId,
                         householdName: finalHousehold ? finalHousehold.householdName : 'Primary Household',
-                        role: activeRole
+                        role: activeRole,
+                        // What this account may do. The client drives navigation
+                        // from these rather than re-deriving capability from a
+                        // role string in a dozen places. An explicit per-user
+                        // list wins over the role's defaults.
+                        permissions: perms.permissionsFor(
+                            hasOverride ? userRec : activeRole),
+                        permissionsAreCustom: hasOverride
                     }
                 });
             } else {
@@ -411,7 +459,8 @@ module.exports = async function handler(req, res) {
                         name: user.name,
                         householdId: user.householdId,
                         householdName: household ? household.householdName : user.householdId,
-                        role: user.role
+                        role: user.role,
+                        permissions: perms.permissionsFor(user)
                     },
                     message: `Welcome back, ${user.name}!`
                 });
@@ -725,6 +774,48 @@ module.exports = async function handler(req, res) {
                 if (body.status) updates.status = String(body.status).trim().toLowerCase();
                 if (isSysAdmin && body.householdId) updates.householdId = String(body.householdId).trim();
 
+                // Per-user permission overrides.
+                //
+                // Only somebody who may manage users can set them, and only up
+                // to what they hold themselves - otherwise an OWNER could tick
+                // "manage households" for a member and hand out an authority
+                // they do not have. Sending an empty array clears the override
+                // and the account falls back to its role.
+                if (body.permissions !== undefined) {
+                    if (!sessionCan(session, perms.PERMISSIONS.USERS_MANAGE)
+                        && !sessionCan(session, perms.PERMISSIONS.SETTINGS_MANAGE)) {
+                        return res.status(403).json({
+                            success: false,
+                            error: "Forbidden: changing individual permissions requires user management rights."
+                        });
+                    }
+                    const requested = perms.sanitizePermissions(body.permissions) || [];
+                    if (!isSysAdmin) {
+                        const mine = Array.isArray(session.permissions)
+                            ? session.permissions
+                            : perms.permissionsFor(session.role);
+                        const excess = requested.filter(p => mine.indexOf(p) === -1);
+                        if (excess.length) {
+                            return res.status(403).json({
+                                success: false,
+                                error: "Forbidden: you cannot grant a permission you do not hold: " + excess.join(', ')
+                            });
+                        }
+                    }
+                    // Nobody may remove their own ability to manage users; that
+                    // is the one change that cannot be undone from inside the app.
+                    if (targetUId === session.userId
+                        && requested.length
+                        && requested.indexOf(perms.PERMISSIONS.USERS_MANAGE) === -1
+                        && sessionCan(session, perms.PERMISSIONS.USERS_MANAGE)) {
+                        return res.status(400).json({
+                            success: false,
+                            error: "You cannot remove your own user-management permission; another administrator must do it."
+                        });
+                    }
+                    updates.permissions = requested;
+                }
+
                 // If password is being reset
                 if (body.password && String(body.password).trim().length >= 6) {
                     updates.passwordHash = hashPassword(String(body.password).trim());
@@ -809,5 +900,6 @@ module.exports = async function handler(req, res) {
 module.exports.generateSessionToken = generateSessionToken;
 module.exports.verifySessionToken = verifySessionToken;
 module.exports.authenticateRequest = authenticateRequest;
+module.exports.sessionCan = sessionCan;
 module.exports.hashPassword = hashPassword;
 module.exports.verifyPassword = verifyPassword;

@@ -6,7 +6,8 @@ const webpush = require('web-push');
 const crypto = require('crypto');
 const cloudSync = require('./_cloud_sync');
 const db = require('./_db');
-const { authenticateRequest } = require('./auth');
+const { authenticateRequest, sessionCan } = require('./auth');
+const { PERMISSIONS: P } = require('./_permissions');
 const storage = require('./_storage');
 const paths = require('./_paths');
 
@@ -613,7 +614,7 @@ module.exports = async function handler(req, res) {
                             error: "Unauthorized: scheduler credential or an administrator session is required."
                         });
                     }
-                    if (session.role !== 'ADMIN' && session.role !== 'SYSTEM_ADMIN') {
+                    if (!sessionCan(session, P.USERS_MANAGE)) {
                         return res.status(403).json({
                             success: false,
                             error: "Forbidden: only an administrator may trigger the reminder scan."

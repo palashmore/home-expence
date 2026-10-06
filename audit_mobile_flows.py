@@ -552,17 +552,12 @@ def audit_no_silent_defaults(page, audit, api):
     target_id = staff[0]["id"]
     original_name = staff[0].get("name")
 
-    # Each staff member is rendered twice - a card for phones, a table row for
-    # desktop - and saveAdminConfigFromUI chooses its source by viewport width.
-    # Driving whichever copy document.querySelector happened to return made this
-    # check depend on render order: clear the table row, let the mobile list
-    # render, and the save reads the untouched card, raises no error, and the
-    # test fails for a reason that has nothing to do with validation. Target the
-    # copy the save will actually read.
+    # Each staff member used to be rendered twice - a card for phones, a table
+    # row for desktop - and the save chose its source by viewport width, so this
+    # check could clear one copy while the save read the other. There is one
+    # list now, and the scope is no longer a guess.
     SCOPE_JS = """
-        const mobile = document.querySelectorAll('#adminStaffMobileList .staff-mobile-card');
-        const useMobile = window.innerWidth < 768 && mobile.length > 0;
-        const scope = useMobile ? '#adminStaffMobileList' : '#adminStaffTableBody';
+        const scope = '#adminStaffMobileList';
     """
     try:
         page.wait_for_function(
@@ -625,6 +620,28 @@ def audit_no_silent_defaults(page, audit, api):
         f"stored name is {(saved.get('name') if saved else None)!r}, expected it unchanged at {original_name!r}",
     )
 
+    # The defect this check kept tripping over was a second copy of every row.
+    # Assert the duplication is gone, so it cannot quietly come back.
+    dup = page.evaluate(
+        """() => {
+            const ids = (sel) => Array.from(document.querySelectorAll(sel))
+                .map(e => e.dataset.staffId || e.dataset.billId).filter(Boolean);
+            const staff = ids('[data-staff-id]');
+            const bills = ids('[data-bill-id]');
+            return {
+                staffDupes: staff.length - new Set(staff).size,
+                billDupes: bills.length - new Set(bills).size,
+                legacyTables: !!document.getElementById('adminStaffTableBody')
+                           || !!document.getElementById('adminBillsTableBody')
+            };
+        }"""
+    )
+    audit.record(
+        "C3 each staff member and bill is rendered exactly once",
+        dup["staffDupes"] == 0 and dup["billDupes"] == 0 and not dup["legacyTables"],
+        "duplicate rows present: %s" % (dup,),
+    )
+
     # Put the form back so later checks start clean.
     reload_app(page)
 
@@ -639,7 +656,7 @@ def audit_unsaved_guard(page, audit, api):
 
     typed = page.evaluate(
         """() => {
-            const card = document.querySelector('.staff-mobile-card, #adminStaffTableBody tr');
+            const card = document.querySelector('.staff-mobile-card');
             if (!card) return {no_row: true};
             const sal = card.querySelector('.staff-edit-salary');
             if (!sal) return {no_salary: true};
@@ -1384,7 +1401,10 @@ def audit_dashboard_mode(page, audit, api):
                     scope: (window.dashboardFilters || {}).scope,
                     stored: (window.masterConfig || {}).dashboardMode,
                     badge: (document.getElementById('dashboardModeBadge') || {}).textContent,
-                    staffKpi: vis('kpiStaffPayroll'),
+                    // kpiStaffPayroll moved to the Staff tab and the bill
+                    // counters to Bills; they are asserted on their own screens
+                    // below rather than measured here, where they would always
+                    // read false and prove nothing.
                     staffLedger: vis('dashStaffLedgerSection'),
                     billsRadar: vis('dashBillsRadarSection')
                 };
@@ -1410,9 +1430,7 @@ def audit_dashboard_mode(page, audit, api):
         if mode == "personal":
             audit.record(
                 "D personal mode hides household payroll and bill sections",
-                st["staffKpi"] is not True
-                and st["staffLedger"] is not True
-                and st["billsRadar"] is not True,
+                st["staffLedger"] is not True and st["billsRadar"] is not True,
                 "state is %s" % (st,),
             )
         goto_tab(page, "admin")
@@ -1467,6 +1485,53 @@ def audit_dashboard_mode(page, audit, api):
             "expected %s in the ledger" % (names,),
         )
 
+    # The cards that left the dashboard are asserted where they landed, so the
+    # coverage moves with them instead of evaporating.
+    goto_tab(page, "staff")
+    page.wait_for_timeout(1200)
+    on_staff = page.evaluate(
+        """() => {
+            const el = document.getElementById('kpiStaffPayroll');
+            return {present: !!el, visible: !!el && !el.classList.contains('hidden') && el.offsetHeight > 0};
+        }"""
+    )
+    audit.record(
+        "D the payroll card lives on the Staff screen now",
+        on_staff["present"] and (on_staff["visible"] or not original_staff),
+        "payroll card on Staff: %s" % (on_staff,),
+    )
+
+    goto_tab(page, "bills")
+    page.wait_for_timeout(1200)
+    on_bills = page.evaluate(
+        """() => {
+            const ids = ['kpiPendingBills', 'kpiPaidBills'];
+            return ids.map(i => {
+                const el = document.getElementById(i);
+                return {id: i, present: !!el};
+            });
+        }"""
+    )
+    audit.record(
+        "D the bill counters live on the Bills screen now",
+        all(x["present"] for x in on_bills),
+        "bill counters: %s" % (on_bills,),
+    )
+
+    goto_tab(page, "dashboard")
+    page.wait_for_timeout(900)
+    four = page.evaluate(
+        """() => {
+            const g = document.getElementById('dashSummaryGrid');
+            return g ? g.querySelectorAll(':scope > .kpi-card').length : -1;
+        }"""
+    )
+    audit.record(
+        "D the dashboard shows four primary figures, not ten",
+        four == 4,
+        "dashboard KPI count is %s" % four,
+    )
+
     # Remove staff and bills and prove the sections disappear. This is the bug
     # the owner reported: a household with no staff still saw payroll cards.
     try:
@@ -1478,7 +1543,7 @@ def audit_dashboard_mode(page, audit, api):
         empty = mode_state()
         audit.record(
             "D no staff configured means no payroll anywhere on the dashboard",
-            empty["staffKpi"] is not True and empty["staffLedger"] is not True,
+            empty["staffLedger"] is not True,
             "state is %s" % (empty,),
         )
         audit.record(
@@ -1666,10 +1731,15 @@ def audit_design_system(page, audit, api):
     page.wait_for_timeout(1200)
 
     # --- Icons -------------------------------------------------------------
-    # A glyph that is not in the loaded Font Awesome set lays out at zero
-    # width. Walk every tab so dynamically rendered icons are included too.
-    broken = {}
-    for tab in ("dashboard", "expenses", "staff", "matrix", "settings", "admin", "audit"):
+    # The interface icons are Lucide symbols in an inline sprite. A <use> that
+    # names a symbol which is not there draws nothing and says nothing, so the
+    # reference is checked as well as the result. Walk every tab, because most
+    # icons are rendered at runtime.
+    dangling = {}
+    flat = {}
+    leftover = {}
+    for tab in ("dashboard", "expenses", "bills", "reports", "personal",
+                "staff", "matrix", "settings", "admin", "audit"):
         try:
             goto_tab(page, tab)
         except Exception:
@@ -1677,21 +1747,75 @@ def audit_design_system(page, audit, api):
         page.wait_for_timeout(900)
         found = page.evaluate(
             """() => {
-                const base = new Set(['fa-solid', 'fa-regular', 'fa-brands', 'fa-fw']);
-                return Array.from(document.querySelectorAll('i.fa-solid, i.fa-regular, i.fa-brands'))
-                    .filter(i => i.offsetParent !== null && i.getBoundingClientRect().height > 0)
-                    .filter(i => Math.round(i.getBoundingClientRect().width) === 0)
-                    .map(i => [...i.classList].find(c => c.startsWith('fa-') && !base.has(c)) || '(unknown)');
+                const visible = (el) => {
+                    const r = el.getBoundingClientRect();
+                    return el.getClientRects().length > 0 && r.height > 0;
+                };
+                const bad = [], zero = [], stale = [];
+                document.querySelectorAll('svg.ic > use').forEach(u => {
+                    const id = (u.getAttribute('href') || u.getAttribute('xlink:href') || '').replace('#', '');
+                    if (!id || !document.getElementById(id)) bad.push(id || '(empty href)');
+                });
+                document.querySelectorAll('svg.ic').forEach(svg => {
+                    if (!visible(svg)) return;
+                    if (Math.round(svg.getBoundingClientRect().width) === 0) {
+                        const u = svg.querySelector('use');
+                        zero.push((u && u.getAttribute('href')) || '(no use)');
+                    }
+                });
+                // Anything still asking for a Font Awesome glyph that is not a
+                // brand mark is an icon the migration missed; the solid font is
+                // no longer loaded, so it will draw nothing.
+                document.querySelectorAll('i[class*="fa-"]').forEach(i => {
+                    if (i.classList.contains('fa-brands')) return;
+                    if (!visible(i)) return;
+                    stale.push([...i.classList].find(c => c.startsWith('fa-')) || '(unknown)');
+                });
+                return {bad: bad, zero: zero, stale: stale};
             }"""
         )
-        for name in found:
-            broken.setdefault(name, tab)
+        for b in found["bad"]:
+            dangling.setdefault(b, tab)
+        for z in found["zero"]:
+            flat.setdefault(z, tab)
+        for st in found["stale"]:
+            leftover.setdefault(st, tab)
 
     audit.record(
-        "G every icon on every tab renders",
-        not broken,
-        "these glyph names draw nothing: "
-        + ", ".join("%s (on %s)" % (k, v) for k, v in sorted(broken.items())),
+        "G every icon reference resolves to a symbol in the sprite",
+        not dangling,
+        "unresolved: " + ", ".join("%s (on %s)" % (k, v) for k, v in sorted(dangling.items())[:8]),
+    )
+    audit.record(
+        "G every icon on every tab draws",
+        not flat,
+        "drawn at zero width: " + ", ".join("%s (on %s)" % (k, v) for k, v in sorted(flat.items())[:8]),
+    )
+    audit.record(
+        "G no icon was left pointing at a font that is no longer loaded",
+        not leftover,
+        "still Font Awesome: " + ", ".join("%s (on %s)" % (k, v) for k, v in sorted(leftover.items())[:8]),
+    )
+
+    # The three brand marks are the one thing Lucide cannot express, so they
+    # keep Font Awesome Brands - and that has to still be loading.
+    goto_tab(page, "dashboard")
+    page.wait_for_timeout(500)
+    brands = page.evaluate(
+        """() => {
+            const probe = document.createElement('i');
+            probe.className = 'fa-brands fa-android';
+            probe.style.cssText = 'position:absolute;left:-9999px;font-size:32px';
+            document.body.appendChild(probe);
+            const w = Math.round(probe.getBoundingClientRect().width);
+            probe.remove();
+            return w;
+        }"""
+    )
+    audit.record(
+        "G the brand marks still have a font to draw with",
+        brands > 0,
+        "a brand glyph lays out at zero width - brands.min.css is not loading",
     )
 
     # --- Themes ------------------------------------------------------------
@@ -1804,6 +1928,591 @@ def audit_design_system(page, audit, api):
         % page.evaluate("() => document.documentElement.getAttribute('data-theme')"),
     )
 
+
+ACCESSIBLE_NAME_JS = r"""
+(() => {
+    // An approximation of the accessible-name computation, limited to the
+    // mechanisms this app actually uses. It deliberately does NOT count
+    // placeholder or title as sufficient for a control, because both vanish
+    // the moment the field has content or the pointer moves away.
+    const named = (el) => {
+        const lb = el.getAttribute('aria-labelledby');
+        if (lb) {
+            const txt = lb.split(/\s+/)
+                .map(id => (document.getElementById(id) || {}).textContent || '')
+                .join(' ').trim();
+            if (txt) return true;
+        }
+        if ((el.getAttribute('aria-label') || '').trim()) return true;
+        if (el.id) {
+            const l = document.querySelector('label[for="' + CSS.escape(el.id) + '"]');
+            if (l && l.textContent.trim()) return true;
+        }
+        if (el.closest('label') && el.closest('label').textContent.trim()) return true;
+        return false;
+    };
+    const visible = (el) => {
+        if (el.offsetParent === null && getComputedStyle(el).position !== 'fixed') return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+    };
+    const describe = (el) =>
+        el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') +
+        (el.className && typeof el.className === 'string'
+            ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
+
+    const controls = [];
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+        if (el.type === 'hidden' || !visible(el)) return;
+        if (!named(el)) controls.push(describe(el));
+    });
+
+    const buttons = [];
+    document.querySelectorAll('button, [role="button"], a[href]').forEach(el => {
+        if (!visible(el)) return;
+        // Text the user can see counts as the name.
+        const txt = (el.innerText || '').replace(/\s+/g, ' ').trim();
+        if (txt) return;
+        if (!named(el)) buttons.push(describe(el));
+    });
+
+    return {controls, buttons};
+})()
+"""
+
+
+def audit_accessibility(page, audit, api):
+    """Every control and every control-shaped thing has to say what it is.
+
+    Before this pass 53 of 60 inputs had no programmatic label and 23 buttons
+    were a bare icon, so a screen reader announced "edit text" and "button".
+    The check walks every tab and every dialog rather than sampling, because a
+    sampled accessibility check is the kind that stays green while the screen
+    it never looks at is unusable.
+    """
+    print("\n[A] accessibility: everything interactive has a name")
+
+    bad_controls, bad_buttons = {}, {}
+    for tab in ("dashboard", "expenses", "bills", "reports", "personal",
+                "staff", "matrix", "settings", "admin", "audit"):
+        try:
+            goto_tab(page, tab)
+        except Exception:
+            continue
+        page.wait_for_timeout(700)
+        res = page.evaluate(ACCESSIBLE_NAME_JS)
+        for c in res["controls"]:
+            bad_controls.setdefault(c, tab)
+        for b in res["buttons"]:
+            bad_buttons.setdefault(b, tab)
+
+    audit.record(
+        "A every visible form control has a programmatic label",
+        not bad_controls,
+        "unnamed: " + ", ".join("%s (%s)" % (k, v) for k, v in sorted(bad_controls.items())[:8]),
+    )
+    audit.record(
+        "A every icon-only control has an accessible name",
+        not bad_buttons,
+        "unnamed: " + ", ".join("%s (%s)" % (k, v) for k, v in sorted(bad_buttons.items())[:8]),
+    )
+
+    # --- Dialogs -----------------------------------------------------------
+    # A modal that is only a <div> leaves a screen reader reading the page
+    # behind it, with no announcement that anything opened.
+    goto_tab(page, "dashboard")
+    page.wait_for_timeout(500)
+    dialogs = page.evaluate(
+        """() => Array.from(document.querySelectorAll('.modal-backdrop')).map(d => ({
+            id: d.id,
+            role: d.getAttribute('role'),
+            modal: d.getAttribute('aria-modal'),
+            named: !!((d.getAttribute('aria-label') || '').trim() ||
+                      ((document.getElementById(d.getAttribute('aria-labelledby') || '') || {}).textContent || '').trim())
+        }))"""
+    )
+    unmarked = [d for d in dialogs
+                if d["role"] not in ("dialog", "alertdialog")
+                or d["modal"] != "true" or not d["named"]]
+    audit.record(
+        "A every modal is a named dialog, not an anonymous div",
+        dialogs and not unmarked,
+        "%d dialogs, unmarked: %s" % (len(dialogs), [d["id"] for d in unmarked][:6]),
+    )
+
+    # --- Decorative icons ---------------------------------------------------
+    icons = page.evaluate(
+        """() => {
+            // Both kinds: the Lucide sprite icons that carry the interface, and
+            // the three Font Awesome brand marks. Counting only one of them
+            // would let the other drift.
+            const all = Array.from(document.querySelectorAll('svg.ic, i[class*="fa-"]'));
+            return {total: all.length,
+                    sprite: all.filter(e => e.tagName.toLowerCase() === 'svg').length,
+                    exposed: all.filter(e => e.getAttribute('aria-hidden') !== 'true').length};
+        }"""
+    )
+    audit.record(
+        "A decorative icons are hidden from assistive tech",
+        icons["sprite"] > 20 and icons["exposed"] == 0,
+        "%d of %d icons still exposed (%d from the sprite)"
+        % (icons["exposed"], icons["total"], icons["sprite"]),
+    )
+
+    # --- Current location ---------------------------------------------------
+    goto_tab(page, "expenses")
+    page.wait_for_timeout(600)
+    current = page.evaluate(
+        """() => Array.from(document.querySelectorAll('[aria-current="page"]'))
+                      .map(e => e.id || e.className)"""
+    )
+    audit.record(
+        "A the active section is announced, not just coloured in",
+        len(current) > 0,
+        "aria-current carriers: %s" % (current,),
+    )
+    goto_tab(page, "dashboard")
+
+
+def audit_settings_sections(page, audit, api):
+    """Master Settings was ten cards on one scroll. They are grouped now, and a
+    group is only useful if selecting it really does hide the rest - and if a
+    validation error in a hidden group brings its group back."""
+    print("\n[H] settings are grouped, and the groups work")
+
+    goto_tab(page, "admin")
+    page.wait_for_timeout(1400)
+
+    shape = page.evaluate(
+        """() => {
+            const view = document.getElementById('view-admin');
+            const cards = Array.from(view.querySelectorAll('[data-settings-section]'));
+            const chips = Array.from(view.querySelectorAll('.settings-chip'));
+            const visible = (el) => el.offsetParent !== null && el.getBoundingClientRect().height > 0;
+            return {
+                cards: cards.length,
+                untagged: Array.from(view.querySelectorAll(':scope > .glass-card'))
+                    .filter(c => !c.hasAttribute('data-settings-section')).length,
+                chips: chips.map(c => c.getAttribute('data-section-key')),
+                selected: chips.filter(c => c.getAttribute('aria-selected') === 'true')
+                               .map(c => c.getAttribute('data-section-key')),
+                visibleSections: Array.from(new Set(cards.filter(visible)
+                    .map(c => c.getAttribute('data-settings-section'))))
+            };
+        }"""
+    )
+    audit.record(
+        "H every settings card declares the group it belongs to",
+        shape["cards"] > 0 and shape["untagged"] == 0,
+        "%d cards, %d untagged" % (shape["cards"], shape["untagged"]),
+    )
+    audit.record(
+        "H the group rail offers more than one group",
+        len(shape["chips"]) >= 2,
+        "chips: %s" % (shape["chips"],),
+    )
+    audit.record(
+        "H exactly one group is selected and only its cards are on screen",
+        len(shape["selected"]) == 1 and shape["visibleSections"] == shape["selected"],
+        "selected %s, visible %s" % (shape["selected"], shape["visibleSections"]),
+    )
+
+    # Selecting another group has to actually move the page, not just recolour
+    # a chip.
+    other = next((c for c in shape["chips"] if c not in shape["selected"]), None)
+    if other:
+        page.evaluate("(k) => window.showSettingsSection('view-admin', k)", other)
+        page.wait_for_timeout(350)
+        after = page.evaluate(
+            """() => {
+                const view = document.getElementById('view-admin');
+                const visible = (el) => el.offsetParent !== null && el.getBoundingClientRect().height > 0;
+                return Array.from(new Set(
+                    Array.from(view.querySelectorAll('[data-settings-section]'))
+                        .filter(visible).map(c => c.getAttribute('data-settings-section'))));
+            }"""
+        )
+        audit.record(
+            "H choosing a group swaps what is on screen",
+            after == [other],
+            "asked for %s, showing %s" % (other, after),
+        )
+
+    # A hidden group must not be able to swallow a validation message. Clear a
+    # staff name while the Staff group is closed and save: the save is blocked,
+    # and the group holding the bad field opens so the person can see why.
+    page.evaluate("() => window.showSettingsSection('view-admin', 'account')")
+    page.wait_for_timeout(300)
+    drove = page.evaluate(
+        """() => {
+            const n = document.querySelector('#adminStaffMobileList .staff-edit-name');
+            if (!n) return {none: true};
+            n.value = '';
+            n.dispatchEvent(new Event('input', {bubbles: true}));
+            return {ok: true};
+        }"""
+    )
+    if drove.get("ok"):
+        page.evaluate("saveAdminConfigFromUI()")
+        try:
+            page.wait_for_selector(".field-error.is-visible", timeout=4000)
+        except PWError:
+            pass
+        revealed = page.evaluate(
+            """() => {
+                const err = document.querySelector('.field-error.is-visible');
+                if (!err) return {noError: true};
+                const owner = err.closest('[data-settings-section]');
+                return {
+                    section: owner ? owner.getAttribute('data-settings-section') : null,
+                    seen: err.offsetParent !== null && err.getBoundingClientRect().height > 0
+                };
+            }"""
+        )
+        audit.record(
+            "H a validation error opens the group that holds it",
+            revealed.get("seen") is True,
+            "error state: %s" % (revealed,),
+        )
+    reload_app(page)
+
+
+def audit_add_expense_sheet(page, audit, api):
+    """The add form asked for the date - which the app already knows - before
+    the amount, and opened centred so the first field sat under the keyboard."""
+    print("\n[H] the add-expense form is a sheet, in answering order")
+
+    goto_tab(page, "dashboard")
+    page.wait_for_timeout(600)
+    page.evaluate("() => window.openExpenseModal && window.openExpenseModal()")
+    page.wait_for_timeout(600)
+
+    shape = page.evaluate(
+        """() => {
+            const modal = document.getElementById('expenseModal');
+            const form = document.getElementById('expenseForm');
+            if (!modal || modal.classList.contains('hidden')) return {closed: true};
+            const content = modal.querySelector('.modal-content');
+            const r = content.getBoundingClientRect();
+            const fields = Array.from(form.querySelectorAll('input, select, textarea'))
+                .filter(e => e.type !== 'hidden' && e.offsetParent !== null)
+                .map(e => e.id);
+            return {
+                order: fields,
+                bottomGap: Math.round(window.innerHeight - r.bottom),
+                radiusTop: getComputedStyle(content).borderTopLeftRadius,
+                radiusBottom: getComputedStyle(content).borderBottomLeftRadius
+            };
+        }"""
+    )
+    if shape.get("closed"):
+        audit.record("H the add-expense form opens", False, "the modal did not open")
+        return
+
+    audit.record(
+        "H the form asks for the amount, then the category, then who paid",
+        shape["order"][:3] == ["inputAmount", "inputCategory", "inputPaidBy"],
+        "field order is %s" % (shape["order"][:5],),
+    )
+    audit.record(
+        "H on a phone it sits against the bottom edge, under the thumb",
+        shape["bottomGap"] <= 2,
+        "there are %spx between the sheet and the bottom of the screen" % shape["bottomGap"],
+    )
+    audit.record(
+        "H it is shaped like a sheet: rounded at the top, square at the bottom",
+        shape["radiusBottom"] in ("0px", "0"),
+        "top %s, bottom %s" % (shape["radiusTop"], shape["radiusBottom"]),
+    )
+
+    page.evaluate("() => window.closeExpenseModal && window.closeExpenseModal()")
+    page.wait_for_timeout(300)
+
+
+def audit_permission_editor(browser, audit):
+    """Per-user permissions are enforced by the API - the suite proves that.
+    This checks an administrator can actually reach them.
+
+    It runs in its own context because only an administrator may read the
+    user directory. Driving it from the OWNER session the rest of the audit
+    uses found an empty list and failed for a reason that had nothing to do
+    with the editor - the OWNER was being refused the directory, correctly.
+    """
+    print("\n[H] the permission editor")
+
+    ctx = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+    page = ctx.new_page()
+    attach_listeners(page, audit)
+    try:
+        login(page, "admin", "Admin@123")
+    except PWError as e:
+        audit.record("H the permission editor", False,
+                     "admin login failed: %s" % str(e)[:120])
+        ctx.close()
+        return
+
+    goto_tab(page, "admin")
+    page.wait_for_timeout(1200)
+    page.evaluate("() => window.showSettingsSection && window.showSettingsSection('view-admin', 'household')")
+    # The directory is fetched asynchronously; picking a user before it lands
+    # finds an empty list and fails for a reason that is not the editor's.
+    page.evaluate("() => window.loadAdminConsoleData && window.loadAdminConsoleData(true)")
+    try:
+        page.wait_for_function(
+            "() => ((window.adminDirectoryData || {}).users || []).length > 0",
+            timeout=8000)
+    except PWError:
+        pass
+    page.wait_for_timeout(400)
+
+    state = page.evaluate(
+        """() => {
+            const users = (window.adminDirectoryData || {}).users || [];
+            const target = users.find(u => u.role !== 'ADMIN' && u.role !== 'SYSTEM_ADMIN');
+            if (!target) return {noUser: true};
+            window.openEditUserModal(target.userId);
+            return {userId: target.userId, role: target.role};
+        }"""
+    )
+    if state.get("noUser"):
+        audit.record("H the permission editor", False, "no editable user in the directory")
+        ctx.close()
+        return
+
+    page.wait_for_timeout(600)
+    panel = page.evaluate(
+        """() => {
+            const body = document.getElementById('editUserPermissionsBody');
+            const boxes = Array.from(document.querySelectorAll('.user-perm-box'));
+            return {
+                collapsed: body ? body.classList.contains('hidden') : null,
+                boxes: boxes.length,
+                checked: boxes.filter(b => b.checked).length,
+                presets: document.querySelectorAll('#editUserPermissionPresets button').length,
+                summary: (document.getElementById('editUserPermissionSummary') || {}).textContent
+            };
+        }"""
+    )
+    audit.record(
+        "H the editor offers every permission the API knows about",
+        panel["boxes"] >= 25,
+        "%d checkboxes rendered" % panel["boxes"],
+    )
+    audit.record(
+        "H it offers the four role presets",
+        panel["presets"] == 4,
+        "%d preset buttons" % panel["presets"],
+    )
+    audit.record(
+        "H it starts collapsed, showing the role defaults",
+        panel["collapsed"] is True and (panel["summary"] or "").strip() == "role defaults",
+        "collapsed=%s summary=%r" % (panel["collapsed"], panel["summary"]),
+    )
+    audit.record(
+        "H it opens pre-ticked with what the account can do today",
+        panel["checked"] > 0,
+        "%d of %d ticked" % (panel["checked"], panel["boxes"]),
+    )
+
+    # Select all / Clear all have to move every box that the admin may grant.
+    cleared = page.evaluate(
+        """() => {
+            window.setAllUserPermissions(false);
+            const boxes = Array.from(document.querySelectorAll('.user-perm-box'));
+            return boxes.filter(b => b.checked).length;
+        }"""
+    )
+    selected = page.evaluate(
+        """() => {
+            window.setAllUserPermissions(true);
+            const boxes = Array.from(document.querySelectorAll('.user-perm-box'));
+            return {on: boxes.filter(b => b.checked).length, total: boxes.length};
+        }"""
+    )
+    audit.record(
+        "H Clear all empties the grid and Select all fills it",
+        cleared == 0 and selected["on"] == selected["total"],
+        "cleared to %d, selected %d of %d" % (cleared, selected["on"], selected["total"]),
+    )
+
+    page.evaluate("() => window.closeEditUserModal && window.closeEditUserModal()")
+    page.wait_for_timeout(300)
+    ctx.close()
+
+
+def audit_event_delegation(page, audit, api):
+    """The markup used to carry 168 inline handlers, which is 168 reasons a
+    Content-Security-Policy would turn the page into a picture of an app.
+
+    Two things have to hold: nothing inline is left, and every data-click,
+    data-change, data-submit and data-input in the document names an entry that
+    exists. A dangling name is a control that silently does nothing - the worst
+    possible failure, because it looks fine.
+    """
+    print("\n[H] behaviour lives in script, not in attributes")
+
+    dangling = {}
+    inline = {}
+    for tab in ("dashboard", "expenses", "bills", "reports", "personal",
+                "staff", "matrix", "settings", "admin", "audit"):
+        try:
+            goto_tab(page, tab)
+        except Exception:
+            continue
+        page.wait_for_timeout(500)
+        found = page.evaluate(
+            """() => {
+                const actions = window.UI_ACTIONS || {};
+                const bad = [];
+                ['data-click', 'data-change', 'data-submit', 'data-input'].forEach(attr => {
+                    document.querySelectorAll('[' + attr + ']').forEach(el => {
+                        const key = el.getAttribute(attr);
+                        if (!actions[key]) bad.push(attr + '=' + key);
+                    });
+                });
+                // Only the static document is converted; the renderers still
+                // build their rows with inline handlers, so this counts the
+                // attributes that survived in markup the generator saw.
+                const stale = Array.from(document.querySelectorAll('[onclick], [onchange], [onsubmit], [oninput]'))
+                    .filter(el => !el.closest('[id$="TableBody"], [id$="List"], [id$="Grid"], [id$="Container"], tbody'))
+                    .map(el => el.tagName.toLowerCase() + (el.id ? '#' + el.id : ''));
+                return {bad: bad, stale: stale.slice(0, 10)};
+            }"""
+        )
+        for b in found["bad"]:
+            dangling.setdefault(b, tab)
+        for i in found["stale"]:
+            inline.setdefault(i, tab)
+
+    audit.record(
+        "H the handler registry is loaded",
+        page.evaluate("() => !!window.UI_ACTIONS && Object.keys(window.UI_ACTIONS).length > 100"),
+        "window.UI_ACTIONS is missing or nearly empty - every control is inert",
+    )
+    audit.record(
+        "H every delegated control names a handler that exists",
+        not dangling,
+        "dangling: %s" % (sorted(dangling.items())[:8],),
+    )
+
+    # And the wiring actually works end to end: a known button still does its job.
+    goto_tab(page, "dashboard")
+    page.wait_for_timeout(600)
+    opened = page.evaluate(
+        """() => {
+            const btn = document.querySelector('.fab-add[data-click]');
+            if (!btn) return {noButton: true};
+            btn.click();
+            const m = document.getElementById('expenseModal');
+            return {open: !!m && !m.classList.contains('hidden')};
+        }"""
+    )
+    audit.record(
+        "H a delegated click still opens what it used to open",
+        opened.get("open") is True,
+        "clicking the add button did nothing: %s" % (opened,),
+    )
+    page.evaluate("() => window.closeExpenseModal && window.closeExpenseModal()")
+    page.wait_for_timeout(300)
+
+DESKTOP_WIDTHS = [768, 1024, 1440, 1920]
+
+
+def audit_desktop_widths(browser, audit):
+    """The same layout rules at tablet and desktop widths.
+
+    Checks three things that actually break when a mobile-first layout is
+    stretched: content wider than the viewport, a control pushed off the right
+    edge, and the phone-only furniture still being on screen when there is no
+    longer any reason for it.
+    """
+    print("\n[I] layout above phone width")
+
+    for width in DESKTOP_WIDTHS:
+        ctx = browser.new_context(viewport={"width": width, "height": 900})
+        page = ctx.new_page()
+        attach_listeners(page, audit)
+        try:
+            login(page)
+        except PWError as e:
+            audit.record("I sign in at %dpx" % width, False, str(e)[:160])
+            ctx.close()
+            continue
+
+        for tab in ("dashboard", "expenses", "bills", "reports", "personal",
+                    "staff", "matrix", "settings", "admin"):
+            try:
+                goto_tab(page, tab)
+            except Exception:
+                continue
+            page.wait_for_timeout(500)
+
+            state = page.evaluate(
+                """() => {
+                    const doc = document.documentElement;
+                    const overflow = Math.round(doc.scrollWidth - doc.clientWidth);
+                    const off = [];
+                    document.querySelectorAll('button, input, select, textarea, a[href]').forEach(el => {
+                        if (el.offsetParent === null) return;
+                        const r = el.getBoundingClientRect();
+                        if (r.width === 0 || r.height === 0) return;
+                        // Inside something that scrolls sideways on purpose is
+                        // not "off the edge"; a wide table is allowed to be wide.
+                        let p = el.parentElement, scrollable = false;
+                        while (p && p !== document.body) {
+                            const o = getComputedStyle(p).overflowX;
+                            if (o === 'auto' || o === 'scroll') { scrollable = true; break; }
+                            p = p.parentElement;
+                        }
+                        if (scrollable) return;
+                        if (r.right > window.innerWidth + 1 || r.left < -1) {
+                            off.push((el.id || el.tagName.toLowerCase()) + ' @' + Math.round(r.left) + '-' + Math.round(r.right));
+                        }
+                    });
+                    const shown = (id) => {
+                        const el = document.getElementById(id);
+                        return !!el && el.offsetParent !== null && el.getBoundingClientRect().height > 0;
+                    };
+                    return {
+                        overflow: overflow,
+                        off: off.slice(0, 5),
+                        bottomNav: shown('mobileBottomNav'),
+                        sidebar: shown('desktopSidebar')
+                    };
+                }"""
+            )
+            audit.record(
+                "I no horizontal overflow on %s @%dpx" % (tab, width),
+                state["overflow"] <= 1,
+                "the page is %dpx wider than the window" % state["overflow"],
+            )
+            audit.record(
+                "I no control sits off the edge on %s @%dpx" % (tab, width),
+                not state["off"],
+                "off-screen: %s" % (state["off"],),
+            )
+
+        # The phone furniture is phone furniture. A bottom tab bar on a 1440px
+        # window is wasted vertical space and a second, competing navigation.
+        goto_tab(page, "dashboard")
+        page.wait_for_timeout(400)
+        chrome = page.evaluate(
+            """() => {
+                const shown = (sel) => {
+                    const el = document.querySelector(sel);
+                    return !!el && el.offsetParent !== null && el.getBoundingClientRect().height > 0;
+                };
+                return {bottomNav: shown('#mobileBottomNav'), fab: shown('.fab-add')};
+            }"""
+        )
+        if width >= 1024:
+            audit.record(
+                "I the phone bottom bar is gone at %dpx" % width,
+                chrome["bottomNav"] is False,
+                "the mobile tab bar is still on screen at %dpx" % width,
+            )
+
+        ctx.close()
 
 def audit_logout(page, audit, api):
     """Section E: signing out must actually end the session. A token left in
@@ -2136,6 +2845,15 @@ def audit_admin_management(browser, audit):
         goto_tab(page, "admin")
         page.wait_for_timeout(1500)
 
+        # Master Settings shows one group at a time now, so "visible" means
+        # "visible once its group is open". Selecting the group here keeps the
+        # check about who may see the card rather than about which chip happens
+        # to be selected by default.
+        page.evaluate(
+            "() => window.showSettingsSection && window.showSettingsSection('view-admin', 'household')"
+        )
+        page.wait_for_timeout(400)
+
         # The tenant-management card used to be gated on role === 'ADMIN', which
         # hid it from SYSTEM_ADMIN entirely - the admin console was unreachable.
         audit.record(
@@ -2451,18 +3169,42 @@ def main():
                           (audit_expense_view_toggle, "D expense view toggle"),
                           (audit_dashboard_mode, "D dashboard follows master config"),
                           (audit_budget_counts_everything, "D budget counts every expense"),
-                          (audit_design_system, "G design system")):
+                          (audit_design_system, "G design system"),
+                          (audit_accessibility, "A accessibility"),
+                          (audit_settings_sections, "H settings sections"),
+                          (audit_add_expense_sheet, "H add-expense sheet"),
+                          (audit_event_delegation, "H event delegation")):
             try:
                 fn(page, audit, api)
             except Exception as e:
                 audit.record(label, False, f"audit error: {type(e).__name__}: {e}")
 
         print("\n[F] layout and tap targets per screen")
-        for tab in ["dashboard", "personal", "expenses", "staff", "matrix", "admin", "settings"]:
+        for tab in ["dashboard", "personal", "expenses", "reports", "staff", "matrix", "admin", "settings"]:
             goto_tab(page, tab)
             audit_tap_targets(page, audit, tab)
             audit_no_overflow(page, audit, tab)
             audit_no_clipped_controls(page, audit, tab)
+
+            # Master Settings shows one group at a time, so measuring the tab
+            # once would only ever check the group that opened. Walk them all,
+            # or the other six groups are never laid out under a 390px viewport.
+            sections = page.evaluate(
+                """(id) => {
+                    const v = document.getElementById('view-' + id);
+                    if (!v) return [];
+                    return Array.from(v.querySelectorAll('.settings-chip'))
+                        .map(c => c.getAttribute('data-section-key'));
+                }""",
+                tab,
+            )
+            for key in sections:
+                page.evaluate("([id, k]) => window.showSettingsSection('view-' + id, k)", [tab, key])
+                page.wait_for_timeout(350)
+                label = "%s/%s" % (tab, key)
+                audit_tap_targets(page, audit, label)
+                audit_no_overflow(page, audit, label)
+                audit_no_clipped_controls(page, audit, label)
 
         # Multi-context scenarios run in their own browser contexts, which are
         # closed again afterwards.
@@ -2475,6 +3217,16 @@ def main():
             audit_admin_management(browser, audit)
         except Exception as e:
             audit.record("E admin management", False, f"audit error: {type(e).__name__}: {e}")
+
+        try:
+            audit_permission_editor(browser, audit)
+        except Exception as e:
+            audit.record("H permission editor", False, f"audit error: {type(e).__name__}: {e}")
+
+        try:
+            audit_desktop_widths(browser, audit)
+        except Exception as e:
+            audit.record("I desktop widths", False, f"audit error: {type(e).__name__}: {e}")
 
         # Runs last: it ends the session, then signs back in.
         try:

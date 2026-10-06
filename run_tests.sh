@@ -12,6 +12,10 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_ROOT"
 
+# Snapshot the working tree so the guard can tell "already dirty" from
+# "this run dirtied it".
+BEFORE_SNAPSHOT="$(git status --porcelain=v1 2>/dev/null | sort)"
+
 SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/homeexp_tests_XXXXXX")"
 PORT="${TEST_PORT:-8000}"
 SERVER_PID=""
@@ -70,7 +74,7 @@ echo
 if [ "$#" -gt 0 ]; then
     SUITES=("$@")
 else
-    SUITES=(test_boot_suite.js test_cloud_recovery_suite.js test_verification_suite.js test_master_settings_and_expenses.js test_config_rules_suite.js test_dashboard_config_suite.js test_password_suite.js test_notifications_suite.js)
+    SUITES=(test_boot_suite.js test_cloud_recovery_suite.js test_verification_suite.js test_master_settings_and_expenses.js test_config_rules_suite.js test_dashboard_config_suite.js test_password_suite.js test_notifications_suite.js test_permissions_suite.js)
 fi
 
 FAILED=0
@@ -95,13 +99,23 @@ for suite in "${SUITES[@]}"; do
     echo
 done
 
-# --- 4. verify the real data was never touched ------------------------------
-if ! git diff --quiet -- data/ 2>/dev/null; then
-    echo "!! FATAL: the test run modified tracked files in data/"
-    git diff --stat -- data/
+# --- 4. verify the run touched no tracked file -------------------------------
+# Compared against a snapshot taken BEFORE the run, not against HEAD: work in
+# progress is normal, a file the RUN changed is not. Checking against HEAD
+# would flag every uncommitted edit and quickly be ignored.
+#
+# This used to watch only data/, which is how api/_db.js writing
+# initial_expenses.json at the repository root went unnoticed - a test run
+# silently edited a tracked file and the suite reported "data/ untouched".
+AFTER_SNAPSHOT="$(git status --porcelain=v1 2>/dev/null | sort)"
+if [ "$AFTER_SNAPSHOT" != "$BEFORE_SNAPSHOT" ]; then
+    echo "!! FATAL: the run modified tracked files in the repository"
+    diff <(printf '%s
+' "$BEFORE_SNAPSHOT") <(printf '%s
+' "$AFTER_SNAPSHOT") || true
     FAILED=1
 else
-    RESULTS+=("PASS     real data/ untouched")
+    RESULTS+=("PASS     repository untouched")
 fi
 
 echo "=============================================="

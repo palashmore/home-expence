@@ -10,6 +10,10 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_ROOT"
 
+# Snapshot the working tree so the guard separates "already dirty" from
+# "this run dirtied it".
+BEFORE_SNAPSHOT="$(git status --porcelain=v1 2>/dev/null | sort)"
+
 SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/homeexp_audit_XXXXXX")"
 PORT="${AUDIT_PORT:-8011}"
 SERVER_PID=""
@@ -72,14 +76,21 @@ echo
 "$PY" audit_mobile_flows.py --json-out "$SCRATCH/audit.json" "$@"
 AUDIT_RC=$?
 
-if ! git diff --quiet -- data/ 2>/dev/null; then
+# Compared against a snapshot taken before the run, not against HEAD: work in
+# progress is normal, a file the RUN changed is not. This used to watch only
+# data/, which is how api/_db.js writing initial_expenses.json at the repository
+# root went unnoticed.
+AFTER_SNAPSHOT="$(git status --porcelain=v1 2>/dev/null | sort)"
+if [ "$AFTER_SNAPSHOT" != "$BEFORE_SNAPSHOT" ]; then
     echo
-    echo "!! FATAL: the audit modified tracked files in data/"
-    git diff --stat -- data/
+    echo "!! FATAL: the run modified tracked files in the repository"
+    diff <(printf '%s
+' "$BEFORE_SNAPSHOT") <(printf '%s
+' "$AFTER_SNAPSHOT") || true
     AUDIT_RC=1
 else
     echo
-    echo "  OK   real data/ untouched"
+    echo "  OK   repository untouched"
 fi
 
 if [ "$AUDIT_RC" -ne 0 ]; then

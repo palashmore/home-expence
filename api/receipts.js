@@ -1,6 +1,7 @@
 // Receipts API Route (/api/receipts)
 // Multi-Tenant Household-Scoped Private Receipt Storage
-const { authenticateRequest } = require('./auth');
+const { authenticateRequest, sessionCan } = require('./auth');
+const { PERMISSIONS: P } = require('./_permissions');
 const storage = require('./_storage');
 
 module.exports = async function handler(req, res) {
@@ -36,6 +37,15 @@ module.exports = async function handler(req, res) {
         }
 
         if (req.method === 'POST') {
+            // Consistent with every other write path: a VIEWER reads, never
+            // writes. Uploading a receipt was the one place it still could.
+            if (!sessionCan(session, P.EXPENSE_EDIT)) {
+                return res.status(403).json({
+                    success: false,
+                    error: "Forbidden: Viewer role has read-only access and cannot upload receipts."
+                });
+            }
+
             let body = req.body;
             if (typeof body === 'string') {
                 try { body = JSON.parse(body); } catch (e) {}

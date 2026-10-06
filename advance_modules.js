@@ -136,7 +136,7 @@
     const isAndroid = /android/i.test(navigator.userAgent);
 
     if (isIOS) {
-      if (title) title.innerHTML = `<i class="fa-brands fa-apple mr-2"></i> Install on iPhone / iPad (Safari)`;
+      if (title) title.innerHTML = `<i class="fa-brands fa-apple mr-2" aria-hidden="true"></i> Install on iPhone / iPad (Safari)`;
       body.innerHTML = `
         <div class="space-y-4 text-xs font-medium text-slate-700">
           <p class="text-slate-600">Install HOMEEXPENSES to your iPhone/iPad Home Screen for full-screen view and instant offline access:</p>
@@ -145,14 +145,14 @@
               <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-black shrink-0">1</span>
               <div>
                 <span class="font-bold text-slate-900">Tap the Share Icon:</span>
-                <p class="text-slate-500 mt-0.5">In Safari bottom toolbar, tap the <strong>Share</strong> button <i class="fa-solid fa-arrow-up-from-bracket text-blue-600 text-sm"></i>.</p>
+                <p class="text-slate-500 mt-0.5">In Safari bottom toolbar, tap the <strong>Share</strong> button <svg class="ic text-blue-600 text-sm" aria-hidden="true"><use href="#i-upload"></use></svg>.</p>
               </div>
             </div>
             <div class="flex items-start space-x-3">
               <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-black shrink-0">2</span>
               <div>
                 <span class="font-bold text-slate-900">Add to Home Screen:</span>
-                <p class="text-slate-500 mt-0.5">Scroll down in the share sheet and tap <i class="fa-regular fa-square-plus text-slate-800"></i> <strong>"Add to Home Screen"</strong>.</p>
+                <p class="text-slate-500 mt-0.5">Scroll down in the share sheet and tap <svg class="ic text-slate-800" aria-hidden="true"><use href="#i-square-plus"></use></svg> <strong>"Add to Home Screen"</strong>.</p>
               </div>
             </div>
             <div class="flex items-start space-x-3">
@@ -166,7 +166,7 @@
         </div>
       `;
     } else if (isAndroid) {
-      if (title) title.innerHTML = `<i class="fa-brands fa-android text-emerald-400 mr-2"></i> Install on Android`;
+      if (title) title.innerHTML = `<i class="fa-brands fa-android text-emerald-400 mr-2" aria-hidden="true"></i> Install on Android`;
       body.innerHTML = `
         <div class="space-y-4 text-xs font-medium text-slate-700">
           <p class="text-slate-600">Install HOMEEXPENSES directly from your mobile browser:</p>
@@ -196,7 +196,7 @@
         </div>
       `;
     } else {
-      if (title) title.innerHTML = `<i class="fa-solid fa-desktop mr-2"></i> Install on Desktop / Browser`;
+      if (title) title.innerHTML = `<svg class="ic mr-2" aria-hidden="true"><use href="#i-monitor"></use></svg> Install on Desktop / Browser`;
       body.innerHTML = `
         <div class="space-y-4 text-xs font-medium text-slate-700">
           <p class="text-slate-600">Run HOMEEXPENSES in its own standalone desktop window:</p>
@@ -205,7 +205,7 @@
               <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-black shrink-0">1</span>
               <div>
                 <span class="font-bold text-slate-900">Look for the Install Icon:</span>
-                <p class="text-slate-500 mt-0.5">In Chrome/Edge address bar, click the <i class="fa-solid fa-circle-down text-indigo-600"></i> <strong>Install</strong> icon on the right side.</p>
+                <p class="text-slate-500 mt-0.5">In Chrome/Edge address bar, click the <svg class="ic text-indigo-600" aria-hidden="true"><use href="#i-circle-arrow-down"></use></svg> <strong>Install</strong> icon on the right side.</p>
               </div>
             </div>
             <div class="flex items-start space-x-3">
@@ -282,7 +282,7 @@
       warningBox.classList.remove('hidden');
       warningBox.innerHTML = `
         <div class="flex items-center gap-1.5 text-amber-800">
-          <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+          <svg class="ic text-amber-600" aria-hidden="true"><use href="#i-triangle-alert"></use></svg>
           <span><strong>Potential Duplicate Detected:</strong> A payment of <strong>₹${amount.toLocaleString('en-IN')}</strong> to <em>"${esc(dup.paidTo)}"</em> was already recorded on <strong>${esc(dup.date)}</strong> (within 24 hrs). Check to prevent duplicate entry.</span>
         </div>
       `;
@@ -308,7 +308,7 @@
           warningBox.classList.remove('hidden');
           warningBox.innerHTML = `
             <div class="flex items-center gap-1.5 text-amber-800">
-              <i class="fa-solid fa-chart-line text-amber-600"></i>
+              <svg class="ic text-amber-600" aria-hidden="true"><use href="#i-chart-line"></use></svg>
               <span><strong>Bill Spike Alert:</strong> This amount (<strong>₹${amount.toLocaleString('en-IN')}</strong>) is <strong>${pct}% higher</strong> than your average bill of <strong>₹${Math.round(avg).toLocaleString('en-IN')}</strong> for this utility.</span>
             </div>
           `;
@@ -473,7 +473,7 @@
             <p class="text-xs text-emerald-700 font-medium mt-1">All expenses directly funded by ${singleMember}. No splitwise reimbursement needed.</p>
           </div>
           <div class="mt-3 pt-2 border-t border-emerald-200 text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
-            <i class="fa-solid fa-check-circle"></i>
+            <svg class="ic" aria-hidden="true"><use href="#i-circle-check"></use></svg>
             <span>No pending balance to reimburse.</span>
           </div>
         </div>
@@ -482,7 +482,7 @@
       if (settleContainer) {
         settleContainer.innerHTML = `
           <button disabled class="px-4 py-2 bg-slate-100 text-slate-400 font-extrabold text-xs rounded-xl cursor-not-allowed flex items-center space-x-1.5 shadow-none">
-            <i class="fa-solid fa-circle-check text-emerald-500"></i>
+            <svg class="ic text-emerald-500" aria-hidden="true"><use href="#i-circle-check"></use></svg>
             <span>Self-Funded (${singleMember})</span>
           </button>
         `;
@@ -550,7 +550,7 @@
             <p class="text-xs text-emerald-700 font-medium mt-1">${payer1} has reimbursed all payments made by ${payer2} for this period.</p>
           </div>
           <div class="mt-3 pt-2 border-t border-emerald-200 text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
-            <i class="fa-solid fa-check-circle"></i>
+            <svg class="ic" aria-hidden="true"><use href="#i-circle-check"></use></svg>
             <span>No pending balance to return to ${payer2}.</span>
           </div>
         </div>
@@ -634,14 +634,14 @@
       if (netDueToP2 <= 0) {
         settleContainer.innerHTML = `
           <button disabled class="px-4 py-2 bg-slate-200 text-slate-400 font-extrabold text-xs rounded-xl cursor-not-allowed flex items-center space-x-1.5 shadow-none">
-            <i class="fa-solid fa-circle-check text-emerald-500"></i>
+            <svg class="ic text-emerald-500" aria-hidden="true"><use href="#i-circle-check"></use></svg>
             <span>All Reimbursed (₹0)</span>
           </button>
         `;
       } else {
         settleContainer.innerHTML = `
           <button onclick="openSettleUpModal()" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center space-x-1.5 active:scale-95">
-            <i class="fa-solid fa-handshake"></i>
+            <svg class="ic" aria-hidden="true"><use href="#i-handshake"></use></svg>
             <span>1-Click Settle Up (Return ₹${netDueToP2.toLocaleString('en-IN')})</span>
           </button>
         `;
@@ -855,7 +855,7 @@
 
     if (activeBills.length === 0) {
       grid.innerHTML = '<div class="col-span-full p-6 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 text-center">' +
-        '<i class="fa-solid fa-receipt text-slate-300 text-xl"></i>' +
+        '<svg class="ic text-slate-300 text-xl" aria-hidden="true"><use href="#i-receipt"></use></svg>' +
         '<p class="text-sm font-bold text-slate-600 mt-2">No recurring bills configured</p>' +
         '<p class="text-xs text-slate-500 font-medium mt-1">Add them in Master Settings to track due dates here.</p></div>';
       if (runwayNeededEl) runwayNeededEl.textContent = '₹0';
@@ -954,20 +954,20 @@
     if (!el) return;
     if (status === 'saving') {
       el.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 transition-all';
-      el.innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin text-amber-600"></i> <span>Saving to Cloud...</span>';
+      el.innerHTML = '<svg class="ic animate-spin text-amber-600" aria-hidden="true"><use href="#i-refresh-cw"></use></svg> <span>Saving to Cloud...</span>';
     } else if (status === 'saved') {
       el.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 transition-all';
-      el.innerHTML = '<i class="fa-solid fa-cloud-arrow-up text-emerald-600"></i> <span>Auto-Saved to Cloud</span>';
+      el.innerHTML = '<svg class="ic text-emerald-600" aria-hidden="true"><use href="#i-cloud-upload"></use></svg> <span>Auto-Saved to Cloud</span>';
       setTimeout(() => {
         const curEl = document.getElementById('attendanceSyncStatus');
         if (curEl && curEl.innerHTML.includes('Auto-Saved')) {
           curEl.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200 transition-all';
-          curEl.innerHTML = '<i class="fa-solid fa-cloud text-slate-400"></i> <span>Auto-Saved to Cloud</span>';
+          curEl.innerHTML = '<svg class="ic text-slate-400" aria-hidden="true"><use href="#i-cloud"></use></svg> <span>Auto-Saved to Cloud</span>';
         }
       }, 2500);
     } else if (status === 'error') {
       el.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-300 transition-all';
-      el.innerHTML = '<i class="fa-solid fa-circle-exclamation text-rose-600"></i> <span>Sync Failed (Saved Locally)</span>';
+      el.innerHTML = '<svg class="ic text-rose-600" aria-hidden="true"><use href="#i-circle-alert"></use></svg> <span>Sync Failed (Saved Locally)</span>';
     }
   }
 
@@ -1955,107 +1955,70 @@
       window.renderDashboardModeControl();
     }
 
-    // 1. Staff Members Table & Mobile Cards
-    const staffTbody = document.getElementById('adminStaffTableBody');
-    if (staffTbody && config.staff) {
-      staffTbody.innerHTML = config.staff.map((s) => `
-        <tr class="hover:bg-slate-50 transition border-b border-slate-100" data-staff-id="${esc(s.id)}">
-          <td class="py-2.5 px-3">
-            <input type="text" class="staff-edit-name bg-white border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-xs w-full focus:border-indigo-500" value="${esc(s.name)}">
-            <p class="staff-err-name field-error"></p>
-          </td>
-          <td class="py-2.5 px-3">
-            <input type="text" class="staff-edit-shortname bg-white border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-xs w-20 focus:border-indigo-500" value="${esc(s.shortName || '')}" placeholder="Short">
-          </td>
-          <td class="py-2.5 px-3">
-            <input type="text" class="staff-edit-role bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs w-full focus:border-indigo-500" value="${esc(s.role || '')}">
-          </td>
-          <td class="py-2.5 px-3">
-            <div class="flex items-center">
-              <span class="text-slate-400 mr-1 font-bold">₹</span>
-              <input type="number" step="any" min="0" inputmode="decimal" class="staff-edit-salary bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-24 focus:border-indigo-500" value="${s.baseSalary}">
-            </div>
-            <p class="staff-err-salary field-error"></p>
-          </td>
-          <td class="py-2.5 px-3 bg-indigo-50/60 border-x border-indigo-100">
-            <div class="flex items-center space-x-1.5">
-              <input type="number" min="0" max="31" inputmode="numeric" class="staff-edit-leaves bg-white border-2 border-indigo-400 rounded-lg px-2 py-1 font-black text-xs text-indigo-900 w-16 text-center focus:border-indigo-600 shadow-sm" value="${s.allowedPaidLeaves ?? 4}">
-              <span class="text-[10px] text-indigo-700 font-extrabold uppercase">Free Days</span>
-            </div>
-          </td>
-          <td class="py-2.5 px-3">
-            <div class="flex items-center space-x-1">
-              <span class="text-[10px] text-slate-400 font-bold">Day</span>
-              <input type="number" min="1" max="31" inputmode="numeric" class="staff-edit-cycleday bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-14 text-center focus:border-indigo-500" value="${s.billingCycleDay || 30}">
-            </div>
-          </td>
-          <td class="py-2.5 px-3">
-            <select class="staff-edit-cycletype bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold focus:border-indigo-500">
-              <option value="calendar_month" ${s.cycleType === 'calendar_month' ? 'selected' : ''}>Calendar Month</option>
-              <option value="custom_cycle" ${s.cycleType === 'custom_cycle' ? 'selected' : ''}>Custom Cycle</option>
-            </select>
-          </td>
-          <td class="py-2.5 px-3 text-center">
-            <label class="inline-flex items-center cursor-pointer">
-              <input type="checkbox" class="staff-edit-active rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" ${s.active !== false ? 'checked' : ''}>
-            </label>
-          </td>
-          <td class="py-2.5 px-3 text-right">
-            <button onclick="adminDeleteStaff(${esc(JSON.stringify(s.id))})" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition" title="Delete staff member" aria-label="Delete staff member">
-              <i class="fa-solid fa-trash text-xs"></i>
-            </button>
-          </td>
-        </tr>
-      `).join('');
+    // Rebuilding the editable lists throws away whatever the owner has typed
+    // but not yet saved. A 7-second poll in tracker_app.js calls
+    // loadMasterConfig() -> renderAdminView(), so an edit left on screen for a
+    // few seconds - renaming a staff member, pausing to think - silently
+    // reverted to the stored value.
+    //
+    // adminFormDirty already existed and already guarded beforeunload and
+    // leaving the tab; it simply was not consulted by the one thing that
+    // actually destroyed the edits.
+    //
+    // Read-only parts above still refresh. Only the inputs holding unsaved work
+    // are left alone, and the next save or reload rebuilds them anyway.
+    if (window.adminFormDirty === true) {
+        return;
     }
 
+    // 1. Staff Members
     const staffMobile = document.getElementById('adminStaffMobileList');
     if (staffMobile && config.staff) {
       staffMobile.innerHTML = config.staff.map((s) => `
         <div class="staff-mobile-card p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 shadow-2xs" data-staff-id="${esc(s.id)}">
           <div class="flex items-center justify-between gap-2">
-            <input type="text" class="staff-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 min-w-0 focus:bg-white focus:border-indigo-500" value="${esc(s.name)}" placeholder="Staff Name">
+            <input type="text" aria-label="Staff member name" class="staff-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 min-w-0 focus:bg-white focus:border-indigo-500" value="${esc(s.name)}" placeholder="Staff Name">
             <button onclick="adminDeleteStaff(${esc(JSON.stringify(s.id))})" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" title="Delete staff member" aria-label="Delete staff member">
-              <i class="fa-solid fa-trash text-xs"></i>
+              <svg class="ic text-xs" aria-hidden="true"><use href="#i-trash-2"></use></svg>
             </button>
           </div>
           <p class="staff-err-name field-error"></p>
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div>
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Short Name</label>
-              <input type="text" class="staff-edit-shortname bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs w-full focus:bg-white focus:border-indigo-500" value="${esc(s.shortName || '')}" placeholder="e.g. AS">
+              <input type="text" aria-label="Short name" class="staff-edit-shortname bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs w-full focus:bg-white focus:border-indigo-500" value="${esc(s.shortName || '')}" placeholder="e.g. AS">
             </div>
             <div>
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Role</label>
-              <input type="text" class="staff-edit-role bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs w-full focus:bg-white focus:border-indigo-500" value="${esc(s.role || '')}" placeholder="Role">
+              <input type="text" aria-label="Role" class="staff-edit-role bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs w-full focus:bg-white focus:border-indigo-500" value="${esc(s.role || '')}" placeholder="Role">
             </div>
             <div>
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Base Salary (₹)</label>
               <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
                 <span class="text-slate-400 mr-1 font-bold text-xs">₹</span>
-                <input type="number" step="any" min="0" inputmode="decimal" class="staff-edit-salary bg-transparent font-black text-xs w-full focus:outline-none" value="${s.baseSalary}">
+                <input type="number" step="any" min="0" inputmode="decimal" aria-label="Base salary in rupees" class="staff-edit-salary bg-transparent font-black text-xs w-full focus:outline-none" value="${s.baseSalary}">
               </div>
               <p class="staff-err-salary field-error"></p>
             </div>
             <div>
               <label class="block text-[10px] font-black uppercase text-indigo-600 mb-0.5">Allowed Leaves</label>
-              <input type="number" min="0" max="31" inputmode="numeric" class="staff-edit-leaves bg-indigo-50 border border-indigo-200 rounded-xl px-2 py-1 font-black text-xs text-indigo-900 w-full text-center" value="${s.allowedPaidLeaves ?? 4}">
+              <input type="number" min="0" max="31" inputmode="numeric" aria-label="Allowed paid leaves" class="staff-edit-leaves bg-indigo-50 border border-indigo-200 rounded-xl px-2 py-1 font-black text-xs text-indigo-900 w-full text-center" value="${s.allowedPaidLeaves ?? 4}">
             </div>
             <div>
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Payday</label>
               <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
                 <span class="text-[10px] text-slate-400 font-bold mr-1">Day</span>
-                <input type="number" min="1" max="31" inputmode="numeric" class="staff-edit-cycleday bg-transparent font-black text-xs w-full focus:outline-none" value="${s.billingCycleDay || 30}">
+                <input type="number" min="1" max="31" inputmode="numeric" aria-label="Payday, day of month" class="staff-edit-cycleday bg-transparent font-black text-xs w-full focus:outline-none" value="${s.billingCycleDay || 30}">
               </div>
             </div>
           </div>
           <div class="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
-            <select class="staff-edit-cycletype bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-semibold">
+            <select aria-label="Salary cycle type" class="staff-edit-cycletype bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-semibold">
               <option value="calendar_month" ${s.cycleType === 'calendar_month' ? 'selected' : ''}>Calendar Month</option>
               <option value="custom_cycle" ${s.cycleType === 'custom_cycle' ? 'selected' : ''}>Custom Cycle</option>
             </select>
             <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
-              <input type="checkbox" class="staff-edit-active rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" ${s.active !== false ? 'checked' : ''}>
+              <input type="checkbox" aria-label="Staff member is active" class="staff-edit-active rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" ${s.active !== false ? 'checked' : ''}>
               <span>Active</span>
             </label>
           </div>
@@ -2063,50 +2026,7 @@
       `).join('');
     }
 
-    // 2. Recurring Bills Table & Mobile Cards
-    const billsTbody = document.getElementById('adminBillsTableBody');
-    if (billsTbody && config.recurringBills) {
-      billsTbody.innerHTML = config.recurringBills.map((b) => {
-        const billAmt = Number(b.approxAmount !== undefined && b.approxAmount !== null ? b.approxAmount : (b.budgetedAmount !== undefined ? b.budgetedAmount : 0)) || 0;
-        return `
-        <tr class="hover:bg-slate-50 transition border-b border-slate-100" data-bill-id="${esc(b.id)}">
-          <td class="py-2.5 px-3">
-            <input type="text" class="bill-edit-icon bg-white border border-slate-200 rounded-lg px-1.5 py-1 text-xs w-10 text-center font-bold" value="${esc(b.icon || '⚡')}">
-          </td>
-          <td class="py-2.5 px-3">
-            <input type="text" class="bill-edit-name bg-white border border-slate-200 rounded-lg px-2.5 py-1 font-bold text-xs w-full focus:border-indigo-500" value="${esc(b.name)}">
-            <p class="bill-err-name field-error"></p>
-          </td>
-          <td class="py-2.5 px-3">
-            <select class="bill-edit-cat bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold focus:border-indigo-500 w-full">
-              ${(config.categories || []).map(c => `
-                <option value="${esc(c.name)}" ${c.name === b.category ? 'selected' : ''}>${esc(c.name)}</option>
-              `).join('')}
-            </select>
-          </td>
-          <td class="py-2.5 px-3">
-            <div class="flex items-center space-x-1">
-              <span class="text-[10px] text-slate-400 font-bold">Day</span>
-              <input type="number" min="1" max="31" inputmode="numeric" class="bill-edit-dueday bg-white border-2 border-indigo-200 rounded-lg px-2 py-1 font-black text-xs text-indigo-700 w-16 text-center focus:border-indigo-500" value="${b.dueDay}">
-            </div>
-          </td>
-          <td class="py-2.5 px-3">
-            <div class="flex items-center">
-              <span class="text-slate-400 mr-1 font-bold">₹</span>
-              <input type="number" step="any" min="0" inputmode="decimal" class="bill-edit-amount bg-white border border-slate-200 rounded-lg px-2 py-1 font-black text-xs w-28 focus:border-indigo-500" value="${billAmt}">
-            </div>
-            <p class="bill-err-amount field-error"></p>
-          </td>
-          <td class="py-2.5 px-3 text-right">
-            <button onclick="adminDeleteBill(${esc(JSON.stringify(b.id))})" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition" title="Delete bill" aria-label="Delete bill">
-              <i class="fa-solid fa-trash text-xs"></i>
-            </button>
-          </td>
-        </tr>
-      `;
-      }).join('');
-    }
-
+    // 2. Recurring Bills
     const billsMobile = document.getElementById('adminBillsMobileList');
     if (billsMobile && config.recurringBills) {
       billsMobile.innerHTML = config.recurringBills.map((b) => {
@@ -2115,17 +2035,17 @@
         <div class="bill-mobile-card p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 shadow-2xs" data-bill-id="${esc(b.id)}">
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 flex-1 min-w-0">
-              <input type="text" class="bill-edit-icon bg-slate-50 border border-slate-200 rounded-xl px-1 py-1 text-center font-bold text-base w-9 shrink-0" value="${esc(b.icon || '⚡')}">
-              <input type="text" class="bill-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 min-w-0 focus:bg-white focus:border-indigo-500" value="${esc(b.name)}" placeholder="Bill Name">
+              <input type="text" aria-label="Bill icon" class="bill-edit-icon bg-slate-50 border border-slate-200 rounded-xl px-1 py-1 text-center font-bold text-base w-9 shrink-0" value="${esc(b.icon || '⚡')}">
+              <input type="text" aria-label="Bill name" class="bill-edit-name bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs flex-1 min-w-0 focus:bg-white focus:border-indigo-500" value="${esc(b.name)}" placeholder="Bill Name">
             </div>
             <button onclick="adminDeleteBill(${esc(JSON.stringify(b.id))})" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center" title="Delete bill" aria-label="Delete bill">
-              <i class="fa-solid fa-trash text-xs"></i>
+              <svg class="ic text-xs" aria-hidden="true"><use href="#i-trash-2"></use></svg>
             </button>
           </div>
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div class="col-span-2">
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Category</label>
-              <select class="bill-edit-cat bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-semibold focus:bg-white focus:border-indigo-500 w-full">
+              <select aria-label="Expense category" class="bill-edit-cat bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-semibold focus:bg-white focus:border-indigo-500 w-full">
                 ${(config.categories || []).map(c => `
                   <option value="${esc(c.name)}" ${c.name === b.category ? 'selected' : ''}>${esc(c.name)}</option>
                 `).join('')}
@@ -2135,14 +2055,14 @@
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Due Day</label>
               <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
                 <span class="text-[10px] text-slate-400 font-bold mr-1">Day</span>
-                <input type="number" min="1" max="31" inputmode="numeric" class="bill-edit-dueday bg-transparent font-black text-xs text-indigo-700 w-full focus:outline-none" value="${b.dueDay}">
+                <input type="number" min="1" max="31" inputmode="numeric" aria-label="Due day of month" class="bill-edit-dueday bg-transparent font-black text-xs text-indigo-700 w-full focus:outline-none" value="${b.dueDay}">
               </div>
             </div>
             <div>
               <label class="block text-[10px] font-black uppercase text-slate-400 mb-0.5">Approx Amount (₹)</label>
               <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
                 <span class="text-slate-400 mr-1 font-bold text-xs">₹</span>
-                <input type="number" step="any" min="0" inputmode="decimal" class="bill-edit-amount bg-transparent font-black text-xs w-full focus:outline-none" value="${billAmt}">
+                <input type="number" step="any" min="0" inputmode="decimal" aria-label="Approximate amount in rupees" class="bill-edit-amount bg-transparent font-black text-xs w-full focus:outline-none" value="${billAmt}">
               </div>
               <p class="bill-err-amount field-error"></p>
             </div>
@@ -2187,10 +2107,10 @@
                     onchange="adminSetCategoryBudget(${jsName}, this.value)">
                 </label>
                 <button onclick="adminEditCategory(${jsName})" class="cat-edit-btn p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition" title="Edit category" aria-label="Edit category ${esc(c.name || '')}">
-                  <i class="fa-solid fa-pen text-xs"></i>
+                  <svg class="ic text-xs" aria-hidden="true"><use href="#i-pen"></use></svg>
                 </button>
                 <button onclick="adminDeleteCategory(${jsName})" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition" title="Delete category" aria-label="Delete category ${esc(c.name || '')}">
-                  <i class="fa-solid fa-xmark text-xs"></i>
+                  <svg class="ic text-xs" aria-hidden="true"><use href="#i-x"></use></svg>
                 </button>
               </div>
             </div>
@@ -2204,9 +2124,9 @@
     if (famList && config.familyMembers) {
       famList.innerHTML = config.familyMembers.map(m => `
         <span class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold bg-violet-50 text-violet-800 border border-violet-200 shadow-sm">
-          <i class="fa-solid fa-user text-violet-500 mr-1.5 text-[10px]"></i>
+          <svg class="ic text-violet-500 mr-1.5 text-[10px]" aria-hidden="true"><use href="#i-user"></use></svg>
           <span>${esc(m)}</span>
-          <button onclick="adminRenameEntity('familyMember', ${esc(JSON.stringify(m))})" class="ml-2 text-violet-400 hover:text-indigo-600 transition" title="Rename" aria-label="Rename ${esc(m)}"><i class="fa-solid fa-pen text-[10px]"></i></button>
+          <button onclick="adminRenameEntity('familyMember', ${esc(JSON.stringify(m))})" class="ml-2 text-violet-400 hover:text-indigo-600 transition" title="Rename" aria-label="Rename ${esc(m)}"><svg class="ic text-[10px]" aria-hidden="true"><use href="#i-pen"></use></svg></button>
           <button onclick="adminRemoveFamilyMember(${esc(JSON.stringify(m))})" class="ml-1.5 text-violet-400 hover:text-rose-600 transition font-black" title="Remove" aria-label="Remove ${esc(m)}">&times;</button>
         </span>
       `).join('');
@@ -2217,9 +2137,9 @@
     if (payList && config.paymentMethods) {
       payList.innerHTML = config.paymentMethods.map(m => `
         <span class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200 shadow-sm">
-          <i class="fa-solid fa-credit-card text-sky-500 mr-1.5 text-[10px]"></i>
+          <svg class="ic text-sky-500 mr-1.5 text-[10px]" aria-hidden="true"><use href="#i-credit-card"></use></svg>
           <span>${esc(m)}</span>
-          <button onclick="adminRenameEntity('paymentMethod', ${esc(JSON.stringify(m))})" class="ml-2 text-sky-400 hover:text-indigo-600 transition" title="Rename" aria-label="Rename ${esc(m)}"><i class="fa-solid fa-pen text-[10px]"></i></button>
+          <button onclick="adminRenameEntity('paymentMethod', ${esc(JSON.stringify(m))})" class="ml-2 text-sky-400 hover:text-indigo-600 transition" title="Rename" aria-label="Rename ${esc(m)}"><svg class="ic text-[10px]" aria-hidden="true"><use href="#i-pen"></use></svg></button>
           <button onclick="adminRemovePaymentMethod(${esc(JSON.stringify(m))})" class="ml-1.5 text-sky-400 hover:text-rose-600 transition font-black" title="Remove" aria-label="Remove ${esc(m)}">&times;</button>
         </span>
       `).join('');
@@ -2230,9 +2150,9 @@
     if (splitList && config.splitRules) {
       splitList.innerHTML = config.splitRules.map(r => `
         <span class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-50 text-purple-800 border border-purple-200 shadow-sm">
-          <i class="fa-solid fa-arrows-split-up-and-left text-purple-500 mr-1.5 text-[10px]"></i>
+          <svg class="ic text-purple-500 mr-1.5 text-[10px]" aria-hidden="true"><use href="#i-split"></use></svg>
           <span>${esc(r)}</span>
-          <button onclick="adminRenameEntity('splitRule', ${esc(JSON.stringify(r))})" class="ml-2 text-purple-400 hover:text-indigo-600 transition" title="Rename" aria-label="Rename ${esc(r)}"><i class="fa-solid fa-pen text-[10px]"></i></button>
+          <button onclick="adminRenameEntity('splitRule', ${esc(JSON.stringify(r))})" class="ml-2 text-purple-400 hover:text-indigo-600 transition" title="Rename" aria-label="Rename ${esc(r)}"><svg class="ic text-[10px]" aria-hidden="true"><use href="#i-pen"></use></svg></button>
           <button onclick="adminRemoveSplitRule(${esc(JSON.stringify(r))})" class="ml-1.5 text-purple-400 hover:text-rose-600 transition font-black" title="Remove" aria-label="Remove ${esc(r)}">&times;</button>
         </span>
       `).join('');
@@ -2327,7 +2247,7 @@
     if (slot) {
       slot.textContent = message;
       slot.classList.add('is-visible');
-      const row = slot.closest('tr, .staff-mobile-card, .bill-mobile-card, div');
+      const row = slot.closest('.staff-mobile-card, .bill-mobile-card, div');
       if (row) row.classList.add('has-field-error');
     }
     return message;
@@ -2639,11 +2559,11 @@
   window.saveAdminConfigFromUI = async function () {
     const config = window.masterConfig || {};
 
-    // 1. Gather Staff Data (Check mobile cards first if on mobile, else table rows)
-    const mobileStaffCards = document.querySelectorAll('#adminStaffMobileList .staff-mobile-card');
-    const staffElements = (window.innerWidth < 768 && mobileStaffCards.length > 0)
-      ? mobileStaffCards
-      : document.querySelectorAll('#adminStaffTableBody tr');
+    // 1. Gather Staff Data.
+    // There is one card per staff member at every width now. Choosing a source
+    // by viewport width meant the save could read a copy the owner had never
+    // touched, which is how edits went missing.
+    const staffElements = document.querySelectorAll('#adminStaffMobileList .staff-mobile-card');
 
     clearFieldErrors();
     const errors = [];
@@ -2697,11 +2617,8 @@
       });
     });
 
-    // 2. Gather Recurring Bills Data (Check mobile cards first if on mobile, else table rows)
-    const mobileBillCards = document.querySelectorAll('#adminBillsMobileList .bill-mobile-card');
-    const billElements = (window.innerWidth < 768 && mobileBillCards.length > 0)
-      ? mobileBillCards
-      : document.querySelectorAll('#adminBillsTableBody tr');
+    // 2. Gather Recurring Bills Data; see the staff list above.
+    const billElements = document.querySelectorAll('#adminBillsMobileList .bill-mobile-card');
 
     const existingBillsById = indexById(config.recurringBills);
 
@@ -2772,8 +2689,21 @@
           `${errors.length} field${errors.length === 1 ? '' : 's'} need${errors.length === 1 ? 's' : ''} attention. Your changes are still on screen.`);
       }
       const firstBad = document.querySelector('.field-error.is-visible');
-      if (firstBad && firstBad.scrollIntoView) {
-        firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (firstBad) {
+        // The settings page shows one section at a time, so an error can land
+        // in a group that is currently off screen. Scrolling to a display:none
+        // element goes nowhere and the save looks like it silently did nothing;
+        // open the section that owns the field first.
+        const owner = firstBad.closest('[data-settings-section]');
+        if (owner && window.showSettingsSection) {
+          const view = owner.closest('.tab-view');
+          if (view && view.id) {
+            window.showSettingsSection(view.id, owner.getAttribute('data-settings-section'));
+          }
+        }
+        if (firstBad.scrollIntoView) {
+          firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }
       return false;
     }
@@ -2798,7 +2728,7 @@
     saveButtons.forEach((b) => {
       b.dataset.busy = '1';
       b.dataset.prevHtml = b.innerHTML;
-      b.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i><span>Saving...</span>';
+      b.innerHTML = '<svg class="ic animate-spin" aria-hidden="true"><use href="#i-loader-circle"></use></svg><span>Saving...</span>';
     });
 
     let ok = false;
@@ -3411,7 +3341,7 @@
         timelineContainer.innerHTML = `
           <div class="p-10 text-center glass-card rounded-2xl border border-slate-200/90 bg-white">
             <div class="w-12 h-12 mx-auto rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl mb-3 shadow-inner">
-              <i class="fa-solid fa-filter-circle-xmark"></i>
+              <svg class="ic" aria-hidden="true"><use href="#i-filter-x"></use></svg>
             </div>
             <div class="text-sm font-black text-slate-800">No matching audit events found</div>
             <div class="text-xs text-slate-500 mt-1 max-w-sm mx-auto font-medium">Try resetting active filters or searching by different terms.</div>
@@ -3426,7 +3356,7 @@
           <tr>
             <td colspan="8" class="p-12 text-center text-slate-400">
               <div class="w-12 h-12 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center text-xl text-slate-400 mb-2">
-                <i class="fa-solid fa-filter-circle-xmark"></i>
+                <svg class="ic" aria-hidden="true"><use href="#i-filter-x"></use></svg>
               </div>
               <div class="text-sm font-bold text-slate-700">No matching audit events found</div>
               <div class="text-xs text-slate-400 mt-0.5">Try resetting active filters or searching by different terms.</div>
@@ -3446,35 +3376,35 @@
     filtered.forEach((item, idx) => {
       let badge = '';
       let dotClass = 'dot-system';
-      let dotIcon = 'fa-solid fa-bolt';
+      let dotIcon = 'i-zap';
 
       if (item.action === 'UPDATE_EXPENSE') {
         dotClass = 'dot-update';
-        dotIcon = 'fa-solid fa-pen-to-square';
-        badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap"><i class="fa-solid fa-pen-to-square"></i> Edit</span>';
+        dotIcon = 'i-square-pen';
+        badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap"><svg class="ic" aria-hidden="true"><use href="#i-square-pen"></use></svg> Edit</span>';
       } else if (item.action === 'CREATE_EXPENSE') {
         dotClass = 'dot-create';
-        dotIcon = 'fa-solid fa-plus';
-        badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap"><i class="fa-solid fa-plus"></i> New</span>';
+        dotIcon = 'i-plus';
+        badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap"><svg class="ic" aria-hidden="true"><use href="#i-plus"></use></svg> New</span>';
       } else if (item.action === 'DELETE_EXPENSE') {
         dotClass = 'dot-delete';
-        dotIcon = 'fa-solid fa-trash';
-        badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap"><i class="fa-solid fa-trash"></i> Delete</span>';
+        dotIcon = 'i-trash-2';
+        badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap"><svg class="ic" aria-hidden="true"><use href="#i-trash-2"></use></svg> Delete</span>';
       } else if (item.action === 'UPDATE_CONFIG') {
         dotClass = 'dot-config';
-        dotIcon = 'fa-solid fa-sliders';
-        badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap"><i class="fa-solid fa-sliders"></i> Config</span>';
+        dotIcon = 'i-sliders-horizontal';
+        badge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap"><svg class="ic" aria-hidden="true"><use href="#i-sliders-horizontal"></use></svg> Config</span>';
       } else {
         badge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">${item.action}</span>`;
       }
 
       const meta = item.metadata || {};
       let actorName = item.actor || item.user || meta.paidBy || 'System';
-      let actorHtml = `<span class="inline-flex items-center gap-1 font-bold text-slate-600 text-xs whitespace-nowrap"><i class="fa-solid fa-bolt text-amber-500 text-[10px]"></i> ${actorName}</span>`;
+      let actorHtml = `<span class="inline-flex items-center gap-1 font-bold text-slate-600 text-xs whitespace-nowrap"><svg class="ic text-amber-500 text-[10px]" aria-hidden="true"><use href="#i-zap"></use></svg> ${actorName}</span>`;
       if (actorName.toLowerCase().includes('palash')) {
-        actorHtml = '<span class="inline-flex items-center gap-1 font-bold text-indigo-700 text-xs whitespace-nowrap"><i class="fa-solid fa-user-shield text-[10px] text-indigo-500"></i> Palash</span>';
+        actorHtml = '<span class="inline-flex items-center gap-1 font-bold text-indigo-700 text-xs whitespace-nowrap"><svg class="ic text-[10px] text-indigo-500" aria-hidden="true"><use href="#i-shield-user"></use></svg> Palash</span>';
       } else if (actorName.toLowerCase().includes('pallavi')) {
-        actorHtml = '<span class="inline-flex items-center gap-1 font-bold text-pink-700 text-xs whitespace-nowrap"><i class="fa-solid fa-user-check text-[10px] text-pink-500"></i> Pallavi</span>';
+        actorHtml = '<span class="inline-flex items-center gap-1 font-bold text-pink-700 text-xs whitespace-nowrap"><svg class="ic text-[10px] text-pink-500" aria-hidden="true"><use href="#i-user-check"></use></svg> Pallavi</span>';
       }
 
       // Times
@@ -3510,12 +3440,12 @@
       // Change summary
       let changeHtml = '';
       if (item.action === 'CREATE_EXPENSE') {
-        changeHtml = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs"><i class="fa-solid fa-circle-check text-emerald-600"></i> New Receipt Created (₹${Number(meta.amount || 0).toLocaleString('en-IN')})</span>`;
+        changeHtml = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs"><svg class="ic text-emerald-600" aria-hidden="true"><use href="#i-circle-check"></use></svg> New Receipt Created (₹${Number(meta.amount || 0).toLocaleString('en-IN')})</span>`;
       } else if (item.action === 'DELETE_EXPENSE') {
-        changeHtml = '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 text-rose-800 border border-rose-200 font-bold text-xs"><i class="fa-solid fa-trash text-rose-600"></i> Transaction Removed from Ledger</span>';
+        changeHtml = '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 text-rose-800 border border-rose-200 font-bold text-xs"><svg class="ic text-rose-600" aria-hidden="true"><use href="#i-trash-2"></use></svg> Transaction Removed from Ledger</span>';
       } else if (item.action === 'UPDATE_CONFIG') {
         const sects = meta.modifiedSections && Array.isArray(meta.modifiedSections) ? meta.modifiedSections.join(', ') : 'Rules & Budgets';
-        changeHtml = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-50 text-purple-800 border border-purple-200 font-bold text-xs"><i class="fa-solid fa-sliders text-purple-600"></i> Master Policy Updated (${sects})</span>`;
+        changeHtml = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-50 text-purple-800 border border-purple-200 font-bold text-xs"><svg class="ic text-purple-600" aria-hidden="true"><use href="#i-sliders-horizontal"></use></svg> Master Policy Updated (${sects})</span>`;
       } else if (item.diff && typeof item.diff === 'object' && Object.keys(item.diff).length > 0) {
         let diffPills = '';
         for (const [key, val] of Object.entries(item.diff)) {
@@ -3546,7 +3476,7 @@
             <div class="inline-flex flex-wrap items-center gap-1.5 bg-slate-50 border border-slate-200/90 rounded-lg px-2.5 py-1 text-xs m-0.5">
               <span class="font-bold text-slate-500 capitalize">${fieldLabel}:</span>
               ${oldVal !== null ? `<span class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 line-through font-mono text-[11px]">${oldVal}</span>` : ''}
-              ${oldVal !== null && newVal !== null ? `<i class="fa-solid fa-arrow-right text-slate-400 text-[10px]"></i>` : ''}
+              ${oldVal !== null && newVal !== null ? `<svg class="ic text-slate-400 text-[10px]" aria-hidden="true"><use href="#i-arrow-right"></use></svg>` : ''}
               ${newVal !== null ? `<span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold font-mono text-[11px]">${newVal}</span>` : ''}
               ${deltaBadge}
             </div>
@@ -3565,7 +3495,7 @@
       timelineHtml += `
         <div class="audit-timeline-node">
           <div class="audit-timeline-dot ${dotClass}" title="${item.action}">
-            <i class="${dotIcon}"></i>
+            <svg class="ic" aria-hidden="true"><use href="#${dotIcon}"></use></svg>
           </div>
           <div class="glass-card p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xs bg-white hover:shadow-md transition">
             <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
@@ -3577,8 +3507,8 @@
               <div class="flex items-center gap-2">
                 <span class="text-[11px] font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">${relTime}</span>
                 <span class="text-xs text-slate-400 font-medium">${fullTime}</span>
-                <button onclick="window.toggleAuditInspect(${esc(JSON.stringify(timelineInspectId))})" class="p-1 px-2.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition text-[11px] font-bold" title="Inspect Raw Payload">
-                  <i class="fa-solid fa-code mr-1"></i>Inspect
+                <button onclick="window.toggleAuditInspect(${esc(JSON.stringify(timelineInspectId))})" class="p-1 px-2.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition text-[11px] font-bold" title="Inspect Raw Payload" aria-label="Inspect Raw Payload">
+                  <svg class="ic mr-1" aria-hidden="true"><use href="#i-code"></use></svg>Inspect
                 </button>
               </div>
             </div>
@@ -3602,7 +3532,7 @@
         <tr class="hover:bg-slate-50/80 transition text-xs border-b border-slate-100 last:border-0">
           <td class="py-3 px-3 text-center whitespace-nowrap">
             <div class="w-6 h-6 mx-auto rounded-full ${dotClass} flex items-center justify-center text-[10px] text-white shadow-xs" title="${item.action}">
-              <i class="${dotIcon}"></i>
+              <svg class="ic" aria-hidden="true"><use href="#${dotIcon}"></use></svg>
             </div>
           </td>
           <td class="py-3 px-3 whitespace-nowrap">
@@ -3617,8 +3547,8 @@
           <td class="py-3 px-3 min-w-[150px]">${contextHtml}</td>
           <td class="py-3 px-4">${changeHtml}</td>
           <td class="py-3 px-3 text-center whitespace-nowrap">
-            <button onclick="window.toggleAuditInspect(${esc(JSON.stringify(tableInspectId))})" class="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition" title="Inspect Raw Payload">
-              <i class="fa-solid fa-code text-xs"></i>
+            <button onclick="window.toggleAuditInspect(${esc(JSON.stringify(tableInspectId))})" class="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-600 border border-slate-200 transition" title="Inspect Raw Payload" aria-label="Inspect this audit entry">
+              <svg class="ic text-xs" aria-hidden="true"><use href="#i-code"></use></svg>
             </button>
           </td>
         </tr>
@@ -3893,6 +3823,69 @@
     });
   }
 
+  // A palette rather than two hard-coded colours, so the third and fourth
+  // member look deliberate instead of unstyled. Full class strings, never
+  // assembled from a colour name: Tailwind only ever sees complete tokens.
+  const PERSONAL_CARD_TONES = [
+    { card: 'border-indigo-200/70 from-indigo-50/60',   label: 'text-indigo-700',  badge: 'bg-indigo-100 text-indigo-700',   figure: 'text-indigo-950',  avg: 'text-indigo-600',  icon: 'i-user-round' },
+    { card: 'border-rose-200/70 from-rose-50/60',       label: 'text-rose-700',    badge: 'bg-rose-100 text-rose-700',       figure: 'text-rose-950',    avg: 'text-rose-600',    icon: 'i-user-round' },
+    { card: 'border-emerald-200/70 from-emerald-50/60', label: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700', figure: 'text-emerald-950', avg: 'text-emerald-600', icon: 'i-graduation-cap' },
+    { card: 'border-amber-200/70 from-amber-50/60',     label: 'text-amber-700',   badge: 'bg-amber-100 text-amber-700',     figure: 'text-amber-950',   avg: 'text-amber-600',   icon: 'i-users' },
+    { card: 'border-sky-200/70 from-sky-50/60',         label: 'text-sky-700',     badge: 'bg-sky-100 text-sky-700',         figure: 'text-sky-950',     avg: 'text-sky-600',     icon: 'i-user' }
+  ];
+
+  function personalMemberCard(tone, label, total, count, avg) {
+    const fmt = (v) => (window.formatINR ? window.formatINR(v) : '\u20B9' + Number(v || 0).toLocaleString('en-IN'));
+    const e = (window.escapeHtml || ((x) => String(x)));
+    return `
+      <div class="glass-card p-4 sm:p-5 rounded-2xl border ${tone.card} shadow-sm bg-gradient-to-br to-white flex flex-col justify-between transition-all duration-300">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider ${tone.label} flex items-center space-x-1 min-w-0">
+            <span class="truncate">${e(label)}</span>
+          </span>
+          <div class="w-8 h-8 rounded-xl ${tone.badge} flex items-center justify-center font-medium text-xs shrink-0">
+            <svg class="ic" aria-hidden="true"><use href="#${tone.icon}"></use></svg>
+          </div>
+        </div>
+        <div>
+          <div class="text-lg sm:text-2xl font-bold ${tone.figure}">${fmt(total)}</div>
+          <div class="flex items-center justify-between text-xs text-slate-500 font-semibold mt-1">
+            <span>${count} record${count === 1 ? '' : 's'}</span>
+            <span class="${tone.avg} font-bold">Avg: ${fmt(avg)}</span>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderPersonalMemberCards(state) {
+    const host = document.getElementById('personalMemberCards');
+    if (!host) return;
+
+    const members = state.members || [];
+    const cards = members.map((name, idx) => {
+      const tone = PERSONAL_CARD_TONES[idx % PERSONAL_CARD_TONES.length];
+      const items = (state.personalItems || []).filter(e => {
+        const payer = getPersonalPayer(e);
+        return String(payer).toLowerCase() === String(name).toLowerCase();
+      });
+      const total = items.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
+      const avg = items.length ? Math.round(total / items.length) : 0;
+      return personalMemberCard(tone, name + ' Personal', total, items.length, avg);
+    });
+
+    // With a single member there is spare room, and what they actually want to
+    // compare their own spending against is the shared pot.
+    if (members.length < 2) {
+      const count = (state.householdItems || []).length;
+      const avg = count ? Math.round(state.householdTotal / count) : 0;
+      cards.push(personalMemberCard(PERSONAL_CARD_TONES[1], 'Household Shared',
+                                    state.householdTotal, count, avg));
+    }
+
+    host.innerHTML = cards.join('');
+  }
+  window.renderPersonalMemberCards = renderPersonalMemberCards;
+
   window.renderPersonalExpensesDashboard = function () {
     updatePersonalFilterPillStyles();
 
@@ -3936,41 +3929,16 @@
       filterContextText.textContent = `Period: ${periodStr} • Scope: ${personStr}${catStr}`;
     }
 
-    // 2. Update KPI Card 1: Member 1 Personal
-    const cardM1 = document.getElementById('cardPersonalPalash');
-    if (cardM1) {
-      const labelSpan = cardM1.querySelector('span');
-      if (labelSpan) labelSpan.textContent = `👤 ${m1} Personal`;
-    }
-    const elM1Total = document.getElementById('statPersonalPalashTotal');
-    const elM1Count = document.getElementById('statPersonalPalashCount');
-    const elM1Avg = document.getElementById('statPersonalPalashAvg');
-    if (elM1Total) elM1Total.textContent = (window.formatINR ? window.formatINR(m1Total) : '₹' + m1Total.toLocaleString('en-IN'));
-    if (elM1Count) elM1Count.textContent = `${m1Items.length} records`;
-    if (elM1Avg) elM1Avg.textContent = `Avg: ₹${m1Items.length ? Math.round(m1Total / m1Items.length).toLocaleString('en-IN') : '0'}`;
-
-    // 3. Update KPI Card 2: Member 2 Personal (or Household Shared if 1 member)
-    const cardM2 = document.getElementById('cardPersonalPallavi');
-    const elM2Total = document.getElementById('statPersonalPallaviTotal');
-    const elM2Count = document.getElementById('statPersonalPallaviCount');
-    const elM2Avg = document.getElementById('statPersonalPallaviAvg');
-    if (m2) {
-      if (cardM2) {
-        const labelSpan = cardM2.querySelector('span');
-        if (labelSpan) labelSpan.textContent = `🌸 ${m2} Personal`;
-      }
-      if (elM2Total) elM2Total.textContent = (window.formatINR ? window.formatINR(m2Total) : '₹' + m2Total.toLocaleString('en-IN'));
-      if (elM2Count) elM2Count.textContent = `${m2Items.length} records`;
-      if (elM2Avg) elM2Avg.textContent = `Avg: ₹${m2Items.length ? Math.round(m2Total / m2Items.length).toLocaleString('en-IN') : '0'}`;
-    } else {
-      if (cardM2) {
-        const labelSpan = cardM2.querySelector('span');
-        if (labelSpan) labelSpan.textContent = `🏠 Household Spend`;
-      }
-      if (elM2Total) elM2Total.textContent = (window.formatINR ? window.formatINR(householdTotal) : '₹' + householdTotal.toLocaleString('en-IN'));
-      if (elM2Count) elM2Count.textContent = `${householdItems.length} records`;
-      if (elM2Avg) elM2Avg.textContent = `Avg: ₹${householdItems.length ? Math.round(householdTotal / (householdItems.length || 1)).toLocaleString('en-IN') : '0'}`;
-    }
+    // 2 & 3. One KPI card per member, rendered from the member list rather
+    // than from two fixed cards. The filter chips above were already built
+    // from this list, so a household of three could filter to its third member
+    // and read totals belonging to the other two.
+    renderPersonalMemberCards({
+      members: members,
+      personalItems: personalItems,
+      householdItems: householdItems,
+      householdTotal: householdTotal
+    });
 
     // 4. Update KPI Card 3: Combined / Focused Personal Spend
     const elCombinedTotal = document.getElementById('statPersonalCombinedTotal');
@@ -4269,11 +4237,11 @@
           <td class="py-2.5 px-3 text-slate-600 max-w-[200px] truncate" title="${esc(item.notes || item.description || item.paidTo || '')}">${esc(item.notes || item.description || item.paidTo || '-')}</td>
           <td class="py-2.5 px-3 text-right font-black text-purple-900 font-mono text-sm">${window.formatINR ? window.formatINR(item.amount) : '₹' + item.amount.toLocaleString('en-IN')}</td>
           <td class="py-2.5 px-3 text-center whitespace-nowrap">
-            <button onclick="editExpense(${esc(JSON.stringify(item.id))})" class="p-1 text-slate-400 hover:text-indigo-600 transition" title="Edit expense">
-              <i class="fa-solid fa-pen-to-square"></i>
+            <button onclick="editExpense(${esc(JSON.stringify(item.id))})" class="p-1 text-slate-400 hover:text-indigo-600 transition" title="Edit expense" aria-label="Edit this expense">
+              <svg class="ic" aria-hidden="true"><use href="#i-square-pen"></use></svg>
             </button>
-            <button onclick="deleteExpense(${esc(JSON.stringify(item.id))})" class="p-1 ml-1 text-slate-400 hover:text-rose-600 transition" title="Delete expense">
-              <i class="fa-solid fa-trash"></i>
+            <button onclick="deleteExpense(${esc(JSON.stringify(item.id))})" class="p-1 ml-1 text-slate-400 hover:text-rose-600 transition" title="Delete expense" aria-label="Delete this expense">
+              <svg class="ic" aria-hidden="true"><use href="#i-trash-2"></use></svg>
             </button>
           </td>
         </tr>
@@ -4352,7 +4320,7 @@
           tbody.innerHTML = `
             <tr>
               <td colspan="5" class="py-6 text-center text-slate-400">
-                <i class="fa-solid fa-folder-open text-2xl text-slate-300 block mb-1"></i>
+                <svg class="ic text-2xl text-slate-300 block mb-1" aria-hidden="true"><use href="#i-folder-open"></use></svg>
                 No snapshots yet. Click "Take Snapshot" to create your first recovery point.
               </td>
             </tr>
@@ -4378,7 +4346,7 @@
               <td class="py-2.5 px-3 text-slate-500 font-mono">${sizeKb}</td>
               <td class="py-2.5 px-3 text-right whitespace-nowrap">
                 <button onclick="restoreSnapshotPrompt(${esc(JSON.stringify(s.filename))})" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-lg text-[11px] transition shadow-xs inline-flex items-center space-x-1">
-                  <i class="fa-solid fa-clock-rotate-left"></i>
+                  <svg class="ic" aria-hidden="true"><use href="#i-history"></use></svg>
                   <span>Restore</span>
                 </button>
               </td>
@@ -4623,7 +4591,7 @@
         resultsContainer.innerHTML = `
           <div class="flex items-center space-x-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800">
             <div class="w-8 h-8 rounded-lg bg-emerald-200 text-emerald-700 flex items-center justify-center font-black">
-              <i class="fa-solid fa-check"></i>
+              <svg class="ic" aria-hidden="true"><use href="#i-check"></use></svg>
             </div>
             <div>
               <h4 class="font-black text-xs">Perfect Health Score (100%)</h4>
@@ -5113,7 +5081,7 @@
     if (filtered.length === 0) {
       container.innerHTML = `
         <div class="p-8 text-center text-slate-400 text-xs">
-          <i class="fa-solid fa-bell-slash text-2xl text-slate-300 block mb-2"></i>
+          <svg class="ic text-2xl text-slate-300 block mb-2" aria-hidden="true"><use href="#i-bell-off"></use></svg>
           No notifications in this filter.
         </div>
       `;
@@ -5135,8 +5103,8 @@
                 <div class="text-[11px] text-slate-600 font-medium mt-0.5">${esc(item.description)}</div>
               </div>
             </div>
-            <button onclick="dismissNotificationItem(${esc(JSON.stringify(item.id))})" class="text-slate-400 hover:text-slate-600 p-1 text-xs" title="Dismiss">
-              <i class="fa-solid fa-xmark"></i>
+            <button onclick="dismissNotificationItem(${esc(JSON.stringify(item.id))})" class="text-slate-400 hover:text-slate-600 p-1 text-xs" title="Dismiss" aria-label="Dismiss this notification">
+              <svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg>
             </button>
           </div>
           <div class="flex justify-end space-x-2 pt-1">
@@ -5392,15 +5360,15 @@
     banner.className = 'in-app-banner pointer-events-auto w-full max-w-[calc(100vw-24px)] sm:max-w-sm rounded-2xl bg-slate-900/95 text-white border border-indigo-500/50 shadow-xl backdrop-blur-md px-3.5 py-2.5 flex items-center gap-2.5 transform transition-all duration-300 ease-out translate-y-[-24px] opacity-0 cursor-pointer select-none hover:border-indigo-400 active:scale-[0.98] shadow-indigo-950/50 min-h-[72px] max-h-[90px]';
     banner.setAttribute('role', 'alert');
 
-    let displayIcon = '<i class="fa-solid fa-bell text-amber-400"></i>';
+    let displayIcon = '<svg class="ic text-amber-400" aria-hidden="true"><use href="#i-bell"></use></svg>';
     if (type === 'EXPENSE_ADD' || (body && body.toLowerCase().includes('added'))) {
-      displayIcon = '<i class="fa-solid fa-receipt text-emerald-400"></i>';
+      displayIcon = '<svg class="ic text-emerald-400" aria-hidden="true"><use href="#i-receipt"></use></svg>';
     } else if (type === 'EXPENSE_UPDATE') {
-      displayIcon = '<i class="fa-solid fa-pen text-indigo-400"></i>';
+      displayIcon = '<svg class="ic text-indigo-400" aria-hidden="true"><use href="#i-pen"></use></svg>';
     } else if (type === 'STAFF_ATTENDANCE' || (body && body.toLowerCase().includes('staff'))) {
-      displayIcon = '<i class="fa-solid fa-user-check text-purple-400"></i>';
+      displayIcon = '<svg class="ic text-purple-400" aria-hidden="true"><use href="#i-user-check"></use></svg>';
     } else if (type === 'CONFIG_UPDATE') {
-      displayIcon = '<i class="fa-solid fa-gear text-cyan-400"></i>';
+      displayIcon = '<svg class="ic text-cyan-400" aria-hidden="true"><use href="#i-settings"></use></svg>';
     }
 
     const safeTitle = (title || 'Home Expence Alert').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -5425,8 +5393,8 @@
         <button class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black shadow transition" onclick="event.stopPropagation(); this.closest('.in-app-banner').click();">
           View
         </button>
-        <button class="text-slate-400 hover:text-white transition p-1 text-xs shrink-0" onclick="event.stopPropagation(); this.closest('.in-app-banner').dismissBanner();" title="Close">
-          <i class="fa-solid fa-xmark"></i>
+        <button class="text-slate-400 hover:text-white transition p-1 text-xs shrink-0" onclick="event.stopPropagation(); this.closest('.in-app-banner').dismissBanner();" title="Close" aria-label="Dismiss">
+          <svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg>
         </button>
       </div>
     `;

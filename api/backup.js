@@ -2,7 +2,8 @@
 // Multi-Tenant Household-Scoped Backup & Restoration Engine
 const fs = require('fs');
 const path = require('path');
-const { authenticateRequest } = require('./auth');
+const { authenticateRequest, sessionCan } = require('./auth');
+const { PERMISSIONS: P } = require('./_permissions');
 const storage = require('./_storage');
 const paths = require('./_paths');
 
@@ -148,7 +149,7 @@ module.exports = async function handler(req, res) {
                 }
 
                 // If backup specifies another household, verify user permission
-                if (backupData.householdId && backupData.householdId !== householdId && session.role !== 'OWNER') {
+                if (backupData.householdId && backupData.householdId !== householdId && !sessionCan(session, P.HOUSEHOLD_MANAGE)) {
                     return res.status(403).json({
                         success: false,
                         error: "Cross-household restoration denied: Cannot restore another household's data."

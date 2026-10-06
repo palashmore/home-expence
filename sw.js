@@ -1,11 +1,12 @@
 // HomeExpenses Progressive Web App Service Worker
-const CACHE_NAME = 'homeexpenses-v12';
+const CACHE_NAME = 'homeexpenses-v13';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/styles.css',
   '/tracker_app.js',
   '/advance_modules.js',
+  '/ui_actions.js',
   '/manifest.json',
   '/icon.svg',
   '/icon-192.png',

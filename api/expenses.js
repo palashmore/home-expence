@@ -1,6 +1,7 @@
 // Expenses API Route (/api/expenses)
 // Multi-Tenant Household-Scoped Financial Transaction Engine
-const { authenticateRequest } = require('./auth');
+const { authenticateRequest, sessionCan } = require('./auth');
+const { PERMISSIONS: P } = require('./_permissions');
 const storage = require('./_storage');
 const notifications = require('./notifications');
 
@@ -75,7 +76,7 @@ module.exports = async function handler(req, res) {
 
         // POST / PUT: Create or Edit Expense in the authenticated household
         if (req.method === 'POST' || req.method === 'PUT') {
-            if (session.role === 'VIEWER') {
+            if (!sessionCan(session, req.method === 'POST' ? P.EXPENSE_CREATE : P.EXPENSE_EDIT)) {
                 return res.status(403).json({
                     success: false,
                     error: "Forbidden: Viewer role has read-only access and cannot create or modify transactions."
@@ -185,7 +186,7 @@ module.exports = async function handler(req, res) {
 
         // DELETE: Delete Expense Record from the authenticated household
         if (req.method === 'DELETE') {
-            if (session.role === 'VIEWER') {
+            if (!sessionCan(session, P.EXPENSE_DELETE)) {
                 return res.status(403).json({
                     success: false,
                     error: "Forbidden: Viewer role has read-only access and cannot delete transactions."

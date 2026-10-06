@@ -25,6 +25,13 @@ try {
 } catch (e) {}
 if (typeof window !== 'undefined') {
     window.currentSessionUser = currentSessionUser;
+// A restored session must get the same treatment as a fresh one; the nav is
+// built from markup, so without this every tab shows until the first sign-in.
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (window.applyNavPermissions) window.applyNavPermissions();
+    });
+}
 }
 
 let FAMILY_MEMBERS = _win.FAMILY_MEMBERS || (currentSessionUser?.name ? [currentSessionUser.name] : ["Palash", "Pallavi"]);
@@ -185,17 +192,17 @@ window.dashboardFilters = dashboardFilters;
 const DASHBOARD_MODE_META = {
     household: {
         label: 'Household',
-        icon: 'fa-house-chimney',
+        icon: 'i-house',
         subtitle: 'Viewing verified household expenses, staff payroll, and utilities.'
     },
     personal: {
         label: 'Personal',
-        icon: 'fa-user',
+        icon: 'i-user',
         subtitle: 'Viewing personal expenditure only. Household bills are excluded.'
     },
     combined: {
         label: 'Combined',
-        icon: 'fa-layer-group',
+        icon: 'i-layers',
         subtitle: 'Viewing combined household expenses and personal expenditures.'
     }
 };
@@ -317,7 +324,7 @@ function renderDashboardModeControl() {
                     ? 'border-indigo-500 bg-indigo-50/70 shadow-sm'
                     : 'border-slate-200 bg-white hover:border-indigo-300'}">
                 <span class="flex items-center gap-2">
-                    <i class="fa-solid ${meta.icon} ${on ? 'text-indigo-600' : 'text-slate-400'}"></i>
+                    <svg class="ic ${on ? 'text-indigo-600' : 'text-slate-400'}" aria-hidden="true"><use href="#${meta.icon}"></use></svg>
                     <span class="text-sm font-black ${on ? 'text-indigo-900' : 'text-slate-700'}">${meta.label}</span>
                     ${on ? '<span class="ml-auto text-[10px] font-black uppercase tracking-wider text-indigo-700">Active</span>' : ''}
                 </span>
@@ -766,12 +773,479 @@ function setDefaultDateToToday() {
 }
 
 // Navigation Tab Switching
+// ============================================================
+// PERMISSION SERVICE
+// ============================================================
+// One place that answers "may this user do X". Capability used to be inferred
+// from a role string in seventeen separate spots on the client and thirty on
+// the server, so a new screen was gated by whatever its author remembered.
+//
+// The server sends the permission list with the session; this mirrors the
+// registry in api/_permissions.js as a fallback for a session minted before
+// that existed. Hiding a control is presentation, never protection - every
+// permission here is also enforced server-side.
+const ROLE_PERMISSION_FALLBACK = {
+    VIEWER: ['dashboard.view', 'expense.view', 'bill.view', 'personal.view',
+             'reports.view', 'staff.view', 'household.view', 'settings.view',
+             'excel.export'],
+    MEMBER: null,   // filled below
+    OWNER: null,
+    ADMIN: null,
+    SYSTEM_ADMIN: null
+};
+ROLE_PERMISSION_FALLBACK.MEMBER = ROLE_PERMISSION_FALLBACK.VIEWER.concat(
+    ['expense.create', 'expense.edit', 'expense.delete', 'matrix.view', 'settlement.view']);
+ROLE_PERMISSION_FALLBACK.OWNER = ROLE_PERMISSION_FALLBACK.MEMBER.concat(
+    ['bill.manage', 'attendance.manage', 'payroll.view', 'excel.import',
+     'backup.manage', 'restore.manage', 'audit.view', 'users.view', 'settings.manage']);
+ROLE_PERMISSION_FALLBACK.ADMIN = ROLE_PERMISSION_FALLBACK.OWNER.concat(
+    ['users.manage', 'household.manage']);
+ROLE_PERMISSION_FALLBACK.SYSTEM_ADMIN = ROLE_PERMISSION_FALLBACK.ADMIN;
+
+function currentPermissions() {
+    const u = currentSessionUser;
+    if (u && Array.isArray(u.permissions) && u.permissions.length) return u.permissions;
+    // A session stored before the server sent permissions: derive from the role
+    // rather than locking the user out of their own app.
+    return ROLE_PERMISSION_FALLBACK[String((u && u.role) || '').toUpperCase()] || [];
+}
+
+function hasPermission(permission) {
+    return currentPermissions().indexOf(permission) !== -1;
+}
+function hasAnyPermission(permissions) {
+    const held = currentPermissions();
+    return (permissions || []).some(p => held.indexOf(p) !== -1);
+}
+function hasAllPermissions(permissions) {
+    const held = currentPermissions();
+    return (permissions || []).every(p => held.indexOf(p) !== -1);
+}
+window.hasPermission = hasPermission;
+window.hasAnyPermission = hasAnyPermission;
+window.hasAllPermissions = hasAllPermissions;
+window.currentPermissions = currentPermissions;
+
+// Navigation, declared once. Each surface - sidebar, top strip, bottom bar -
+// reads this instead of carrying its own hand-maintained copy.
+const NAV_ITEMS = [
+    { tab: 'dashboard', permission: 'dashboard.view' },
+    { tab: 'expenses',  permission: 'expense.view' },
+    { tab: 'personal',  permission: 'personal.view' },
+    { tab: 'staff',     permission: 'staff.view' },
+    { tab: 'bills',     permission: 'bill.view' },
+    { tab: 'reports',   permission: 'reports.view' },
+    { tab: 'matrix',    permission: 'matrix.view' },
+    { tab: 'settings',  permission: 'settings.view' },
+    { tab: 'admin',     permission: 'settings.manage' },
+    { tab: 'audit',     permission: 'audit.view' }
+];
+window.NAV_ITEMS = NAV_ITEMS;
+
+// The mobile More menu, grouped and permission-filtered. It used to be a flat
+// row of four buttons with inline handlers, showing Admin and Audit to every
+// role regardless of whether they could open them.
+const MORE_MENU_GROUPS = [
+    {
+        title: 'Household',
+        items: [
+            { tab: 'personal', label: 'Personal', icon: 'i-user',          permission: 'personal.view' },
+            { tab: 'staff',    label: 'Staff',    icon: 'i-user-round',      permission: 'staff.view' },
+            { tab: 'reports',  label: 'Reports',  icon: 'i-chart-column',  permission: 'reports.view' },
+            { tab: 'matrix',   label: 'Matrix',   icon: 'i-table',   permission: 'matrix.view' }
+        ]
+    },
+    {
+        title: 'Administration',
+        items: [
+            { tab: 'admin',    label: 'Settings', icon: 'i-sliders-horizontal',            permission: 'settings.manage' },
+            { tab: 'settings', label: 'Data',     icon: 'i-database',           permission: 'settings.view' },
+            { tab: 'audit',    label: 'Audit',    icon: 'i-history',  permission: 'audit.view' }
+        ]
+    }
+];
+window.MORE_MENU_GROUPS = MORE_MENU_GROUPS;
+
+function renderMoreMenu() {
+    const host = document.getElementById('moreMenuGroups');
+    if (!host) return;
+    const groups = MORE_MENU_GROUPS
+        .map(g => ({ title: g.title, items: g.items.filter(i => hasPermission(i.permission)) }))
+        .filter(g => g.items.length);
+
+    if (!groups.length) {
+        host.innerHTML = '<p class="text-xs font-medium text-slate-400 py-4 text-center">No other sections available for your role.</p>';
+        return;
+    }
+
+    host.innerHTML = groups.map(g => `
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">${escapeHtml(g.title)}</p>
+            <div class="grid grid-cols-4 gap-2">
+                ${g.items.map(i => `
+                    <button type="button" data-more-tab="${i.tab}"
+                        class="bnav-btn flex flex-col items-center gap-1 p-3 rounded-xl bg-slate-800/80 border border-slate-700/50">
+                        <svg class="ic text-lg" aria-hidden="true"><use href="#${i.icon}"></use></svg>
+                        <span class="text-xs font-medium">${escapeHtml(i.label)}</span>
+                    </button>`).join('')}
+            </div>
+        </div>`).join('');
+
+    // Delegated once, rather than an inline handler per rendered button.
+    if (host.dataset.wired !== '1') {
+        host.dataset.wired = '1';
+        host.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-more-tab]');
+            if (!btn) return;
+            switchTab(btn.dataset.moreTab);
+            if (window.closeMobileMoreSheet) window.closeMobileMoreSheet();
+        });
+    }
+}
+window.renderMoreMenu = renderMoreMenu;
+
+function canOpenTab(tabId) {
+    const item = NAV_ITEMS.find(n => n.tab === tabId);
+    if (!item) return true;                  // unknown tab: not ours to police
+    return hasPermission(item.permission);
+}
+window.canOpenTab = canOpenTab;
+
+// Hide what the user cannot reach, on every navigation surface at once.
+// Disabled-but-visible entries are deliberately not used: advertising a module
+// somebody cannot open is noise, not information.
+function applyNavPermissions() {
+    if (typeof initBillsScreen === 'function') initBillsScreen();
+    if (typeof applyDashboardWidgets === 'function') applyDashboardWidgets();
+    if (typeof renderMoreMenu === 'function') renderMoreMenu();
+    let hiddenCount = 0;
+    NAV_ITEMS.forEach(item => {
+        const allowed = hasPermission(item.permission);
+        if (!allowed) hiddenCount++;
+        document.querySelectorAll(
+            `#tab-${item.tab}, [data-nav-tab="${item.tab}"], ` +
+            `.sidebar-link[onclick*="'${item.tab}'"], .bnav-btn[onclick*="'${item.tab}'"]`
+        ).forEach(el => {
+            el.classList.toggle('hidden', !allowed);
+        });
+    });
+    return hiddenCount;
+}
+window.applyNavPermissions = applyNavPermissions;
+
+// ============================================================
+// DASHBOARD WIDGET REGISTRY
+// ============================================================
+// The dashboard carried 24 sections of equal visual weight, every one of them
+// rendered for every role. Two problems in one: a member saw payroll they have
+// no business seeing, and the budget competed for attention with a payment-
+// method donut.
+//
+// Widgets are declared once, with the permission that earns them and the
+// priority that places them. One engine, not a dashboard per role.
+const DASHBOARD_WIDGETS = [
+    // Priority 1 - what needs attention right now.
+    { id: 'dashboardAnomalyBanner',   permission: 'dashboard.view', priority: 1 },
+    { id: 'financialInsightsContainer', permission: 'dashboard.view', priority: 1 },
+    { id: 'dashSummaryGrid',          permission: 'dashboard.view', priority: 1 },
+    { id: 'dashBudgetYtdSection',     permission: 'dashboard.view', priority: 1 },
+
+    // Priority 2 - the near future.
+    { id: 'dashBillsRadarSection',    permission: 'bill.view',      priority: 2 },
+    { id: 'dashChecklistSection',     permission: 'bill.view',      priority: 2 },
+    { id: 'dashTrendSection',         permission: 'dashboard.view', priority: 2 },
+
+    // Priority 3 - supporting detail.
+    { id: 'dashCategorySection',      permission: 'dashboard.view', priority: 3 },
+    { id: 'dashMemberSection',        permission: 'dashboard.view', priority: 3 },
+    { id: 'dashStaffSummary',         permission: 'payroll.view',   priority: 3 },
+    { id: 'dashRecentSection',        permission: 'expense.view',   priority: 3 }
+];
+window.DASHBOARD_WIDGETS = DASHBOARD_WIDGETS;
+
+// Render only what this role has earned. A widget the user cannot have is not
+// shown disabled - advertising a module somebody cannot open is noise.
+function applyDashboardWidgets() {
+    let hidden = 0;
+    DASHBOARD_WIDGETS.forEach(w => {
+        const el = document.getElementById(w.id);
+        if (!el) return;
+        const allowed = hasPermission(w.permission);
+        if (!allowed) hidden++;
+        el.classList.toggle('perm-hidden', !allowed);
+    });
+    return hidden;
+}
+window.applyDashboardWidgets = applyDashboardWidgets;
+
+// ================= TAB: BILLS =================
+// Adds no bill logic. Status comes from getRecurringPaymentStatus - the same
+// function the dashboard radar and the server-side reminder scan use - so
+// "paid" means one thing across the application rather than three.
+let billsFilter = 'all';
+
+const BILL_STATUS_META = {
+    OVERDUE:        { label: 'Overdue',   tone: 'danger',  bucket: 'overdue' },
+    DUE_TODAY:      { label: 'Due today', tone: 'warning', bucket: 'due' },
+    UPCOMING:       { label: 'Upcoming',  tone: 'info',    bucket: 'upcoming' },
+    PARTIALLY_PAID: { label: 'Partial',   tone: 'warning', bucket: 'upcoming' },
+    PAID:           { label: 'Paid',      tone: 'success', bucket: 'paid' },
+    DISABLED:       { label: 'Inactive',  tone: 'neutral', bucket: 'paid' }
+};
+
+function renderBillsView(filteredData) {
+    const list = document.getElementById('billsList');
+    if (!list) return;
+
+    const bills = (typeof getConfiguredBills === 'function') ? getConfiguredBills() : [];
+    const empty = document.getElementById('billsEmptyState');
+    const rows = filteredData || window.expensesData || expenses || [];
+
+    if (!bills.length) {
+        list.innerHTML = '';
+        if (empty) empty.classList.remove('hidden');
+        ['billsOverdueCount', 'billsDueCount', 'billsPaidCount'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '0';
+        });
+        return;
+    }
+    if (empty) empty.classList.add('hidden');
+
+    const today = new Date();
+    const evaluated = bills.map(bill => {
+        const res = window.getRecurringPaymentStatus
+            ? window.getRecurringPaymentStatus(bill, rows, today)
+            : { status: 'UPCOMING', totalPaid: 0, targetAmount: Number(bill.approxAmount) || 0, daysDiff: 0 };
+        const meta = BILL_STATUS_META[res.status] || BILL_STATUS_META.UPCOMING;
+        return { bill, res, meta };
+    });
+
+    const count = (bucket) => evaluated.filter(e => e.meta.bucket === bucket).length;
+    const setCount = (id, n) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(n);
+    };
+    setCount('billsOverdueCount', count('overdue'));
+    setCount('billsDueCount', count('due'));
+    setCount('billsPaidCount', count('paid'));
+
+    // Most urgent first: overdue, then due today, then by how soon.
+    const order = { overdue: 0, due: 1, upcoming: 2, paid: 3 };
+    const shown = evaluated
+        .filter(e => billsFilter === 'all' || e.meta.bucket === billsFilter)
+        .sort((a, b) => (order[a.meta.bucket] - order[b.meta.bucket]) ||
+                        ((a.res.daysDiff || 0) - (b.res.daysDiff || 0)));
+
+    if (!shown.length) {
+        list.innerHTML = `<div class="glass-card p-6 rounded-2xl border border-dashed border-slate-300 text-center">
+            <p class="text-sm font-medium text-slate-600">Nothing in this group</p>
+        </div>`;
+        return;
+    }
+
+    list.innerHTML = shown.map(({ bill, res, meta }) => {
+        const amount = Number(res.targetAmount) || 0;
+        const paid = Number(res.totalPaid) || 0;
+        const days = Number(res.daysDiff) || 0;
+        const when = meta.bucket === 'paid'
+            ? `Paid ${formatINR(paid)}`
+            : days > 0 ? `Due in ${days} day${days === 1 ? '' : 's'}`
+            : days === 0 ? 'Due today'
+            : `${-days} day${days === -1 ? '' : 's'} overdue`;
+        return `
+        <div class="bill-row bill-row-${meta.tone}">
+            <div class="bill-row-main">
+                <span class="bill-row-name">${escapeHtml(bill.name || bill.category || 'Bill')}</span>
+                <span class="bill-row-when">${escapeHtml(when)}</span>
+            </div>
+            <div class="bill-row-side">
+                <span class="bill-row-amount">${amount > 0 ? formatINR(amount) : '—'}</span>
+                <span class="badge badge-${meta.tone === 'danger' ? 'danger'
+                    : meta.tone === 'warning' ? 'warning'
+                    : meta.tone === 'success' ? 'success' : 'info'}">${meta.label}</span>
+            </div>
+            <button type="button" class="bill-row-pay" data-bill-pay="${escapeHtml(bill.category || bill.name || '')}"
+                data-bill-amount="${amount}" data-bill-to="${escapeHtml(bill.name || '')}"
+                aria-label="Record payment for ${escapeHtml(bill.name || 'this bill')}">
+                <svg class="ic" aria-hidden="true"><use href="#i-plus"></use></svg>
+            </button>
+        </div>`;
+    }).join('');
+}
+window.renderBillsView = renderBillsView;
+
+// Delegated, not inline: one listener for the whole screen rather than a
+// handler per row, which is what the brief asks for in new code.
+function initBillsScreen() {
+    const view = document.getElementById('view-bills');
+    if (!view || view.dataset.wired === '1') return;
+    view.dataset.wired = '1';
+
+    view.addEventListener('click', (e) => {
+        const filterBtn = e.target.closest('[data-bill-filter]');
+        if (filterBtn) {
+            billsFilter = filterBtn.dataset.billFilter;
+            view.querySelectorAll('[data-bill-filter]').forEach(b =>
+                b.setAttribute('aria-pressed', String(b === filterBtn)));
+            renderBillsView();
+            return;
+        }
+        const payBtn = e.target.closest('[data-bill-pay]');
+        if (payBtn) {
+            quickPayItem(payBtn.dataset.billPay,
+                         Number(payBtn.dataset.billAmount) || 0,
+                         payBtn.dataset.billTo || '');
+            return;
+        }
+        if (e.target.closest('#btnBillsManage')) {
+            switchTab('admin');
+        }
+    });
+}
+window.initBillsScreen = initBillsScreen;
+
+// ============================================================================
+// SETTINGS SECTIONS
+// ----------------------------------------------------------------------------
+// Master Settings was ten cards on one scroll with nothing to aim at. Each card
+// now declares the group it belongs to; this builds the chip rail from the
+// groups that are actually present on the screen and shows one at a time.
+//
+// The grouping is presentation only. Nothing is hidden for authorisation here -
+// cards the role may not use are already removed elsewhere, and a card hidden
+// by a chip is still in the document, which is exactly why hiding is never
+// treated as a permission check.
+// ============================================================================
+
+const SETTINGS_SECTIONS = [
+    { key: 'account',   label: 'Account',   icon: 'i-id-card' },
+    { key: 'household', label: 'Household', icon: 'i-house' },
+    { key: 'finance',   label: 'Finance',   icon: 'i-indian-rupee' },
+    { key: 'bills',     label: 'Bills',     icon: 'i-receipt-text' },
+    { key: 'staff',     label: 'Staff',     icon: 'i-users' },
+    { key: 'data',      label: 'Data',      icon: 'i-database' },
+    { key: 'security',  label: 'Security',  icon: 'i-shield' }
+];
+
+// Remembering the chosen section per screen, so coming back to Master Settings
+// after adding a bill does not drop the person at the top of the page again.
+const settingsSectionState = {};
+
+// Which group each screen opens on. Master Settings opens on Household
+// because that is where users and households are managed; Account is a
+// read-only summary and a poor landing page.
+function settingsScreens() {
+    return [
+        { nav: 'adminSettingsNav', view: 'view-admin', first: 'household' },
+        { nav: 'dataSettingsNav', view: 'view-settings', first: 'data' }
+    ];
+}
+
+function initSettingsSections() {
+    settingsScreens().forEach(screen => {
+        const nav = document.getElementById(screen.nav);
+        const view = document.getElementById(screen.view);
+        if (!nav || !view) return;
+
+        const cards = Array.from(view.querySelectorAll('[data-settings-section]'));
+        const counts = {};
+        cards.forEach(c => {
+            const k = c.getAttribute('data-settings-section');
+            counts[k] = (counts[k] || 0) + 1;
+        });
+
+        const present = SETTINGS_SECTIONS.filter(sec => counts[sec.key]);
+        // One group is not a choice; showing a single chip would be decoration.
+        if (present.length < 2) {
+            nav.innerHTML = '';
+            cards.forEach(c => c.classList.remove('settings-section-hidden'));
+            return;
+        }
+
+        const chosen = settingsSectionState[screen.view] && counts[settingsSectionState[screen.view]]
+            ? settingsSectionState[screen.view]
+            : (counts[screen.first] ? screen.first : present[0].key);
+
+        nav.setAttribute('role', 'tablist');
+        nav.innerHTML = present.map(sec => `
+            <button type="button" role="tab" class="settings-chip"
+                    aria-selected="${sec.key === chosen ? 'true' : 'false'}"
+                    data-section-key="${escapeHtml(sec.key)}"
+                    onclick="showSettingsSection(${escapeHtml(JSON.stringify(screen.view))}, ${escapeHtml(JSON.stringify(sec.key))})">
+                <svg class="ic" aria-hidden="true"><use href="#${escapeHtml(sec.icon)}"></use></svg>
+                <span>${escapeHtml(sec.label)}</span>
+                <span class="settings-chip-count">${counts[sec.key]}</span>
+            </button>
+        `).join('');
+
+        showSettingsSection(screen.view, chosen);
+    });
+}
+window.initSettingsSections = initSettingsSections;
+
+function showSettingsSection(viewId, key) {
+    const view = document.getElementById(viewId);
+    if (!view) return;
+    settingsSectionState[viewId] = key;
+
+    view.querySelectorAll('[data-settings-section]').forEach(card => {
+        card.classList.toggle('settings-section-hidden',
+            card.getAttribute('data-settings-section') !== key);
+    });
+    view.querySelectorAll('.settings-chip').forEach(chip => {
+        chip.setAttribute('aria-selected',
+            chip.getAttribute('data-section-key') === key ? 'true' : 'false');
+    });
+}
+window.showSettingsSection = showSettingsSection;
+
+// The Account card reads from the live session rather than from a copy, so it
+// cannot show a stale household after a switch.
+function renderAccountCard() {
+    const u = currentSessionUser;
+    const set = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value || '—';
+    };
+    if (!u) {
+        ['accountCardName', 'accountCardUsername', 'accountCardEmail',
+         'accountCardHousehold', 'accountCardRole'].forEach(id => set(id, '—'));
+        return;
+    }
+    set('accountCardName', u.name);
+    set('accountCardUsername', u.username ? '@' + u.username : '');
+    set('accountCardEmail', u.email);
+    set('accountCardHousehold', (u.householdName || u.householdId || ''));
+
+    const held = currentPermissions().length;
+    const custom = u.permissionsAreCustom === true;
+    set('accountCardRole', (u.role || '') +
+        ' · ' + held + ' permission' + (held === 1 ? '' : 's') +
+        (custom ? ' (set individually)' : ' (from this role)'));
+}
+window.renderAccountCard = renderAccountCard;
+
 function switchTab(tabId) {
+    // The views all live in one document and switchTab is global, so hiding a
+    // nav button is presentation only. This is the client-side guard; the API
+    // enforces the same permissions independently.
+    if (!canOpenTab(tabId)) {
+        if (window.showToast) {
+            window.showToast('error', 'Not available',
+                'Your role does not have access to that section.');
+        }
+        return;
+    }
     triggerHaptic('tap');
     document.querySelectorAll(".tab-btn").forEach(btn => {
         btn.classList.remove("active");
         btn.classList.add("text-slate-600");
     });
+    // A class change tells a sighted user which section they are in; only
+    // aria-current tells anyone else.
+    document.querySelectorAll('.tab-btn, .bnav-btn, .sidebar-link')
+        .forEach(btn => btn.removeAttribute('aria-current'));
     document.querySelectorAll(".tab-view").forEach(view => {
         view.classList.add("hidden");
         view.classList.remove("section-enter");
@@ -780,6 +1254,7 @@ function switchTab(tabId) {
     const activeBtn = document.getElementById(`tab-${tabId}`);
     if (activeBtn) {
         activeBtn.classList.add("active");
+        activeBtn.setAttribute('aria-current', 'page');
         activeBtn.classList.remove("text-slate-600");
         try {
             activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -793,6 +1268,14 @@ function switchTab(tabId) {
     const activeBnav = document.getElementById(`bnav-${tabId}`);
     if (activeBnav) {
         activeBnav.classList.add("active");
+        activeBnav.setAttribute('aria-current', 'page');
+    }
+
+    if (tabId === 'admin' || tabId === 'settings') {
+        try {
+            renderAccountCard();
+            initSettingsSections();
+        } catch (e) { /* a settings screen that is not rendered yet */ }
     }
 
     // Synchronize Desktop Sidebar links
@@ -802,6 +1285,7 @@ function switchTab(tabId) {
     const activeSidebarLink = document.getElementById(`sidebar-${tabId}`);
     if (activeSidebarLink) {
         activeSidebarLink.classList.add("active");
+        activeSidebarLink.setAttribute('aria-current', 'page');
     }
 
     const activeView = document.getElementById(`view-${tabId}`);
@@ -979,7 +1463,7 @@ function updateSyncBadge(text, color) {
     const badge = document.getElementById("recordCountBadge");
     if (!badge) return;
     const dotColor = color === "emerald" ? "text-emerald-500" : (color === "amber" ? "text-amber-500" : "text-rose-500");
-    badge.innerHTML = `<i class="fa-solid fa-circle-check ${dotColor} mr-1"></i> Status: ${text} (${expenses.length} records)`;
+    badge.innerHTML = `<svg class="ic ${dotColor} mr-1" aria-hidden="true"><use href="#i-circle-check"></use></svg> Status: ${text} (${expenses.length} records)`;
 }
 
 function updateHeaderStatus() {
@@ -1168,7 +1652,7 @@ async function signIn(username, password) {
     if (errorEl) errorEl.classList.add("hidden");
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Signing In...`;
+        submitBtn.innerHTML = `<svg class="ic animate-spin mr-2" aria-hidden="true"><use href="#i-loader-circle"></use></svg> Signing In...`;
     }
 
     try {
@@ -1192,6 +1676,7 @@ async function signIn(username, password) {
 
             closeLoginModal();
             updateUserProfileUI();
+            applyNavPermissions();
             await loadData();
             if (window.loadMasterConfig) await window.loadMasterConfig();
             if (window.renderAdminView) window.renderAdminView();
@@ -1213,7 +1698,7 @@ async function signIn(username, password) {
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = `<span>Sign In to Command Center</span> <i class="fa-solid fa-arrow-right ml-1"></i>`;
+            submitBtn.innerHTML = `<span>Sign In to Command Center</span> <svg class="ic ml-1" aria-hidden="true"><use href="#i-arrow-right"></use></svg>`;
         }
     }
 }
@@ -1367,19 +1852,19 @@ function populateFilterYearDropdown() {
 
 // Category Icon Helper for visual recognition across desktop & mobile
 function getCategoryIcon(catName) {
-    if (!catName) return '<i class="fa-solid fa-receipt text-slate-500"></i>';
+    if (!catName) return '<svg class="ic text-slate-500" aria-hidden="true"><use href="#i-receipt"></use></svg>';
     const c = String(catName).toLowerCase();
-    if (c.includes('grocery') || c.includes('vegetable')) return '<i class="fa-solid fa-basket-shopping text-emerald-600"></i>';
-    if (c.includes('electricity')) return '<i class="fa-solid fa-bolt text-amber-500"></i>';
-    if (c.includes('maintenance') || c.includes('flat')) return '<i class="fa-solid fa-building text-blue-600"></i>';
-    if (c.includes('maid') || c.includes('madhuri')) return '<i class="fa-solid fa-broom text-pink-500"></i>';
-    if (c.includes('chef') || c.includes('nilima') || c.includes('cook')) return '<i class="fa-solid fa-utensils text-orange-500"></i>';
-    if (c.includes('wifi') || c.includes('internet')) return '<i class="fa-solid fa-wifi text-cyan-600"></i>';
-    if (c.includes('dish') || c.includes('dth') || c.includes('tv')) return '<i class="fa-solid fa-tv text-purple-600"></i>';
-    if (c.includes('shopping') || c.includes('misc')) return '<i class="fa-solid fa-bag-shopping text-indigo-600"></i>';
-    if (c.includes('income') || c.includes('accepted')) return '<i class="fa-solid fa-arrow-down text-emerald-600"></i>';
-    if (c.includes('settlement') || c.includes('transfer')) return '<i class="fa-solid fa-arrow-right-arrow-left text-teal-600"></i>';
-    return '<i class="fa-solid fa-receipt text-indigo-500"></i>';
+    if (c.includes('grocery') || c.includes('vegetable')) return '<svg class="ic text-emerald-600" aria-hidden="true"><use href="#i-shopping-basket"></use></svg>';
+    if (c.includes('electricity')) return '<svg class="ic text-amber-500" aria-hidden="true"><use href="#i-zap"></use></svg>';
+    if (c.includes('maintenance') || c.includes('flat')) return '<svg class="ic text-blue-600" aria-hidden="true"><use href="#i-building"></use></svg>';
+    if (c.includes('maid') || c.includes('madhuri')) return '<svg class="ic text-pink-500" aria-hidden="true"><use href="#i-brush"></use></svg>';
+    if (c.includes('chef') || c.includes('nilima') || c.includes('cook')) return '<svg class="ic text-orange-500" aria-hidden="true"><use href="#i-utensils"></use></svg>';
+    if (c.includes('wifi') || c.includes('internet')) return '<svg class="ic text-cyan-600" aria-hidden="true"><use href="#i-wifi"></use></svg>';
+    if (c.includes('dish') || c.includes('dth') || c.includes('tv')) return '<svg class="ic text-purple-600" aria-hidden="true"><use href="#i-tv"></use></svg>';
+    if (c.includes('shopping') || c.includes('misc')) return '<svg class="ic text-indigo-600" aria-hidden="true"><use href="#i-shopping-bag"></use></svg>';
+    if (c.includes('income') || c.includes('accepted')) return '<svg class="ic text-emerald-600" aria-hidden="true"><use href="#i-arrow-down"></use></svg>';
+    if (c.includes('settlement') || c.includes('transfer')) return '<svg class="ic text-teal-600" aria-hidden="true"><use href="#i-arrow-left-right"></use></svg>';
+    return '<svg class="ic text-indigo-500" aria-hidden="true"><use href="#i-receipt"></use></svg>';
 }
 window.getCategoryIcon = getCategoryIcon;
 
@@ -1833,6 +2318,7 @@ function renderAllViews() {
     renderDashboard(filtered);
     renderExpenseTable(filtered);
     renderStaffView(filtered);
+    renderBillsView(filtered);
     renderMonthlyMatrix();
     if (window.renderPersonalExpensesDashboard) {
         window.renderPersonalExpensesDashboard();
@@ -1921,7 +2407,7 @@ function renderActiveFilterTags() {
         container.innerHTML = `<span class="text-slate-400 font-bold mr-1">Active:</span>` + tags.map((t, idx) => `
             <span class="active-filter-tag">
                 <span>${escapeHtml(t.label)}</span>
-                <button type="button" onclick="activeTagRemove(${idx})" title="Remove filter">&times;</button>
+                <button type="button" onclick="activeTagRemove(${idx})" title="Remove filter" aria-label="Remove filter">&times;</button>
             </span>
         `).join("");
         window._activeTagCallbacks = tags.map(t => t.clear);
@@ -2066,11 +2552,11 @@ function renderDashboard(filtered) {
     if (netBadgeEl && netIconEl) {
         if (netCashFlow > 0) {
             netBadgeEl.className = "font-black text-emerald-600";
-            netBadgeEl.innerHTML = `<i class="fa-solid fa-arrow-trend-up mr-1"></i> Surplus +${formatINR(netCashFlow)}`;
+            netBadgeEl.innerHTML = `<svg class="ic mr-1" aria-hidden="true"><use href="#i-trending-up"></use></svg> Surplus +${formatINR(netCashFlow)}`;
             netIconEl.className = "w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold";
         } else if (netCashFlow < 0) {
             netBadgeEl.className = "font-black text-rose-600";
-            netBadgeEl.innerHTML = `<i class="fa-solid fa-arrow-trend-down mr-1"></i> Deficit -${formatINR(Math.abs(netCashFlow))}`;
+            netBadgeEl.innerHTML = `<svg class="ic mr-1" aria-hidden="true"><use href="#i-trending-down"></use></svg> Deficit -${formatINR(Math.abs(netCashFlow))}`;
             netIconEl.className = "w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold";
         } else {
             netBadgeEl.className = "font-black text-slate-500";
@@ -2165,6 +2651,32 @@ function renderDashboard(filtered) {
 
     // 8. Budget & Checklist & Tables
     renderBudgetProgress(totalHouseholdSpent, totalPersonalSpent, totalCombinedSpent);
+
+    // Budget Remaining, the second of the four primary figures. Same source as
+    // the budget bar and the phone hero, so the three cannot disagree.
+    (function renderBudgetKpi() {
+        const el = document.getElementById("statBudgetRemaining");
+        if (!el) return;
+        const cap = (window.masterConfig && Number(window.masterConfig.monthlyBudgetLimit))
+            || monthlyBudgetLimit || 0;
+        const spentAll = Number(totalCombinedSpent) || 0;
+        const left = cap - spentAll;
+        const pct = cap > 0 ? Math.round((spentAll / cap) * 100) : 0;
+
+        const label = document.getElementById("statBudgetLabel");
+        if (label) label.textContent = cap <= 0 ? "Budget" : (left >= 0 ? "Budget Remaining" : "Over Budget By");
+        el.textContent = cap <= 0 ? "Not set" : formatINR(Math.abs(left));
+        el.classList.toggle("text-rose-600", cap > 0 && left < 0);
+
+        const used = document.getElementById("statBudgetUsed");
+        if (used) {
+            used.textContent = cap > 0 ? `${pct}% used` : "No budget set";
+            used.className = "font-medium truncate " +
+                (cap > 0 && pct > 100 ? "text-rose-600" : "text-emerald-600");
+        }
+        const capEl = document.getElementById("statBudgetCap");
+        if (capEl) capEl.textContent = cap > 0 ? `of ${formatINR(cap)}` : "Master Settings";
+    })();
     renderMobileHero(totalDisplaySpent, totalIncome, netCashFlow, modeLabel);
     renderChecklistUI(checklistStatus.items);
     renderTopExpensesTable(activeExpenseItems);
@@ -2206,7 +2718,7 @@ function renderFinancialInsights(filtered, totalSpent, totalIncome, netCashFlow)
         const pct = ((topCat[1] / totalSpent) * 100).toFixed(0);
         insights.push({
             type: "info",
-            icon: "fa-chart-pie",
+            icon: "i-chart-pie",
             text: `Highest spending category is <strong>${topCat[0]}</strong> at <strong>${formatINR(topCat[1])}</strong> (${pct}% of period total).`
         });
     }
@@ -2223,7 +2735,7 @@ function renderFinancialInsights(filtered, totalSpent, totalIncome, netCashFlow)
         const pct = ((topMember[1] / totalSpent) * 100).toFixed(0);
         insights.push({
             type: "member",
-            icon: "fa-user-check",
+            icon: "i-user-check",
             text: `<strong>${topMember[0]}</strong> has funded the majority of expenses (<strong>${formatINR(topMember[1])}</strong> &bull; ${pct}% share).`
         });
     }
@@ -2242,7 +2754,7 @@ function renderFinancialInsights(filtered, totalSpent, totalIncome, netCashFlow)
         if (pending.length === 0) {
             insights.push({
                 type: "success",
-                icon: "fa-circle-check",
+                icon: "i-circle-check",
                 text: `Staff payments are fully settled for this billing cycle (${configuredStaff.length} ${configuredStaff.length === 1 ? 'member' : 'members'}).`
             });
         } else {
@@ -2252,7 +2764,7 @@ function renderFinancialInsights(filtered, totalSpent, totalIncome, netCashFlow)
             });
             insights.push({
                 type: "warning",
-                icon: "fa-triangle-exclamation",
+                icon: "i-triangle-alert",
                 text: `Staff payment pending: <strong>${names.join(", ")}</strong> for this billing cycle.`
             });
         }
@@ -2266,7 +2778,7 @@ function renderFinancialInsights(filtered, totalSpent, totalIncome, netCashFlow)
         return `
             <div class="p-3 rounded-xl border text-xs font-semibold flex items-center justify-between ${colorClass}">
                 <div class="flex items-center space-x-2">
-                    <i class="fa-solid ${ins.icon} ${iconColor} text-sm"></i>
+                    <svg class="ic ${iconColor} text-sm" aria-hidden="true"><use href="#${ins.icon}"></use></svg>
                     <span>${ins.text}</span>
                 </div>
             </div>
@@ -2336,7 +2848,7 @@ function renderCategoryPieChart(filteredData) {
                     : `${pct}% of spend`;
                 return `
                     <button type="button" onclick="filterByCategory(${escapeHtml(JSON.stringify(cat))})"
-                        class="cat-bar-row" title="Filter by ${escapeHtml(cat)}">
+                        class="cat-bar-row" title="Filter by ${escapeHtml(cat)}" aria-label="Filter by ${escapeHtml(cat)}">
                         <span class="cat-bar-top">
                             <span class="cat-bar-name">
                                 <span class="cat-bar-dot" style="background-color: ${colour}"></span>
@@ -2949,7 +3461,7 @@ function renderChecklistUI(items) {
         <div class="p-3 rounded-xl border ${item.isPaid ? 'border-emerald-200 bg-emerald-50/60' : 'border-amber-200 bg-amber-50/60'} text-xs space-y-1">
             <div class="flex justify-between items-center">
                 <span class="font-extrabold text-slate-800 truncate">${item.name.replace(" - ", " ")}</span>
-                <i class="fa-solid ${item.isPaid ? 'fa-circle-check text-emerald-600' : 'fa-clock text-amber-500'}"></i>
+                <svg class="ic ${item.isPaid ? 'text-emerald-600' : 'text-amber-500'}" aria-hidden="true"><use href="#${item.isPaid ? 'i-circle-check' : 'i-clock'}"></use></svg>
             </div>
             <div class="flex justify-between items-baseline pt-1">
                 <span class="text-[10px] text-slate-400 font-bold">${formatINR(item.target)}</span>
@@ -3035,7 +3547,7 @@ function renderTopExpensesTable(expenseItems) {
             </td>
             <td class="py-2.5 px-3 text-right font-black text-slate-900">${formatINR(i.amount)}</td>
             <td class="py-2.5 px-3 text-center" onclick="event.stopPropagation()">
-                <button onclick="editExpense(${escapeHtml(JSON.stringify(i.id))})" class="p-1 text-slate-400 hover:text-indigo-600"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button onclick="editExpense(${escapeHtml(JSON.stringify(i.id))})" class="p-1 text-slate-400 hover:text-indigo-600" aria-label="Edit this expense"><svg class="ic text-xs" aria-hidden="true"><use href="#i-pen"></use></svg></button>
             </td>
         </tr>
     `).join("");
@@ -3064,7 +3576,7 @@ function renderRecentTransactionsTable(filteredData) {
                 <td class="py-2.5 px-3 text-slate-500 text-[11px]">${escapeHtml(i.paymentMethod || 'UPI')}</td>
                 <td class="py-2.5 px-3 text-right font-black ${isIncome ? 'text-emerald-600' : 'text-slate-900'}">${formatINR(i.amount)}</td>
                 <td class="py-2.5 px-3 text-center" onclick="event.stopPropagation()">
-                    ${i.receipt ? `<button onclick="viewReceiptFull(${escapeHtml(JSON.stringify(i.receipt))})" class="text-indigo-600 hover:text-indigo-800"><i class="fa-solid fa-paperclip"></i></button>` : '<span class="text-slate-300">-</span>'}
+                    ${i.receipt ? `<button onclick="viewReceiptFull(${escapeHtml(JSON.stringify(i.receipt))})" class="text-indigo-600 hover:text-indigo-800" aria-label="View the receipt"><svg class="ic" aria-hidden="true"><use href="#i-paperclip"></use></svg></button>` : '<span class="text-slate-300">-</span>'}
                 </td>
             </tr>
         `;
@@ -3245,9 +3757,9 @@ function renderExpenseTable(filteredData) {
                 <td class="py-3 px-4 text-right font-black ${isIncome ? 'text-emerald-600' : 'text-slate-900'}">${formatINR(item.amount)}</td>
                 <td class="py-3 px-4 text-center whitespace-nowrap">
                     <div class="flex items-center justify-center space-x-2">
-                        <button onclick="openTransactionDetailModal(${escapeHtml(JSON.stringify(item.id))})" title="View details" class="p-1.5 text-slate-400 hover:text-indigo-600 transition"><i class="fa-solid fa-eye text-xs"></i></button>
-                        <button onclick="editExpense(${escapeHtml(JSON.stringify(item.id))})" title="Edit" class="p-1.5 text-slate-400 hover:text-indigo-600 transition"><i class="fa-solid fa-pen text-xs"></i></button>
-                        <button onclick="confirmDeleteExpense(${escapeHtml(JSON.stringify(item.id))})" title="Delete" class="p-1.5 text-slate-400 hover:text-rose-600 transition"><i class="fa-solid fa-trash text-xs"></i></button>
+                        <button onclick="openTransactionDetailModal(${escapeHtml(JSON.stringify(item.id))})" title="View details" class="p-1.5 text-slate-400 hover:text-indigo-600 transition" aria-label="View transaction details"><svg class="ic text-xs" aria-hidden="true"><use href="#i-eye"></use></svg></button>
+                        <button onclick="editExpense(${escapeHtml(JSON.stringify(item.id))})" title="Edit" class="p-1.5 text-slate-400 hover:text-indigo-600 transition" aria-label="Edit this expense"><svg class="ic text-xs" aria-hidden="true"><use href="#i-pen"></use></svg></button>
+                        <button onclick="confirmDeleteExpense(${escapeHtml(JSON.stringify(item.id))})" title="Delete" class="p-1.5 text-slate-400 hover:text-rose-600 transition" aria-label="Delete this expense"><svg class="ic text-xs" aria-hidden="true"><use href="#i-trash-2"></use></svg></button>
                     </div>
                 </td>
             </tr>
@@ -3319,7 +3831,7 @@ function renderExpenseTable(filteredData) {
                     <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 text-xs">
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">
-                                <i class="fa-solid fa-user text-[9px] mr-1 text-indigo-400"></i> ${escapeHtml(item.paidBy || 'Not Specified')}
+                                <svg class="ic text-[9px] mr-1 text-indigo-400" aria-hidden="true"><use href="#i-user"></use></svg> ${escapeHtml(item.paidBy || 'Not Specified')}
                             </span>
                             <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600">
                                 ${escapeHtml(item.paymentMethod || 'UPI')}
@@ -3328,14 +3840,14 @@ function renderExpenseTable(filteredData) {
 
                         <!-- Action Buttons (Touch targets >= 44px) -->
                         <div class="flex items-center gap-1">
-                            <button type="button" onclick="openTransactionDetailModal(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition" title="View details">
-                                <i class="fa-solid fa-eye text-sm"></i>
+                            <button type="button" onclick="openTransactionDetailModal(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition" title="View details" aria-label="View transaction details">
+                                <svg class="ic text-sm" aria-hidden="true"><use href="#i-eye"></use></svg>
                             </button>
-                            <button type="button" onclick="editExpense(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition" title="Edit">
-                                <i class="fa-solid fa-pen text-sm"></i>
+                            <button type="button" onclick="editExpense(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition" title="Edit" aria-label="Edit this expense">
+                                <svg class="ic text-sm" aria-hidden="true"><use href="#i-pen"></use></svg>
                             </button>
-                            <button type="button" onclick="confirmDeleteExpense(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition" title="Delete">
-                                <i class="fa-solid fa-trash text-sm"></i>
+                            <button type="button" onclick="confirmDeleteExpense(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition" title="Delete" aria-label="Delete this expense">
+                                <svg class="ic text-sm" aria-hidden="true"><use href="#i-trash-2"></use></svg>
                             </button>
                         </div>
                     </div>
@@ -3370,7 +3882,7 @@ function staffPaidInPeriod(staffExpenses, s) {
 
 function staffEmptyState(message) {
     return `<div class="col-span-full p-6 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 text-center">
-        <i class="fa-solid fa-user-plus text-slate-300 text-xl"></i>
+        <svg class="ic text-slate-300 text-xl" aria-hidden="true"><use href="#i-user-plus"></use></svg>
         <p class="text-sm font-bold text-slate-600 mt-2">No staff configured</p>
         <p class="text-xs text-slate-500 font-medium mt-1">${escapeHtml(message)}</p>
     </div>`;
@@ -3401,7 +3913,7 @@ function renderStaffPayrollLedger(staffExpenses, configuredStaff) {
             <div class="flex justify-between items-start">
                 <div class="flex items-center space-x-2 min-w-0">
                     <div class="w-8 h-8 rounded-lg ${a.chip} text-white flex items-center justify-center font-bold text-xs shrink-0">
-                        <i class="fa-solid fa-user-tie"></i>
+                        <svg class="ic" aria-hidden="true"><use href="#i-user-round"></use></svg>
                     </div>
                     <div class="min-w-0">
                         <h4 class="text-xs font-extrabold text-slate-900 truncate">${escapeHtml(name)}${s.role ? ` (${escapeHtml(s.role)})` : ''}</h4>
@@ -3447,24 +3959,24 @@ function renderStaffView(filteredData) {
                     <div class="flex justify-between items-start gap-3">
                         <div class="flex items-center space-x-4 min-w-0">
                             <div class="w-14 h-14 rounded-2xl bg-gradient-to-br ${a.grad} text-white flex items-center justify-center text-2xl font-bold shadow-md shrink-0">
-                                <i class="fa-solid fa-user-tie"></i>
+                                <svg class="ic" aria-hidden="true"><use href="#i-user-round"></use></svg>
                             </div>
                             <div class="min-w-0">
                                 <h3 class="text-lg font-black text-slate-900 truncate">${escapeHtml(name)}</h3>
                                 <p class="text-xs text-slate-500 font-semibold truncate">${escapeHtml(s.role || 'Household Staff')}</p>
                                 <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
                                     <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${a.pill}">
-                                        <i class="fa-solid fa-calendar-check mr-1"></i>${escapeHtml(staffCycleLabel(s))}
+                                        <svg class="ic mr-1" aria-hidden="true"><use href="#i-calendar-check"></use></svg>${escapeHtml(staffCycleLabel(s))}
                                     </span>
                                     ${Number.isFinite(Number(s.allowedPaidLeaves)) ? `<span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                                        <i class="fa-solid fa-umbrella-beach mr-1"></i>${Number(s.allowedPaidLeaves)} paid leaves
+                                        <svg class="ic mr-1" aria-hidden="true"><use href="#i-umbrella"></use></svg>${Number(s.allowedPaidLeaves)} paid leaves
                                     </span>` : ''}
                                 </div>
                             </div>
                         </div>
                         <button onclick="quickPayItem(${escapeHtml(JSON.stringify(category))}, ${due}, ${escapeHtml(JSON.stringify(name))})"
                             class="${a.btn} text-white font-bold text-xs px-3.5 py-2 min-h-[44px] rounded-xl shadow-md transition shrink-0">
-                            <i class="fa-solid fa-indian-rupee-sign mr-1"></i> Pay${due > 0 ? ` ${formatINR(due)}` : ''}
+                            <svg class="ic mr-1" aria-hidden="true"><use href="#i-indian-rupee"></use></svg> Pay${due > 0 ? ` ${formatINR(due)}` : ''}
                         </button>
                     </div>
                     <div class="mt-6 pt-4 border-t border-slate-100 grid grid-cols-2 gap-4 text-sm">
@@ -3517,52 +4029,100 @@ function renderMonthlyMatrix() {
     const tbody = document.getElementById("matrixTbody");
     if (!thead || !tbody) return;
 
-    // Extract all unique month-years in dataset
-    const monthYearMap = {};
-    expenses.forEach(item => {
-        if (!item.date) return;
+    const live = expenses.filter(i => i && !i.isDeleted && i.date);
+
+    // Totals first, so the columns can be chosen from what was actually spent.
+    // Every configured category used to get a column whether or not it had ever
+    // been used, which on a phone meant scrolling past a dozen empty ones.
+    const monthLabel = {};
+    const totals = {};            // monthKey -> category -> amount
+    const perCategory = {};       // category -> amount
+    live.forEach(item => {
         const d = new Date(item.date);
+        if (isNaN(d)) return;
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        monthYearMap[key] = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+        monthLabel[key] = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+        const cat = item.category || 'Uncategorised';
+        const amount = Number(item.amount) || 0;
+        totals[key] = totals[key] || {};
+        totals[key][cat] = (totals[key][cat] || 0) + amount;
+        perCategory[cat] = (perCategory[cat] || 0) + amount;
     });
 
-    const sortedKeys = Object.keys(monthYearMap).sort().reverse();
+    const months = Object.keys(monthLabel).sort().reverse();
+    // Biggest spend first: the column that matters is the one you can see
+    // without scrolling.
+    const columns = Object.keys(perCategory)
+        .filter(c => perCategory[c] !== 0)
+        .sort((a, b) => Math.abs(perCategory[b]) - Math.abs(perCategory[a]));
+
+    const summary = document.getElementById("matrixSummary");
+    if (!months.length) {
+        thead.innerHTML = '';
+        tbody.innerHTML = `
+            <tr><td class="p-8 text-center text-slate-400 font-medium text-xs">
+                Nothing recorded yet. Add an expense and the months will appear here.
+            </td></tr>`;
+        if (summary) summary.textContent = '';
+        return;
+    }
+
+    const isIncome = (cat) => cat === "Accepted Payments (Income)";
+    const monthSpend = (key) => columns.reduce(
+        (acc, c) => acc + (isIncome(c) ? 0 : (totals[key][c] || 0)), 0);
+
+    if (summary) {
+        const grand = months.reduce((acc, k) => acc + monthSpend(k), 0);
+        const busiest = months.slice().sort((a, b) => monthSpend(b) - monthSpend(a))[0];
+        summary.textContent =
+            `${months.length} month${months.length === 1 ? '' : 's'} · `
+            + `${columns.length} categor${columns.length === 1 ? 'y' : 'ies'} used · `
+            + `${formatINR(grand)} spent · busiest ${monthLabel[busiest]}`;
+    }
 
     thead.innerHTML = `
         <tr>
-            <th class="py-2.5 px-3">Month-Year</th>
-            ${CATEGORIES.map(cat => `<th class="py-2.5 px-3 text-right max-w-[120px] truncate">${cat}</th>`).join("")}
-            <th class="py-2.5 px-3 text-right bg-indigo-950 text-white font-black">Total Spent</th>
+            <th class="matrix-corner py-2.5 px-3 text-left">Month</th>
+            ${columns.map(cat => `
+                <th class="py-2.5 px-3 text-right whitespace-nowrap" title="${escapeHtml(cat)}">
+                    ${escapeHtml(cat)}
+                </th>`).join("")}
+            <th class="py-2.5 px-3 text-right bg-indigo-950 text-white font-black whitespace-nowrap">Total Spent</th>
         </tr>
     `;
 
-    tbody.innerHTML = sortedKeys.map(mKey => {
-        const [yearStr, monthNumStr] = mKey.split("-");
-        const monthIdx = parseInt(monthNumStr, 10) - 1;
+    const rows = months.map(key => `
+        <tr class="hover:bg-slate-50 transition">
+            <th scope="row" class="matrix-rowhead py-2.5 px-3 text-left font-black text-slate-900 whitespace-nowrap">
+                ${escapeHtml(monthLabel[key])}
+            </th>
+            ${columns.map(cat => {
+                const sum = totals[key][cat] || 0;
+                return `<td class="py-2.5 px-3 text-right ${sum ? 'text-slate-900 font-bold' : 'text-slate-300 font-normal'}">
+                            ${sum ? formatINR(sum) : '-'}
+                        </td>`;
+            }).join("")}
+            <td class="py-2.5 px-3 text-right font-black text-indigo-700 bg-indigo-50/50 whitespace-nowrap">
+                ${formatINR(monthSpend(key))}
+            </td>
+        </tr>
+    `).join("");
 
-        let totalSpent = 0;
-        const catSums = CATEGORIES.map(cat => {
-            const sum = expenses.filter(i => {
-                const d = new Date(i.date);
-                return d.getFullYear().toString() === yearStr && d.getMonth() === monthIdx && i.category === cat;
-            }).reduce((acc, i) => acc + Number(i.amount), 0);
+    // A column of figures with no total at the bottom makes the reader do the
+    // adding, which is the one thing a pivot table exists to avoid.
+    const footer = `
+        <tr class="matrix-total-row">
+            <th scope="row" class="matrix-rowhead py-2.5 px-3 text-left font-black whitespace-nowrap">All months</th>
+            ${columns.map(cat => `
+                <td class="py-2.5 px-3 text-right font-black whitespace-nowrap">${formatINR(perCategory[cat])}</td>
+            `).join("")}
+            <td class="py-2.5 px-3 text-right font-black bg-indigo-950 text-white whitespace-nowrap">
+                ${formatINR(months.reduce((acc, k) => acc + monthSpend(k), 0))}
+            </td>
+        </tr>
+    `;
 
-            if (cat !== "Accepted Payments (Income)") totalSpent += sum;
-            return sum;
-        });
-
-        return `
-            <tr class="hover:bg-slate-50 transition">
-                <td class="py-2.5 px-3 font-black text-slate-900 whitespace-nowrap">${monthYearMap[mKey]}</td>
-                ${catSums.map(sum => `
-                    <td class="py-2.5 px-3 text-right ${sum > 0 ? 'text-slate-900 font-bold' : 'text-slate-300 font-normal'}">
-                        ${sum > 0 ? formatINR(sum) : '-'}
-                    </td>
-                `).join("")}
-                <td class="py-2.5 px-3 text-right font-black text-indigo-700 bg-indigo-50/50">${formatINR(totalSpent)}</td>
-            </tr>
-        `;
-    }).join("");
+    tbody.innerHTML = rows + footer;
 }
 
 // ================= TOAST NOTIFICATION SYSTEM =================
@@ -3586,10 +4146,10 @@ function showToast(type, title, message = "") {
     }`;
 
     const iconHtml = isSuccess 
-        ? `<div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 text-base font-black"><i class="fa-solid fa-check"></i></div>`
+        ? `<div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 text-base font-black"><svg class="ic" aria-hidden="true"><use href="#i-check"></use></svg></div>`
         : (isError 
-            ? `<div class="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 text-base font-black"><i class="fa-solid fa-triangle-exclamation"></i></div>`
-            : `<div class="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 text-base font-black"><i class="fa-solid fa-info"></i></div>`);
+            ? `<div class="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 text-base font-black"><svg class="ic" aria-hidden="true"><use href="#i-triangle-alert"></use></svg></div>`
+            : `<div class="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 text-base font-black"><svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></div>`);
 
     toast.innerHTML = `
         ${iconHtml}
@@ -3597,8 +4157,8 @@ function showToast(type, title, message = "") {
             <h4 class="text-xs font-black tracking-wide text-white leading-tight">${escapeHtml(title)}</h4>
             ${message ? `<p class="text-[11px] text-slate-300 font-bold mt-0.5 truncate">${message}</p>` : ''}
         </div>
-        <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white transition p-1 text-xs">
-            <i class="fa-solid fa-xmark"></i>
+        <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white transition p-1 text-xs" aria-label="Remove">
+            <svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg>
         </button>
     `;
 
@@ -3635,7 +4195,7 @@ function openExpenseModal(editId = null) {
             return;
         }
 
-        modalTitle.innerHTML = `<i class="fa-solid fa-pen-to-square text-indigo-400 mr-2"></i> Edit Household Expense`;
+        modalTitle.innerHTML = `<svg class="ic text-indigo-400 mr-2" aria-hidden="true"><use href="#i-square-pen"></use></svg> Edit Household Expense`;
         document.getElementById("expenseId").value = item.id;
         document.getElementById("inputDate").value = item.date || cur.isoDate;
         document.getElementById("inputAmount").value = item.amount;
@@ -3712,7 +4272,7 @@ function openExpenseModal(editId = null) {
         // Cache original item for reference in saveExpense
         window.currentEditingItem = item;
     } else {
-        modalTitle.innerHTML = `<i class="fa-solid fa-pen-to-square text-indigo-400 mr-2"></i> Add Household Expense`;
+        modalTitle.innerHTML = `<svg class="ic text-indigo-400 mr-2" aria-hidden="true"><use href="#i-square-pen"></use></svg> Add Household Expense`;
         if (form) form.reset();
         document.getElementById("expenseId").value = "";
         document.getElementById("inputDate").value = cur.isoDate;
@@ -3875,7 +4435,7 @@ async function saveExpense(e) {
     const submitBtn = document.getElementById("btnSubmitExpense");
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-1.5"></i> Saving...`;
+        submitBtn.innerHTML = `<svg class="ic animate-spin mr-1.5" aria-hidden="true"><use href="#i-loader-circle"></use></svg> Saving...`;
     }
 
     // Check immediate offline state before network dispatch
@@ -4082,7 +4642,7 @@ async function resolveConflictOverwrite() {
     const submitBtn = document.getElementById("btnSubmitExpense");
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-1.5"></i> Overwriting...`;
+        submitBtn.innerHTML = `<svg class="ic animate-spin mr-1.5" aria-hidden="true"><use href="#i-loader-circle"></use></svg> Overwriting...`;
     }
 
     try {
@@ -4399,7 +4959,7 @@ function openQuickFillModal() {
                 <span class="block font-black text-slate-900">${escapeHtml(i.name)}</span>
                 <span class="text-xs text-slate-500 font-semibold">${formatINR(i.amount)} &bull; ${escapeHtml(i.paidTo)}</span>
             </div>
-            <i class="fa-solid fa-arrow-right text-indigo-600"></i>
+            <svg class="ic text-indigo-600" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
         </button>
     `).join("");
 
@@ -4830,6 +5390,7 @@ function escapeHtml(str) {
 window.escapeHtml = escapeHtml;
 
 let adminDirectoryData = { households: [], users: [], activeHouseholdId: '' };
+window.adminDirectoryData = adminDirectoryData;
 
 async function loadAdminConsoleData(showFeedback = false) {
     const card = document.getElementById("adminTenantManagementCard");
@@ -4859,6 +5420,9 @@ async function loadAdminConsoleData(showFeedback = false) {
         const data = await res.json();
         if (data.success) {
             adminDirectoryData = data;
+            // A top-level `let` is not a property of window, so anything
+            // outside this file - including the audit - could not see it.
+            window.adminDirectoryData = adminDirectoryData;
             renderAdminDirectoryUI();
             if (showFeedback && typeof showToast === 'function') {
                 showToast('success', 'Directory Refreshed', `Loaded ${data.households.length} household(s) and ${data.users.length} user(s).`);
@@ -4947,23 +5511,23 @@ function renderAdminDirectoryUI() {
                     <td class="py-2.5 px-2.5 text-right">
                         <div class="flex items-center justify-end gap-1.5">
                             ${!isActive && isAdminRole(userRole) ? `
-                                <button onclick="switchActiveHousehold(${escapeHtml(JSON.stringify(h.householdId))})" class="px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-[11px] font-black rounded-lg transition" title="Switch active workspace to this household">
+                                <button onclick="switchActiveHousehold(${escapeHtml(JSON.stringify(h.householdId))})" class="px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-[11px] font-black rounded-lg transition" title="Switch active workspace to this household" aria-label="Switch active workspace to this household">
                                     Switch
                                 </button>
                             ` : ''}
                             ${isActive ? `
                                 <span class="text-[11px] font-bold text-emerald-600 mr-1 hidden sm:inline-flex items-center gap-1">
-                                    <i class="fa-solid fa-check"></i> Current
+                                    <svg class="ic" aria-hidden="true"><use href="#i-check"></use></svg> Current
                                 </span>
                             ` : ''}
                             ${isAdminRole(userRole) || (userRole === 'OWNER' && isActive) ? `
-                                <button onclick="openEditHouseholdModal(${escapeHtml(JSON.stringify(h.householdId))})" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Edit Household Details">
-                                    <i class="fa-solid fa-pen-to-square text-xs"></i>
+                                <button onclick="openEditHouseholdModal(${escapeHtml(JSON.stringify(h.householdId))})" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Edit Household Details" aria-label="Edit this household">
+                                    <svg class="ic text-xs" aria-hidden="true"><use href="#i-square-pen"></use></svg>
                                 </button>
                             ` : ''}
                             ${isAdminRole(userRole) && h.householdId !== 'H001' ? `
-                                <button onclick="confirmDeleteHousehold(${escapeHtml(JSON.stringify(h.householdId))}, ${escapeHtml(JSON.stringify(h.householdName))})" class="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Delete Household">
-                                    <i class="fa-solid fa-trash text-xs"></i>
+                                <button onclick="confirmDeleteHousehold(${escapeHtml(JSON.stringify(h.householdId))}, ${escapeHtml(JSON.stringify(h.householdName))})" class="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Delete Household" aria-label="Delete this household">
+                                    <svg class="ic text-xs" aria-hidden="true"><use href="#i-trash-2"></use></svg>
                                 </button>
                             ` : ''}
                         </div>
@@ -5014,13 +5578,13 @@ function renderAdminDirectoryUI() {
                     <td class="py-2 px-2.5 text-right">
                         <div class="flex items-center justify-end gap-1.5">
                             ${canEditUser ? `
-                                <button onclick="openEditUserModal(${escapeHtml(JSON.stringify(u.userId))})" class="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition" title="Edit User & Permissions">
-                                    <i class="fa-solid fa-user-pen text-xs"></i>
+                                <button onclick="openEditUserModal(${escapeHtml(JSON.stringify(u.userId))})" class="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition" title="Edit User & Permissions" aria-label="Edit this user">
+                                    <svg class="ic text-xs" aria-hidden="true"><use href="#i-user-pen"></use></svg>
                                 </button>
                             ` : ''}
                             ${canDeleteUser ? `
-                                <button onclick="confirmDeleteUser(${escapeHtml(JSON.stringify(u.userId))}, ${escapeHtml(JSON.stringify(u.username))})" class="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Delete User Account">
-                                    <i class="fa-solid fa-trash text-xs"></i>
+                                <button onclick="confirmDeleteUser(${escapeHtml(JSON.stringify(u.userId))}, ${escapeHtml(JSON.stringify(u.username))})" class="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Delete User Account" aria-label="Delete this user">
+                                    <svg class="ic text-xs" aria-hidden="true"><use href="#i-trash-2"></use></svg>
                                 </button>
                             ` : ''}
                         </div>
@@ -5086,7 +5650,7 @@ async function submitCreateHousehold() {
 
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Creating...`;
+        btn.innerHTML = `<svg class="ic animate-spin mr-1" aria-hidden="true"><use href="#i-loader-circle"></use></svg> Creating...`;
     }
 
     try {
@@ -5120,7 +5684,7 @@ async function submitCreateHousehold() {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = `<i class="fa-solid fa-plus"></i> <span>Create Household</span>`;
+            btn.innerHTML = `<svg class="ic" aria-hidden="true"><use href="#i-plus"></use></svg> <span>Create Household</span>`;
         }
     }
 }
@@ -5187,7 +5751,7 @@ async function submitCreateUser() {
 
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Creating User...`;
+        btn.innerHTML = `<svg class="ic animate-spin mr-1" aria-hidden="true"><use href="#i-loader-circle"></use></svg> Creating User...`;
     }
 
     try {
@@ -5225,7 +5789,7 @@ async function submitCreateUser() {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = `<i class="fa-solid fa-user-plus"></i> <span>Create User</span>`;
+            btn.innerHTML = `<svg class="ic" aria-hidden="true"><use href="#i-user-plus"></use></svg> <span>Create User</span>`;
         }
     }
 }
@@ -5388,7 +5952,7 @@ async function submitEditHousehold() {
 
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Saving...`;
+        btn.innerHTML = `<svg class="ic animate-spin mr-1" aria-hidden="true"><use href="#i-loader-circle"></use></svg> Saving...`;
     }
 
     try {
@@ -5431,7 +5995,7 @@ async function submitEditHousehold() {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> <span>Save Changes</span>`;
+            btn.innerHTML = `<svg class="ic" aria-hidden="true"><use href="#i-save"></use></svg> <span>Save Changes</span>`;
         }
     }
 }
@@ -5479,6 +6043,215 @@ window.confirmDeleteHousehold = confirmDeleteHousehold;
 // ==========================================
 // EDIT & DELETE USER HANDLERS
 // ==========================================
+// ============================================================================
+// PER-USER PERMISSION EDITOR
+// ----------------------------------------------------------------------------
+// The role select above assigns defaults. This editor pins an explicit list on
+// one person; the API treats that list as authoritative, so what is ticked here
+// is exactly what the endpoints will allow. The catalogue, the presets and the
+// role defaults all arrive from /api/auth with the admin overview, from the
+// same registry the server enforces - nothing here re-states the rules.
+// ============================================================================
+
+// Human wording and grouping for the permission codes. Presentation only: a
+// code with no entry here is shown as itself rather than hidden, so a
+// permission added on the server can never silently disappear from this list.
+const PERMISSION_LABELS = {
+    'dashboard.view':   ['Dashboard', 'See the dashboard'],
+    'expense.view':     ['Expenses', 'See expenses'],
+    'expense.create':   ['Expenses', 'Add expenses'],
+    'expense.edit':     ['Expenses', 'Edit expenses'],
+    'expense.delete':   ['Expenses', 'Delete expenses'],
+    'bill.view':        ['Bills', 'See recurring bills'],
+    'bill.manage':      ['Bills', 'Add and edit recurring bills'],
+    'personal.view':    ['Reports', 'See personal spending'],
+    'reports.view':     ['Reports', 'See reports'],
+    'matrix.view':      ['Reports', 'See the spending matrix'],
+    'settlement.view':  ['Reports', 'See who owes whom'],
+    'staff.view':       ['Staff', 'See staff'],
+    'attendance.manage':['Staff', 'Record attendance and leave'],
+    'payroll.view':     ['Staff', 'See payroll figures'],
+    'excel.import':     ['Data', 'Import from Excel'],
+    'excel.export':     ['Data', 'Export to Excel'],
+    'backup.manage':    ['Data', 'Create backups'],
+    'restore.manage':   ['Data', 'Restore from a backup'],
+    'audit.view':       ['Administration', 'Read the audit trail'],
+    'users.view':       ['Administration', 'See the user list'],
+    'users.manage':     ['Administration', 'Add, edit and remove users'],
+    'household.view':   ['Administration', 'See household details'],
+    'household.manage': ['Administration', 'Add, edit and remove households'],
+    'settings.view':    ['Administration', 'See master settings'],
+    'settings.manage':  ['Administration', 'Change master settings']
+};
+
+const PERMISSION_GROUP_ORDER = [
+    'Dashboard', 'Expenses', 'Bills', 'Reports', 'Staff', 'Data', 'Administration'
+];
+
+function permissionCatalog() {
+    const c = adminDirectoryData && adminDirectoryData.permissionCatalog;
+    return Array.isArray(c) ? c : [];
+}
+
+function rolePermissionDefaults(role) {
+    const map = (adminDirectoryData && adminDirectoryData.rolePermissions) || {};
+    return map[String(role || '').toUpperCase()] || [];
+}
+
+// What the signed-in administrator holds. A box for something they do not hold
+// is disabled rather than hidden, so the limit is visible instead of mysterious
+// - and the API refuses it regardless, because UI hiding is not security.
+function grantablePermissions() {
+    const mine = (adminDirectoryData && adminDirectoryData.myPermissions);
+    return Array.isArray(mine) ? mine : currentPermissions();
+}
+
+function renderUserPermissionEditor(user) {
+    const grid = document.getElementById('editUserPermissionGrid');
+    const presetWrap = document.getElementById('editUserPermissionPresets');
+    if (!grid) return;
+
+    const catalog = permissionCatalog();
+    if (!catalog.length) {
+        grid.innerHTML = '<p class="text-xs text-slate-400 font-medium">' +
+            'Permission catalogue unavailable. Reload the admin console to edit individual permissions.</p>';
+        if (presetWrap) presetWrap.innerHTML = '';
+        return;
+    }
+
+    const held = new Set(Array.isArray(user.permissions) ? user.permissions : []);
+    const grantable = new Set(grantablePermissions());
+
+    const groups = {};
+    catalog.forEach(code => {
+        const meta = PERMISSION_LABELS[code] || ['Other', code];
+        (groups[meta[0]] = groups[meta[0]] || []).push([code, meta[1]]);
+    });
+
+    const order = PERMISSION_GROUP_ORDER
+        .filter(g => groups[g])
+        .concat(Object.keys(groups).filter(g => PERMISSION_GROUP_ORDER.indexOf(g) === -1));
+
+    grid.innerHTML = order.map(group => `
+        <fieldset class="space-y-1">
+            <legend class="text-xs font-bold text-slate-400 uppercase tracking-wider">${escapeHtml(group)}</legend>
+            ${groups[group].map(([code, label]) => {
+                const allowed = grantable.has(code);
+                return `
+                <label class="flex items-start gap-2 py-1.5 min-h-[44px] sm:min-h-0 cursor-pointer ${allowed ? '' : 'opacity-50 cursor-not-allowed'}">
+                    <input type="checkbox" class="user-perm-box mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                           value="${escapeHtml(code)}"
+                           ${held.has(code) ? 'checked' : ''}
+                           ${allowed ? '' : 'disabled'}
+                           onchange="markUserPermissionsTouched()">
+                    <span class="min-w-0">
+                        <span class="block text-xs font-semibold text-slate-800">${escapeHtml(label)}</span>
+                        <span class="block text-xs font-mono text-slate-400">${escapeHtml(code)}</span>
+                    </span>
+                </label>`;
+            }).join('')}
+        </fieldset>
+    `).join('');
+
+    const presets = (adminDirectoryData && adminDirectoryData.permissionPresets) || {};
+    if (presetWrap) {
+        presetWrap.innerHTML = Object.keys(presets).map(key => {
+            const pr = presets[key];
+            return `<button type="button" onclick="applyPermissionPreset(${escapeHtml(JSON.stringify(key))})"
+                        title="${escapeHtml(pr.description || '')}"
+                        aria-label="${escapeHtml(pr.label || key)}: ${escapeHtml(pr.description || '')}"
+                        class="px-2.5 py-1.5 min-h-[44px] sm:min-h-0 sm:py-1 bg-white border border-slate-300 hover:border-emerald-400 hover:bg-emerald-50 text-slate-700 rounded-lg text-xs font-semibold transition">
+                        ${escapeHtml(pr.label || key)}
+                    </button>`;
+        }).join('');
+    }
+
+    updateUserPermissionSummary();
+}
+
+// Whether the administrator has touched the permission boxes during this edit.
+// Without this, opening the editor and saving would pin whatever happened to be
+// displayed, turning every role change into a permanent override.
+let userPermissionsTouched = false;
+
+function markUserPermissionsTouched() {
+    userPermissionsTouched = true;
+    updateUserPermissionSummary();
+}
+window.markUserPermissionsTouched = markUserPermissionsTouched;
+
+function collectUserPermissions() {
+    return Array.from(document.querySelectorAll('.user-perm-box:checked'))
+        .map(b => b.value);
+}
+
+function updateUserPermissionSummary() {
+    const el = document.getElementById('editUserPermissionSummary');
+    if (!el) return;
+    const chosen = collectUserPermissions();
+    const total = document.querySelectorAll('.user-perm-box').length;
+    const role = (document.getElementById('editUserRoleSelect') || {}).value || '';
+    const defaults = rolePermissionDefaults(role);
+    const sameAsRole = chosen.length === defaults.length
+        && chosen.every(p => defaults.indexOf(p) !== -1);
+    el.textContent = (!userPermissionsTouched || chosen.length === 0 || sameAsRole)
+        ? 'role defaults'
+        : chosen.length + ' of ' + total;
+}
+window.updateUserPermissionSummary = updateUserPermissionSummary;
+
+function toggleUserPermissionEditor() {
+    const body = document.getElementById('editUserPermissionsBody');
+    const btn = document.getElementById('btnToggleUserPermissions');
+    const chevron = document.getElementById('editUserPermissionChevron');
+    if (!body) return;
+    const open = body.classList.toggle('hidden') === false;
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (chevron) chevron.classList.toggle('rotate-180', open);
+}
+window.toggleUserPermissionEditor = toggleUserPermissionEditor;
+
+function setUserPermissionBoxes(codes, touched) {
+    const wanted = new Set(codes || []);
+    document.querySelectorAll('.user-perm-box').forEach(box => {
+        if (box.disabled) return;      // cannot grant what the admin lacks
+        box.checked = wanted.has(box.value);
+    });
+    if (touched === false) {
+        updateUserPermissionSummary();
+    } else {
+        markUserPermissionsTouched();
+    }
+}
+
+function setAllUserPermissions(on) {
+    document.querySelectorAll('.user-perm-box').forEach(box => {
+        if (box.disabled) return;
+        box.checked = !!on;
+    });
+    markUserPermissionsTouched();
+}
+window.setAllUserPermissions = setAllUserPermissions;
+
+function applyPermissionPreset(key) {
+    const presets = (adminDirectoryData && adminDirectoryData.permissionPresets) || {};
+    const preset = presets[key];
+    if (!preset) return;
+    setUserPermissionBoxes(preset.permissions || []);
+}
+window.applyPermissionPreset = applyPermissionPreset;
+
+// Clearing every box is how the override is removed; the save sends an empty
+// list and the server deletes the stored field.
+function resetUserPermissionsToRole() {
+    setAllUserPermissions(false);
+    if (window.showToast) {
+        window.showToast('info', 'Role defaults',
+            'Saving now removes the individual overrides for this user.');
+    }
+}
+window.resetUserPermissionsToRole = resetUserPermissionsToRole;
+
 function openEditUserModal(userId) {
     if (typeof triggerHaptic === 'function') triggerHaptic('light');
     const u = adminDirectoryData.users.find(x => x.userId === userId);
@@ -5509,6 +6282,12 @@ function openEditUserModal(userId) {
     if (rSelect) {
         rSelect.value = u.role || 'MEMBER';
         rSelect.disabled = (u.userId === 'U000');
+        // Picking a different role shows that role's defaults straight away, so
+        // the boxes never contradict the role sitting above them.
+        rSelect.onchange = function () {
+            if (userPermissionsTouched) return;   // the admin's own choices win
+            setUserPermissionBoxes(rolePermissionDefaults(rSelect.value), false);
+        };
     }
 
     const sSelect = document.getElementById("editUserStatusSelect");
@@ -5516,6 +6295,15 @@ function openEditUserModal(userId) {
         sSelect.value = u.status || 'active';
         sSelect.disabled = (u.userId === 'U000');
     }
+
+    userPermissionsTouched = false;
+    renderUserPermissionEditor(u);
+    // Collapsed by default: most edits are a name or a role, and 25 checkboxes
+    // in front of them would make the common case the awkward one.
+    const permBody = document.getElementById("editUserPermissionsBody");
+    if (permBody) permBody.classList.add("hidden");
+    const permBtn = document.getElementById("btnToggleUserPermissions");
+    if (permBtn) permBtn.setAttribute("aria-expanded", "false");
 
     if (modal) modal.classList.remove("hidden");
 }
@@ -5557,7 +6345,7 @@ async function submitEditUser() {
 
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Saving...`;
+        btn.innerHTML = `<svg class="ic animate-spin mr-1" aria-hidden="true"><use href="#i-loader-circle"></use></svg> Saving...`;
     }
 
     try {
@@ -5571,6 +6359,13 @@ async function submitEditUser() {
             role,
             status
         };
+        // Sent only when the boxes were actually touched. Sending them every
+        // time pinned whatever was on screen as an override, which quietly
+        // cancelled role changes. When they were touched, an empty list is
+        // meaningful - it tells the server to drop the override.
+        if (userPermissionsTouched) {
+            payload.permissions = collectUserPermissions();
+        }
         if (password) payload.password = password;
 
         const res = await fetch('/api/auth', {
@@ -5607,7 +6402,7 @@ async function submitEditUser() {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> <span>Save Changes</span>`;
+            btn.innerHTML = `<svg class="ic" aria-hidden="true"><use href="#i-save"></use></svg> <span>Save Changes</span>`;
         }
     }
 }

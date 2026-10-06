@@ -39,6 +39,7 @@ const staticFiles = [
     'styles.css',
     'tracker_app.js',
     'advance_modules.js',
+    'ui_actions.js',
     'sw.js',
     'manifest.json',
     'icon.svg',

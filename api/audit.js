@@ -1,6 +1,7 @@
 // Audit Trail API & Interactive UI Route (/api/audit)
 // Provides queryable history and a rich, luxury dashboard for all system edits
-const { authenticateRequest } = require('./auth');
+const { authenticateRequest, sessionCan } = require('./auth');
+const { PERMISSIONS: P } = require('./_permissions');
 const storage = require('./_storage');
 const { getAuditLogs } = require('./_cloud_sync');
 
@@ -42,13 +43,13 @@ function formatFullTime(isoStr) {
 function getActionBadge(action) {
   switch (action) {
     case 'UPDATE_EXPENSE':
-      return '<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"><i class="fa-solid fa-pen-to-square mr-1"></i> UPDATE EXPENSE</span>';
+      return '<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"><svg class="ic mr-1" aria-hidden="true"><use href="#i-square-pen"></use></svg> UPDATE EXPENSE</span>';
     case 'CREATE_EXPENSE':
-      return '<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"><i class="fa-solid fa-plus mr-1"></i> NEW EXPENSE</span>';
+      return '<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"><svg class="ic mr-1" aria-hidden="true"><use href="#i-plus"></use></svg> NEW EXPENSE</span>';
     case 'DELETE_EXPENSE':
-      return '<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/30"><i class="fa-solid fa-trash mr-1"></i> DELETE EXPENSE</span>';
+      return '<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/30"><svg class="ic mr-1" aria-hidden="true"><use href="#i-trash-2"></use></svg> DELETE EXPENSE</span>';
     case 'UPDATE_CONFIG':
-      return '<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/30"><i class="fa-solid fa-sliders mr-1"></i> MASTER CONFIG</span>';
+      return '<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/30"><svg class="ic mr-1" aria-hidden="true"><use href="#i-sliders-horizontal"></use></svg> MASTER CONFIG</span>';
     default:
       return '<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-slate-800 text-slate-300 border border-slate-700">' + escapeHtml(action) + '</span>';
   }
@@ -91,7 +92,7 @@ function renderDiffBox(diff) {
       '<span class="font-bold text-slate-400 capitalize w-36 shrink-0">' + fieldLabel + ':</span>' +
       '<div class="flex flex-wrap items-center gap-2 flex-1 font-mono text-[11px] overflow-x-auto">' +
       (formattedOld ? '<span class="px-2 py-0.5 rounded bg-rose-950/60 text-rose-300 border border-rose-800/60 line-through">' + escapeHtml(formattedOld) + '</span>' : '') +
-      (formattedOld && formattedNew ? '<i class="fa-solid fa-arrow-right text-slate-500 text-[10px]"></i>' : '') +
+      (formattedOld && formattedNew ? '<svg class="ic text-slate-500 text-[10px]" aria-hidden="true"><use href="#i-arrow-right"></use></svg>' : '') +
       (formattedNew ? '<span class="px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-800/60 font-semibold">' + escapeHtml(formattedNew) + '</span>' : '') +
       deltaBadge +
       '</div></div>';
@@ -128,17 +129,17 @@ function formatTableChanges(item) {
   if (item.action === 'CREATE_EXPENSE') {
     const meta = item.metadata || {};
     return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-950/70 text-emerald-300 border border-emerald-800/60 font-semibold text-xs">' +
-      '<i class="fa-solid fa-circle-check text-emerald-400"></i> New Receipt Created (₹' + Number(meta.amount || 0).toLocaleString('en-IN') + ')</span>';
+      '<svg class="ic text-emerald-400" aria-hidden="true"><use href="#i-circle-check"></use></svg> New Receipt Created (₹' + Number(meta.amount || 0).toLocaleString('en-IN') + ')</span>';
   }
   if (item.action === 'DELETE_EXPENSE') {
     return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-950/70 text-rose-300 border border-rose-800/60 font-semibold text-xs">' +
-      '<i class="fa-solid fa-trash text-rose-400"></i> Transaction Removed from Ledger</span>';
+      '<svg class="ic text-rose-400" aria-hidden="true"><use href="#i-trash-2"></use></svg> Transaction Removed from Ledger</span>';
   }
   if (item.action === 'UPDATE_CONFIG') {
     const meta = item.metadata || {};
     const sects = meta.modifiedSections && Array.isArray(meta.modifiedSections) ? meta.modifiedSections.join(', ') : 'Settings & Rules';
     return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-950/70 text-purple-300 border border-purple-800/60 font-semibold text-xs">' +
-      '<i class="fa-solid fa-sliders text-purple-400"></i> Master Policy Updated (' + escapeHtml(sects) + ')</span>';
+      '<svg class="ic text-purple-400" aria-hidden="true"><use href="#i-sliders-horizontal"></use></svg> Master Policy Updated (' + escapeHtml(sects) + ')</span>';
   }
 
   // Diff formatting
@@ -174,7 +175,7 @@ function formatTableChanges(item) {
     pills += '<div class="inline-flex flex-wrap items-center gap-1.5 bg-slate-950/90 border border-slate-800/90 rounded-lg px-2.5 py-1 text-xs m-0.5">' +
       '<span class="font-bold text-slate-400 capitalize">' + fieldLabel + ':</span>' +
       (oldVal !== null ? '<span class="px-1.5 py-0.5 rounded bg-rose-950/70 text-rose-300 border border-rose-800/60 line-through font-mono text-[11px]">' + escapeHtml(oldVal) + '</span>' : '') +
-      (oldVal !== null && newVal !== null ? '<i class="fa-solid fa-arrow-right text-slate-500 text-[10px]"></i>' : '') +
+      (oldVal !== null && newVal !== null ? '<svg class="ic text-slate-500 text-[10px]" aria-hidden="true"><use href="#i-arrow-right"></use></svg>' : '') +
       (newVal !== null ? '<span class="px-1.5 py-0.5 rounded bg-emerald-950/70 text-emerald-300 border border-emerald-800/60 font-bold font-mono text-[11px]">' + escapeHtml(newVal) + '</span>' : '') +
       deltaBadge +
       '</div>';
@@ -200,11 +201,11 @@ function renderAuditHtml(logs) {
       const searchBlob = escapeHtml((item.recordId + ' ' + item.action + ' ' + JSON.stringify(meta) + ' ' + JSON.stringify(item.diff || {})).toLowerCase());
 
       const actorName = item.actor || item.user || meta.paidBy || 'System';
-      let actorHtml = '<span class="inline-flex items-center gap-1 text-slate-300 font-bold"><i class="fa-solid fa-bolt text-amber-400 text-[10px]"></i> ' + escapeHtml(actorName) + '</span>';
+      let actorHtml = '<span class="inline-flex items-center gap-1 text-slate-300 font-bold"><svg class="ic text-amber-400 text-[10px]" aria-hidden="true"><use href="#i-zap"></use></svg> ' + escapeHtml(actorName) + '</span>';
       if (actorName.toLowerCase().includes('palash')) {
-        actorHtml = '<span class="inline-flex items-center gap-1 text-indigo-300 font-bold"><i class="fa-solid fa-user-shield text-[10px]"></i> Palash</span>';
+        actorHtml = '<span class="inline-flex items-center gap-1 text-indigo-300 font-bold"><svg class="ic text-[10px]" aria-hidden="true"><use href="#i-shield-user"></use></svg> Palash</span>';
       } else if (actorName.toLowerCase().includes('pallavi')) {
-        actorHtml = '<span class="inline-flex items-center gap-1 text-pink-300 font-bold"><i class="fa-solid fa-user-check text-[10px]"></i> Pallavi</span>';
+        actorHtml = '<span class="inline-flex items-center gap-1 text-pink-300 font-bold"><svg class="ic text-[10px]" aria-hidden="true"><use href="#i-user-check"></use></svg> Pallavi</span>';
       }
 
       let contextHtml = '<span class="text-slate-500 text-xs">—</span>';
@@ -231,7 +232,7 @@ function renderAuditHtml(logs) {
         '<td class="py-3 px-4">' + changeSummary + '</td>' +
         '<td class="py-3 px-3 text-center whitespace-nowrap">' +
         '  <button onclick="toggleRowDetail(\'detail_' + idx + '\')" class="p-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-300 border border-slate-700 transition" title="Inspect Raw Payload">' +
-        '    <i class="fa-solid fa-code text-xs"></i>' +
+        '    <svg class="ic text-xs" aria-hidden="true"><use href="#i-code"></use></svg>' +
         '  </button>' +
         '</td>' +
         '</tr>' +
@@ -282,15 +283,15 @@ function renderAuditHtml(logs) {
 '          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-2"></span> Live Cloud Sync' +
 '        </span>' +
 '        <button onclick="exportExcel()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/30 transition flex items-center space-x-1.5">' +
-'          <i class="fa-solid fa-file-excel"></i>' +
+'          <svg class="ic" aria-hidden="true"><use href="#i-file-spreadsheet"></use></svg>' +
 '          <span>Export Excel</span>' +
 '        </button>' +
 '        <button onclick="window.location.reload()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center space-x-1.5">' +
-'          <i class="fa-solid fa-arrows-rotate text-indigo-400"></i>' +
+'          <svg class="ic text-indigo-400" aria-hidden="true"><use href="#i-refresh-cw"></use></svg>' +
 '          <span>Refresh</span>' +
 '        </button>' +
 '        <a href="/" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition flex items-center space-x-1.5">' +
-'          <i class="fa-solid fa-arrow-left"></i>' +
+'          <svg class="ic" aria-hidden="true"><use href="#i-arrow-left"></use></svg>' +
 '          <span>Back to App</span>' +
 '        </a>' +
 '      </div>' +
@@ -300,7 +301,7 @@ function renderAuditHtml(logs) {
 '    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl">' +
 '      <div>' +
 '        <h1 class="text-2xl font-black text-white flex items-center gap-2.5">' +
-'          <i class="fa-solid fa-table-list text-indigo-400"></i>' +
+'          <svg class="ic text-indigo-400" aria-hidden="true"><use href="#i-table"></use></svg>' +
 '          <span>System Audit & Change Ledger</span>' +
 '        </h1>' +
 '        <p class="text-xs text-slate-400 mt-1">' +
@@ -309,7 +310,7 @@ function renderAuditHtml(logs) {
 '      </div>' +
 '      <div class="flex items-center gap-2">' +
 '        <a href="/api/audit?format=json" target="_blank" class="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-800 text-slate-300 text-xs font-bold rounded-lg border border-slate-700 transition flex items-center gap-1.5">' +
-'          <i class="fa-solid fa-code text-emerald-400"></i>' +
+'          <svg class="ic text-emerald-400" aria-hidden="true"><use href="#i-code"></use></svg>' +
 '          <span>Raw JSON Feed</span>' +
 '        </a>' +
 '      </div>' +
@@ -339,7 +340,7 @@ function renderAuditHtml(logs) {
 '    <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-md">' +
 '      <div class="flex items-center space-x-2 flex-1">' +
 '        <div class="relative w-full max-w-md">' +
-'          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>' +
+'          <svg class="ic absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" aria-hidden="true"><use href="#i-search"></use></svg>' +
 '          <input type="text" id="searchInput" placeholder="Search by Record ID (e.g. exp-001), category, person..." oninput="filterCards()" class="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs font-medium text-white focus:outline-none focus:border-indigo-500">' +
 '        </div>' +
 '      </div>' +
@@ -438,6 +439,17 @@ module.exports = async function handler(req, res) {
   if (!session || !session.householdId) {
     res.setHeader('Content-Type', 'application/json');
     return res.status(401).json({ success: false, error: 'Unauthorized: Please sign in to view audit records.' });
+  }
+
+  // The audit trail records who changed what, including configuration and
+  // deletions. It is an administrative record, not general household reading,
+  // and until now any signed-in MEMBER or VIEWER could read all of it.
+  if (!sessionCan(session, P.AUDIT_VIEW)) {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(403).json({
+      success: false,
+      error: 'Forbidden: viewing the audit trail requires an owner or administrator.'
+    });
   }
 
   const householdId = session.householdId;

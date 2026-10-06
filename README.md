@@ -17,6 +17,15 @@ sees another's expenses, notifications or configuration. Roles are
 `SYSTEM_ADMIN`, `ADMIN`, `OWNER`, `MEMBER` and `VIEWER`, enforced server-side —
 a `VIEWER` is refused writes by the API, not just by a hidden button.
 
+**Per-user permissions.** A role sets the defaults; an administrator can pin an
+explicit list of the 25 capabilities on one person, and that list wins
+everywhere — the endpoints ask the same registry the checkboxes are drawn from.
+Four presets (Member, Finance Manager, Staff Manager, Administrator) are a
+starting point, not a cage. Nobody can grant a permission they do not hold
+themselves, and clearing every box returns the account to its role. A user
+record with no `permissions` field behaves exactly as before, so nothing stored
+had to be migrated.
+
 **Everything is configured, nothing is hardcoded.** Staff, recurring bills,
 categories, payment methods, split rules, family members and budgets all come
 from each household's own Master Configuration. A new household starts empty and
@@ -42,6 +51,25 @@ recorded.
 
 **Theming.** Eight themes including a full dark mode, carried by a semantic
 token layer rather than per-component overrides.
+
+**Settings in named sections.** Master Settings is grouped into Account,
+Household, Finance, Bills, Staff and Security rather than one long scroll; the
+Data screen holds backups, health and Excel. A validation error opens the group
+that holds it, so a blocked save can never be invisible.
+
+**Accessibility.** Every form control has a programmatic label, every icon-only
+button has a name, every modal is a named `dialog`, the active section carries
+`aria-current`, and the icons are hidden from screen readers because they are
+decorative.
+
+**Icons.** Lucide, as an inline SVG sprite — no icon library at runtime, which
+matters in an app that renders with `innerHTML` in a hundred places and polls
+every seven seconds. Font Awesome Brands remains for the three platform logos
+Lucide has no equivalent for.
+
+**No inline handlers.** The markup carries `data-click` / `data-change` /
+`data-submit` attributes and `ui_actions.js` holds the behaviour, so the page
+works under a strict Content-Security-Policy.
 
 ---
 
@@ -145,8 +173,8 @@ seeded passwords as public and rotate them before use.
 ## Testing
 
 ```bash
-npm test          # or: bash ./run_tests.sh   — 8 Node suites
-npm run audit     # or: bash ./run_audit.sh   — 256-check browser audit
+npm test          # or: bash ./run_tests.sh   — 9 Node suites
+npm run audit     # or: bash ./run_audit.sh   — 450+ check browser audit
 ```
 
 Both copy `data/` to a scratch directory and disable cloud sync, so they never
@@ -163,10 +191,13 @@ afterwards.
 | `test_dashboard_config_suite.js` | dashboard mode, per-household config |
 | `test_password_suite.js` | authentication, password change, session invalidation |
 | `test_notifications_suite.js` | household notifications, reminder windows |
+| `test_permissions_suite.js` | the permission registry, per-user overrides, closed authorization gaps |
 
 `run_audit.sh` drives a real browser at 390×844 with touch emulation, checking
 tap targets, overflow at six phone widths, theme coverage across every tab, and
-complete user journeys.
+complete user journeys. It also measures every screen at 768, 1024, 1440 and
+1920, verifies every form control and icon-only button has an accessible name,
+and verifies every icon reference resolves to a symbol that actually draws.
 
 The audit needs Python with Playwright:
 

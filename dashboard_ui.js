@@ -374,13 +374,14 @@
         });
         const max = Math.max.apply(null, spend.concat(inc, [1]));
         const names = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+        const sel = (f.month && f.month !== 'all') ? new Date(f.month + ' 1, ' + year).getMonth() : -1;
         if (max <= 1) { $('dnTrend').innerHTML = emptyLine('No activity recorded for ' + year + '.'); return; }
         $('dnTrend').innerHTML = '<div class="dn-trend" role="img" aria-label="Monthly expenses and income for ' + esc(year) + '">'
-            + names.map((n, i) => '<div class="dn-trend-col"><div class="dn-trend-bars">'
+            + names.map((n, i) => '<div class="dn-trend-col' + (i === sel ? ' is-sel' : '') + '"><div class="dn-trend-bars">'
                 + '<span class="dn-trend-b dn-trend-exp" style="height:' + Math.round(spend[i] / max * 100) + '%" title="Expenses ' + esc(fmt(spend[i])) + '"></span>'
                 + '<span class="dn-trend-b dn-trend-inc" style="height:' + Math.round(inc[i] / max * 100) + '%" title="Income ' + esc(fmt(inc[i])) + '"></span>'
                 + '</div><span class="dn-trend-m">' + n + '</span></div>').join('')
-            + '</div><p class="dn-legend"><span class="dn-dot dn-trend-exp"></span>Expenses <span class="dn-dot dn-trend-inc"></span>Income · ' + esc(year) + '</p>';
+            + '</div><p class="dn-legend"><span class="dn-legend-max">Peak ' + esc(fmt(max)) + '</span><span class="dn-dot dn-trend-exp"></span>Expenses <span class="dn-dot dn-trend-inc"></span>Income · ' + esc(year) + '</p>';
     }
 
     function renderBills(bills) {
@@ -413,20 +414,28 @@
               + (sum ? '<li><span>Summary</span><span class="dn-row-r">' + esc(sum) + '</span></li>' : '') + '</ul>';
     }
 
-    function txRow(e) {
+    function tone(name) {
+        let h = 0;
+        String(name || '').split('').forEach(c => { h = (h * 31 + c.charCodeAt(0)) % 6; });
+        return h;
+    }
+    function txRow(e, types) {
         const d = e.date ? new Date(e.date) : null;
         const day = d && !isNaN(d) ? d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '';
+        const income = e.category === INCOME_CATEGORY || (types && types[String(e.category || '').toLowerCase()] === 'income');
+        const who = [e.paidBy, e.paidTo].filter(Boolean).join(' → ');
         return '<button type="button" class="dn-tx" data-dash-open="' + esc(e.id) + '">'
+            + '<span class="dn-av dn-t' + tone(e.category) + '" aria-hidden="true">' + esc(String(e.category || '?').trim().charAt(0).toUpperCase()) + '</span>'
             + '<span class="dn-tx-main"><strong>' + esc(e.category || 'Expense') + '</strong>'
-            + '<small>' + esc(day) + (e.paidBy ? ' · ' + esc(e.paidBy) : '') + (e.paidTo ? ' · ' + esc(e.paidTo) : '') + '</small></span>'
-            + '<span class="dn-tx-amt">' + esc(fmt(e.amount)) + '</span></button>';
+            + '<small>' + esc(day) + (who ? ' · ' + esc(who) : '') + '</small></span>'
+            + '<span class="dn-tx-amt' + (income ? ' is-income' : '') + '">' + (income ? '+' : '') + esc(fmt(e.amount)) + '</span></button>';
     }
     function renderLists(list) {
         const types = categoryTypes();
         const live = list.filter(e => !e.isDeleted);
         const top = live.filter(e => isSpend(e, types)).slice().sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0)).slice(0, 5);
         const recent = live.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
-        const rows = (l) => l.length ? l.map(txRow).join('') : emptyLine('Nothing recorded for this period.');
+        const rows = (l) => l.length ? l.map(e => txRow(e, types)).join('') : emptyLine('Nothing recorded for this period.');
         $('dnRecent').innerHTML = rows(recent);
         $('dnTop').innerHTML = '<div class="dn-list">' + rows(top) + '</div>';
     }

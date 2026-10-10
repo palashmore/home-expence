@@ -3214,3 +3214,50 @@ html[data-dash-kpi="compact"] .dn-kpi-ic { display: none; }
     .dn-fold > summary { pointer-events: none; }
     .dn-fold > summary .ic { display: none; }
 }
+
+
+/* ---- new dashboard: polish ------------------------------------------------
+   The phone tap-target rule centres every button's content with a selector
+   more specific than a class, so the new dashboard's buttons are anchored by
+   id to keep their own alignment. */
+#dashNew button.dn-tx,
+#dashNew button.dn-btn,
+#dashNew button.dn-chip,
+#dashNew button.dn-morebtn { min-width: 0; }
+#dashNew button.dn-tx { display: flex; align-items: center; justify-content: flex-start; gap: .75rem; text-align: left; }
+#dashNew button.dn-btn, #dashNew button.dn-chip { display: inline-flex; align-items: center; justify-content: center; }
+#dashNew button.dn-morebtn { justify-content: space-between; }
+#dashNew button.dn-link { display: inline-flex; align-items: center; justify-content: flex-start; padding: 0; }
+
+.dn-av { flex: none; display: flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border-radius: 50%;
+    color: #fff; font-size: var(--fs-sm); font-weight: var(--fw-heading); }
+.dn-tx-main { flex: 1 1 auto; align-items: flex-start; text-align: left; }
+.dn-tx-main strong, .dn-tx-main small { max-width: 100%; text-align: left; }
+.dn-tx-amt { flex: none; }
+.dn-tx-amt.is-income { color: var(--sem-success); }
+
+/* a card header is a real header: space around it and a clear focus ring */
+.dn-card-title { padding: .1rem 0 .65rem; border-bottom: 1px solid var(--line-1); }
+.dn-card > .dn-card-title + * { margin-top: .85rem; }
+.dn-fold > summary.dn-card-title { border-radius: var(--r-sm); }
+.dn-fold > summary:focus-visible { outline: none; box-shadow: var(--ring); }
+.dn-fold:not([open]) > summary.dn-card-title { padding-bottom: .1rem; margin-bottom: 0; border-bottom-color: transparent; }
+.dn-fold > div { margin-top: .85rem; }
+
+/* trend: current period stands out, the rest recedes */
+.dn-trend-col.is-sel .dn-trend-m { color: var(--accent); font-weight: var(--fw-figure); }
+.dn-trend:has(.is-sel) .dn-trend-col:not(.is-sel) .dn-trend-b { opacity: .45; }
+.dn-legend-max { margin-right: auto; font-weight: var(--fw-heading); color: var(--ink-2); }
+
+/* figures: calmer weight for labels, stronger numbers */
+.dn-kpi-v { letter-spacing: -.01em; }
+.dn-kpi:hover { border-color: var(--line-2); }
+.dn-hero-stats dd { font-size: var(--fs-base); }
+
+@media (max-width: 767px) {
+    .dn-card { padding: .85rem .9rem; }
+    .dn-card-title { font-size: var(--fs-base); }
+    .dn-tx { min-height: 60px; }
+    #dashNew .dn-reimb { max-height: none; overflow: visible; }
+}
+.dn-card-title { margin-bottom: 0; }

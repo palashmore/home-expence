@@ -3,11 +3,11 @@
   "cleanUrls": true,
   "functions": {
     "server.js": {
-      "includeFiles": "{index.html,styles.css,tracker_app.js,advance_modules.js,ui_actions.js,dashboard_ui.js,sw.js,manifest.json,icon.svg,icon-192.png,icon-512.png,icon-maskable-512.png,apple-touch-icon.png,favicon.ico,og-image.png,data/**}",
+      "includeFiles": "{index.html,styles.css,tracker_app.js,advance_modules.js,ui_actions.js,dashboard_ui.js,modal_ui.js,sw.js,manifest.json,icon.svg,icon-192.png,icon-512.png,icon-maskable-512.png,apple-touch-icon.png,favicon.ico,og-image.png,data/**}",
       "maxDuration": 15
     },
     "index.js": {
-      "includeFiles": "{index.html,styles.css,tracker_app.js,advance_modules.js,ui_actions.js,dashboard_ui.js,sw.js,manifest.json,icon.svg,icon-192.png,icon-512.png,icon-maskable-512.png,apple-touch-icon.png,favicon.ico,og-image.png,data/**}",
+      "includeFiles": "{index.html,styles.css,tracker_app.js,advance_modules.js,ui_actions.js,dashboard_ui.js,modal_ui.js,sw.js,manifest.json,icon.svg,icon-192.png,icon-512.png,icon-maskable-512.png,apple-touch-icon.png,favicon.ico,og-image.png,data/**}",
       "maxDuration": 15
     },
     "api/*.js": {

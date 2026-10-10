@@ -1,5 +1,5 @@
 // HomeExpenses Progressive Web App Service Worker
-const CACHE_NAME = 'homeexpenses-v16';
+const CACHE_NAME = 'homeexpenses-v17';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -8,6 +8,7 @@ const STATIC_ASSETS = [
   '/advance_modules.js',
   '/ui_actions.js',
   '/dashboard_ui.js',
+  '/modal_ui.js',
   '/manifest.json',
   '/icon.svg',
   '/icon-192.png',

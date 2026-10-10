@@ -346,24 +346,6 @@ button, select, input, .tab-btn, .bnav-btn, [role="button"] {
     to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* Mobile modal enhancements */
-@media (max-width: 640px) {
-    .modal-backdrop { padding: 8px !important; }
-    /* ...except a bottom sheet, which is supposed to meet the edge. */
-    #expenseModal.modal-backdrop { padding: 0 !important; }
-    .modal-content {
-        max-height: 95vh !important;
-        display: flex !important;
-        flex-direction: column !important;
-    }
-    .modal-content form,
-    .modal-content .modal-scroll-body {
-        max-height: calc(95vh - 120px) !important;
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch;
-    }
-}
-
 /* =============================================
    FORM CONTROLS
    ============================================= */
@@ -3305,3 +3287,95 @@ html[data-dash-kpi="compact"] .dn-kpi-ic { display: none; }
     .dn[data-dn-design="minimal"] .dn-hero-fig { font-size: 2.4rem; }
     .dn[data-dn-design="analytics"] .dn-tall .dn-trend { height: 170px; }
 }
+
+
+/* =================================================================
+   DIALOG SYSTEM  (every .modal-backdrop / .modal-content)
+   -----------------------------------------------------------------
+   One set of rules for every open window. The panel never grows past
+   the visible screen: the header stays put, the fields scroll, and the
+   button row stays in view. On a phone, form dialogs are bottom sheets
+   (where the thumb is) and questions or messages stay centred. modal_ui.js
+   adds the behaviour: page scroll lock, focus, Tab and Escape.
+   ================================================================= */
+.modal-backdrop {
+    overscroll-behavior: contain;
+    padding: max(.75rem, env(safe-area-inset-top)) max(.75rem, env(safe-area-inset-right)) max(.75rem, env(safe-area-inset-bottom)) max(.75rem, env(safe-area-inset-left));
+}
+.modal-backdrop .modal-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-height: calc(100vh - 1.5rem);
+    max-height: calc(100dvh - 1.5rem);
+    overflow: hidden;
+}
+/* Header and footer keep their size; the form or body is what scrolls. */
+.modal-backdrop .modal-content > *:not(form):not(.modal-scroll-body) { flex-shrink: 0; }
+.modal-backdrop .modal-content > form:not(#expenseForm),
+.modal-backdrop .modal-content > .modal-scroll-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+#expenseModal .modal-content { max-height: min(92dvh, 760px); }
+
+/* The button row at the end of a form stays in view while fields scroll. */
+.dlg-foot {
+    position: sticky;
+    bottom: calc(-1 * var(--dlg-pb, 1.25rem));
+    z-index: 2;
+    margin-inline: calc(-1 * var(--dlg-px, 1.25rem));
+    margin-bottom: calc(-1 * var(--dlg-pb, 1.25rem));
+    padding: .75rem var(--dlg-px, 1.25rem) max(.75rem, env(safe-area-inset-bottom));
+    background: var(--surface-1);
+    border-top: 1px solid var(--line-1);
+}
+
+/* The page behind a dialog does not scroll. */
+html.dlg-open, body.dlg-open { overflow: hidden; }
+
+/* Complex forms get room: two columns of fields need more than a phone card. */
+@media (min-width: 640px) {
+    #modalEditUser .modal-content, #modalCreateUser .modal-content,
+    #modalEditHousehold .modal-content, #modalCreateHousehold .modal-content { max-width: 40rem; }
+    #adminAddStaffModal .modal-content, #settleUpModal .modal-content, #modalMobileFilter .modal-content { max-width: 32rem; }
+}
+
+/* Close buttons are real targets everywhere, not only on a phone. */
+.modal-backdrop .modal-content button[aria-label^="Close"] {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 2.5rem; min-height: 2.5rem; border-radius: var(--r-sm);
+}
+
+/* Phone: form dialogs rise from the bottom edge as sheets. */
+@media (max-width: 639px) {
+    .modal-backdrop:not(.dlg-center) { align-items: flex-end !important; padding: 0 !important; }
+    .modal-backdrop:not(.dlg-center) > .modal-content {
+        max-width: none;
+        max-height: calc(100dvh - max(1rem, env(safe-area-inset-top)));
+        border-radius: var(--r-xl) var(--r-xl) 0 0 !important;
+        border-bottom: 0;
+        padding-bottom: env(safe-area-inset-bottom);
+        animation: sheetRise 220ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    }
+    /* Grab handle: a visual cue that this is a sheet. */
+    .modal-backdrop:not(.dlg-center):not(#expenseModal) > .modal-content::before {
+        content: ""; flex: none; align-self: center;
+        width: 2.5rem; height: 4px; margin: .5rem 0 .25rem; border-radius: 999px; background: var(--line-2);
+    }
+    /* Questions and messages stay centred, with a little air. */
+    .modal-backdrop.dlg-center { padding: 1rem !important; align-items: center !important; }
+    .modal-backdrop.dlg-center > .modal-content { max-height: calc(100dvh - 2rem); }
+}
+@media (max-width: 639px) and (orientation: landscape) {
+    /* A phone on its side has little height: everything becomes a scrolling panel. */
+    .modal-backdrop .modal-content { max-height: calc(100dvh - .5rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .modal-backdrop .modal-content { animation: none !important; }
+}
+
+#btnToggleUserPermissions { justify-content: space-between; }

@@ -2916,6 +2916,91 @@ def audit_dashboard_redesign(browser, audit):
             actx.close()
 
 
+def audit_dialogs(browser, audit):
+    """Every open window follows one set of rules: it never outgrows the screen,
+    keeps its buttons in view, locks the page behind it, takes and returns focus,
+    keeps Tab inside and closes on Escape (unless a decision is required)."""
+    print("\n[D] dialogs / open windows")
+
+    SHOW = "(id) => { const m = document.getElementById(id); m.classList.remove('hidden'); m.style.display = 'flex'; }"
+    HIDE = "(id) => { const m = document.getElementById(id); m.classList.add('hidden'); m.style.display = ''; }"
+    MEASURE = """(id) => { const m = document.getElementById(id); const p = m.querySelector(':scope > .modal-content') || m.firstElementChild;
+        const r = p.getBoundingClientRect(); const f = p.querySelector('.dlg-foot'); const fr = f ? f.getBoundingClientRect() : null;
+        const x = p.querySelector('button[aria-label^="Close"]'); const xr = x ? x.getBoundingClientRect() : null;
+        return {fits: r.top >= -1 && r.bottom <= innerHeight + 1 && r.left >= -1 && r.right <= innerWidth + 1,
+                hScroll: p.scrollWidth > p.clientWidth + 1, lock: document.body.classList.contains('dlg-open'),
+                footOk: fr ? (fr.bottom <= innerHeight + 1 && fr.top >= 0) : true,
+                closeOk: xr ? (xr.width >= 36 && xr.height >= 36) : true,
+                bottom: Math.round(r.bottom), vh: innerHeight, center: m.classList.contains('dlg-center')}; }"""
+    IDS = ['expenseModal', 'transactionDetailModal', 'adminEditCategoryModal', 'deleteConfirmModal', 'quickFillModal',
+           'settleUpModal', 'pwaInstallGuideModal', 'adminAddStaffModal', 'adminAddBillModal', 'adminAddCategoryModal',
+           'modalMobileFilter', 'userProfileModal', 'modalCreateHousehold', 'modalCreateUser', 'modalEditHousehold', 'modalEditUser']
+
+    for label, vp, mob in (("phone", {"width": 390, "height": 844}, True),
+                           ("phone on its side", {"width": 844, "height": 390}, True),
+                           ("short laptop", {"width": 1280, "height": 600}, False),
+                           ("desktop", {"width": 1280, "height": 800}, False)):
+        ctx = browser.new_context(viewport=vp, is_mobile=mob, has_touch=mob)
+        pg = ctx.new_page()
+        attach_listeners(pg, audit)
+        try:
+            login(pg, "admin", "Admin@123")
+            pg.wait_for_timeout(1200)
+            pg.evaluate("window.adminFormDirty = false")
+            goto_tab(pg, "admin")
+            pg.wait_for_timeout(900)
+            problems = []
+            sheets_ok = True
+            for i in IDS:
+                pg.evaluate(SHOW, i)
+                pg.wait_for_timeout(420)
+                m = pg.evaluate(MEASURE, i)
+                if not (m["fits"] and not m["hScroll"] and m["lock"] and m["footOk"] and m["closeOk"]):
+                    problems.append("%s %s" % (i, m))
+                if mob and vp["width"] < 640 and not m["center"] and i != 'expenseModal' and abs(m["bottom"] - m["vh"]) > 2:
+                    sheets_ok = False
+                    problems.append("%s not a bottom sheet %s" % (i, m))
+                pg.evaluate(HIDE, i)
+                pg.wait_for_timeout(100)
+            audit.record("D every dialog fits the %s screen, keeps its buttons in view and locks the page" % label,
+                         not problems, "; ".join(problems)[:400])
+            audit.record("D the page scrolls again once a dialog closes (%s)" % label,
+                         not pg.evaluate("() => document.body.classList.contains('dlg-open')"), "page scroll stayed locked")
+
+            if label in ("phone", "desktop"):
+                uid = pg.evaluate("() => (window.adminDirectoryData.users.find(u => u.username === 'palash') || {}).userId")
+                pg.evaluate("""(id) => { const b = document.createElement('button'); b.id = 'dlgOpener'; b.textContent = 'x';
+                    document.body.appendChild(b); b.focus(); openEditUserModal(id); }""", uid)
+                pg.wait_for_timeout(500)
+                inside = pg.evaluate("() => document.getElementById('modalEditUser').contains(document.activeElement)")
+                if label == "desktop":
+                    audit.record("D opening a dialog moves focus into it", inside, "focus stayed behind the dialog")
+                for _ in range(40):
+                    pg.keyboard.press("Tab")
+                audit.record("D Tab stays inside an open dialog (%s)" % label,
+                             pg.evaluate("() => document.getElementById('modalEditUser').contains(document.activeElement)"),
+                             "focus escaped to the page behind")
+                pg.keyboard.press("Escape")
+                pg.wait_for_timeout(400)
+                closed = pg.evaluate("() => document.getElementById('modalEditUser').classList.contains('hidden')")
+                audit.record("D Escape closes the dialog on top (%s)" % label, closed, "dialog still open after Escape")
+                audit.record("D focus returns to what opened the dialog (%s)" % label,
+                             pg.evaluate("() => document.activeElement.id") == "dlgOpener", "focus was lost")
+
+                pg.evaluate("() => document.getElementById('conflictModal').classList.remove('hidden')")
+                pg.wait_for_timeout(300)
+                pg.keyboard.press("Escape")
+                pg.wait_for_timeout(200)
+                audit.record("D a dialog that needs a decision is not dismissed by Escape (%s)" % label,
+                             pg.evaluate("() => !document.getElementById('conflictModal').classList.contains('hidden')"),
+                             "the conflict dialog was dismissed")
+                pg.evaluate("() => document.getElementById('conflictModal').classList.add('hidden')")
+            if mob and vp["width"] < 640:
+                audit.record("D form dialogs are bottom sheets on a phone", sheets_ok, "a form dialog is floating mid-screen")
+        finally:
+            ctx.close()
+
+
 def audit_logout(page, audit, api):
     """Section E: signing out must actually end the session. A token left in
     localStorage, or household data still cached after logout, means the next
@@ -3636,6 +3721,7 @@ def main():
 
         try:
             audit_dashboard_redesign(browser, audit)
+            audit_dialogs(browser, audit)
         except Exception as e:
             audit.record("R dashboard redesign", False, f"audit error: {type(e).__name__}: {e}")
 

@@ -41,6 +41,7 @@ const staticFiles = [
     'advance_modules.js',
     'ui_actions.js',
     'dashboard_ui.js',
+    'modal_ui.js',
     'sw.js',
     'manifest.json',
     'icon.svg',

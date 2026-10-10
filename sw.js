@@ -1,5 +1,5 @@
 // HomeExpenses Progressive Web App Service Worker
-const CACHE_NAME = 'homeexpenses-v17';
+const CACHE_NAME = 'homeexpenses-v18';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

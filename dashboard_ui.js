@@ -118,6 +118,8 @@
         const p = effective();
         const root = document.documentElement;
         root.dataset.dashDesign = p.design;
+        // Any new design restyles the whole product, not just the dashboard.
+        root.dataset.ui = p.design === 'classic' ? 'classic' : 'new';
         root.dataset.dashLayout = p.layout;
         root.dataset.dashKpi = p.kpiDensity;
         root.dataset.dashMobile = p.mobileDensity;

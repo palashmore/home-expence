@@ -3001,6 +3001,60 @@ def audit_dialogs(browser, audit):
             ctx.close()
 
 
+def audit_product_skin(browser, audit):
+    """A New UI design restyles every tab, not just the dashboard; the classic
+    UI carries none of it."""
+    print("\n[U] new UI across the product")
+    TABS = ["dashboard", "expenses", "bills", "reports", "staff", "personal", "admin"]
+    PROBE = """() => { const cs = (s) => { const e = document.querySelector(s); return e ? getComputedStyle(e) : null; };
+        const th = cs('.tab-view:not(.hidden) table thead th');
+        const card = cs('.tab-view:not(.hidden) .glass-card');
+        const side = cs('#desktopSidebar');
+        return { ui: document.documentElement.dataset.ui,
+                 thLight: th ? th.backgroundColor : null, cardRadius: card ? card.borderTopLeftRadius : null,
+                 overflow: Math.round(document.documentElement.scrollWidth - document.documentElement.clientWidth) }; }"""
+    actx = browser.new_context(viewport={"width": 1280, "height": 900})
+    apg = actx.new_page(); attach_listeners(apg, audit); login(apg, "admin", "Admin@123"); apg.wait_for_timeout(1200)
+    pid = apg.evaluate("""async () => { const r = await fetch('/api/auth?action=admin_overview', {headers: getAuthHeaders()});
+        const j = await r.json(); return ((j.users || []).find(u => u.username === 'palash') || {}).userId; }""")
+    def assign(ui):
+        apg.evaluate("""async ([id, ui]) => { await fetch('/api/auth', {method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify({action: 'edit_user', userId: id, dashboardUi: ui})}); }""", [pid, ui])
+    try:
+        for label, vp, mob in (("laptop", {"width": 1360, "height": 860}, False), ("phone", {"width": 390, "height": 844}, True)):
+            for design, expect in (({}, "classic"), ({"design": "timeline"}, "new")):
+                assign(design)
+                ctx = browser.new_context(viewport=vp, is_mobile=mob, has_touch=mob); pg = ctx.new_page()
+                attach_listeners(pg, audit)
+                try:
+                    login(pg, "palash", "Palash@123"); pg.wait_for_timeout(1500)
+                    bad = []; radii = set(); ui_ok = True
+                    for t in TABS[:-1]:
+                        goto_tab(pg, t); pg.wait_for_timeout(500)
+                        m = pg.evaluate(PROBE)
+                        ui_ok = ui_ok and (m["ui"] == expect)
+                        if m["overflow"] > 1: bad.append("%s overflows by %dpx" % (t, m["overflow"]))
+                        if m["cardRadius"]: radii.add(m["cardRadius"])
+                    audit.record("U %s UI sets data-ui=%s on every tab (%s)" % (expect, expect, label), ui_ok, "data-ui differed on some tab")
+                    audit.record("U %s UI has no horizontal overflow on any tab (%s)" % (expect, label), not bad, "; ".join(bad))
+                    if expect == "new":
+                        goto_tab(pg, "expenses"); pg.wait_for_timeout(500)
+                        m = pg.evaluate(PROBE)
+                        audit.record("U new UI gives tables a light header on Expenses (%s)" % label,
+                                     (m["thLight"] is None) or m["thLight"] != "rgb(15, 23, 42)", "header is %s" % m["thLight"])
+                        audit.record("U new UI cards share one radius across tabs (%s)" % label, len(radii) <= 2, "radii %s" % sorted(radii))
+                    else:
+                        goto_tab(pg, "expenses"); pg.wait_for_timeout(500)
+                        m = pg.evaluate(PROBE)
+                        audit.record("U classic UI keeps its dark table header (%s)" % label,
+                                     (m["thLight"] is None) or m["thLight"] != "rgb(241, 245, 249)", "header is %s" % m["thLight"])
+                finally:
+                    ctx.close()
+    finally:
+        try: assign({})
+        finally: actx.close()
+
+
 def audit_logout(page, audit, api):
     """Section E: signing out must actually end the session. A token left in
     localStorage, or household data still cached after logout, means the next
@@ -3722,6 +3776,7 @@ def main():
         try:
             audit_dashboard_redesign(browser, audit)
             audit_dialogs(browser, audit)
+            audit_product_skin(browser, audit)
         except Exception as e:
             audit.record("R dashboard redesign", False, f"audit error: {type(e).__name__}: {e}")
 

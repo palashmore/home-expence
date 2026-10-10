@@ -3379,3 +3379,111 @@ html.dlg-open, body.dlg-open { overflow: hidden; }
 }
 
 #btnToggleUserPermissions { justify-content: space-between; }
+
+
+/* =================================================================
+   NEW UI - PRODUCT-WIDE SKIN   (html[data-ui="new"])
+   -----------------------------------------------------------------
+   Set by dashboard_ui.js whenever a user is assigned any New UI
+   dashboard design. Restyles every tab, form, table and dialog to the
+   same language as the new dashboard: calm cards, uppercase eyebrow
+   labels, light table headers, 44px controls, accent only where it
+   means something. Pure CSS on existing markup: no layout, data or
+   behaviour change, and the classic UI (no attribute) is untouched.
+   Everything reads the theme tokens, so every theme and dark mode apply.
+   ================================================================= */
+html[data-ui="new"] body { background: var(--surface-0); }
+
+/* ---- surfaces ------------------------------------------------------------ */
+html[data-ui="new"] .glass-card:not(#desktopSidebar *),
+html[data-ui="new"] .kpi-card {
+    background: var(--surface-1);
+    border: 1px solid var(--line-1);
+    border-radius: var(--r-lg);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+html[data-ui="new"] .kpi-card { transition: border-color .15s ease; }
+html[data-ui="new"] .kpi-card:hover { border-color: var(--line-2); transform: none; box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+html[data-ui="new"] .rounded-2xl:not(.modal-content):not(.luxury-header):not(.m-hero) { border-radius: var(--r-lg); }
+html[data-ui="new"] .rounded-xl { border-radius: var(--r-md); }
+
+/* ---- screen headings ------------------------------------------------------ */
+html[data-ui="new"] .tab-view > h2:first-child,
+html[data-ui="new"] .tab-view > div > h2:first-child { font-size: var(--fs-2xl); font-weight: var(--fw-figure); letter-spacing: -.01em; }
+html[data-ui="new"] .tab-view h3 { letter-spacing: -.005em; }
+html[data-ui="new"] .tab-view .text-xs.uppercase { letter-spacing: .06em; }
+
+/* ---- controls -------------------------------------------------------------- */
+html[data-ui="new"] select,
+html[data-ui="new"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html[data-ui="new"] textarea {
+    background: var(--surface-1);
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-md);
+    color: var(--ink-1);
+}
+html[data-ui="new"] select:focus,
+html[data-ui="new"] input:focus,
+html[data-ui="new"] textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+html[data-ui="new"] label.text-xs, html[data-ui="new"] .tab-view label.block {
+    color: var(--ink-3); font-weight: var(--fw-heading); letter-spacing: .05em;
+}
+html[data-ui="new"] input[type="checkbox"], html[data-ui="new"] input[type="radio"] { accent-color: var(--accent); }
+
+html[data-ui="new"] button:focus-visible, html[data-ui="new"] a:focus-visible, html[data-ui="new"] summary:focus-visible {
+    outline: none; box-shadow: var(--ring);
+}
+/* filled primary buttons use the accent; the rest read as quiet secondary */
+html[data-ui="new"] .tab-view button[class*="bg-indigo-600"], html[data-ui="new"] .tab-view button[class*="bg-indigo-500"],
+html[data-ui="new"] .modal-content button[class*="bg-indigo-600"] {
+    background: var(--accent); color: var(--accent-ink); border-radius: var(--r-md);
+}
+html[data-ui="new"] .tab-view button[class*="bg-slate-100"], html[data-ui="new"] .modal-content button[class*="bg-slate-100"] {
+    background: var(--surface-2); border: 1px solid var(--line-1); color: var(--ink-2); border-radius: var(--r-md);
+}
+
+/* ---- tabs, chips, segmented controls -------------------------------------- */
+html[data-ui="new"] .nav-tabs-scroll .tab-btn { border-radius: var(--r-pill); }
+html[data-ui="new"] .m-seg { background: var(--surface-2); border: 1px solid var(--line-1); border-radius: var(--r-pill); }
+html[data-ui="new"] .active-filter-tag { border-radius: var(--r-pill); }
+
+/* ---- tables: light header, quiet rows --------------------------------------- */
+html[data-ui="new"] table { border-collapse: separate; border-spacing: 0; width: 100%; }
+html[data-ui="new"] table thead, html[data-ui="new"] table thead tr { background: var(--surface-2) !important; }
+html[data-ui="new"] table thead th {
+    background: var(--surface-2) !important;
+    color: var(--ink-3) !important;
+    font-size: var(--fs-xs); font-weight: var(--fw-heading);
+    text-transform: uppercase; letter-spacing: .06em;
+    border-bottom: 1px solid var(--line-2);
+}
+html[data-ui="new"] table tbody tr { transition: background-color .12s ease; }
+html[data-ui="new"] table tbody tr:hover { background: var(--surface-2); }
+html[data-ui="new"] table tbody td { border-bottom: 1px solid var(--line-1); color: var(--ink-1); }
+html[data-ui="new"] table tfoot td { background: var(--surface-2); font-weight: var(--fw-heading); }
+html[data-ui="new"] .overflow-x-auto { border-radius: var(--r-md); }
+
+/* ---- empty states ------------------------------------------------------------- */
+html[data-ui="new"] #emptyDashboardState, html[data-ui="new"] .tab-view [class*="py-12"][class*="text-center"] { color: var(--ink-3); }
+
+/* ---- page chrome -------------------------------------------------------------- */
+html[data-ui="new"] .sidebar-link { border-radius: var(--r-md); }
+html[data-ui="new"] .bnav-btn { border-radius: var(--r-md); }
+html[data-ui="new"] .toast-item { border-radius: var(--r-md); }
+
+/* ---- dialogs ------------------------------------------------------------------ */
+html[data-ui="new"] .modal-content { border-radius: var(--r-lg); border: 1px solid var(--line-1); box-shadow: var(--elev-4); }
+html[data-ui="new"] .modal-content > div:first-child { background: var(--surface-1) !important; border-bottom: 1px solid var(--line-1); color: var(--ink-1); }
+html[data-ui="new"] .modal-content h3 { color: var(--ink-1); font-weight: var(--fw-heading); }
+html[data-ui="new"] #expenseModal .modal-content > div[class*="bg-slate-900"] { background: var(--surface-1) !important; color: var(--ink-1); border-bottom: 1px solid var(--line-1); }
+html[data-ui="new"] #expenseModal .modal-content > div[class*="bg-slate-900"] h3 { color: var(--ink-1); }
+html[data-ui="new"] #expenseModal .modal-content > div[class*="bg-slate-900"] button { color: var(--ink-3); }
+
+/* ---- dark theme keeps contrast ------------------------------------------------ */
+[data-theme="dark"][data-ui="new"] .glass-card,
+html[data-theme="dark"][data-ui="new"] .kpi-card { box-shadow: none; }
+
+/* The shell (header) keeps its own chrome in the new UI. */
+html[data-ui="new"] header select, html[data-ui="new"] header input { background: transparent; border: 0; color: inherit; box-shadow: none; }

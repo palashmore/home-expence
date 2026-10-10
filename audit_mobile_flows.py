@@ -47,6 +47,7 @@ class Audit:
     def __init__(self):
         self.checks = []
         self.console_errors = []
+        self.failed_requests = []
         self.dialogs = []
         # "accept" / "dismiss" while a step deliberately provokes dialogs;
         # None everywhere else, where a dialog is a bug. Exactly one handler
@@ -113,6 +114,16 @@ def attach_listeners(page, audit):
         except PWError:
             pass          # already answered
 
+    # "Failed to load resource: net::ERR_FAILED" names no URL, which makes it
+    # impossible to tell a real fault from a CDN hiccup. Record which request
+    # failed, so the failure message can say.
+    def on_request_failed(req):
+        try:
+            audit.failed_requests.append("%s %s (%s)" % (req.method, req.url[:90], req.failure))
+        except Exception:
+            pass
+
+    page.on("requestfailed", on_request_failed)
     page.on("console", on_console)
     page.on("dialog", on_dialog)
     page.on("pageerror", lambda e: audit.console_errors.append(f"pageerror: {e}"))
@@ -160,14 +171,18 @@ NUMBER_FIELD_CASES = [
     ("#adminNewStaffSalary", "admin", [7525, 0.5, 12345.67]),
     ("#adminNewBillAmount", "admin", [2805, 99.99, 1]),
     ("#settleUpAmountInput", None, [250.50, 0.01, 1999.99]),
+]
+
+# Inside the admin-only dialogs, so only present for a system administrator.
+ADMIN_NUMBER_FIELD_CASES = [
     ("#createHouseholdBudget", None, [64250, 2805, 100]),
     ("#editHouseholdBudget", None, [64250, 2805, 100]),
 ]
 
 
-def audit_number_fields(page, audit):
-    print("\n[C1] number inputs accept realistic amounts")
-    for selector, tab, values in NUMBER_FIELD_CASES:
+def audit_number_fields(page, audit, cases=None, who="owner"):
+    print("\n[C1] number inputs accept realistic amounts (%s)" % who)
+    for selector, tab, values in (cases if cases is not None else NUMBER_FIELD_CASES):
         if tab:
             goto_tab(page, tab)
         el = page.query_selector(selector)
@@ -2138,6 +2153,23 @@ def audit_settings_sections(page, audit, api):
             "asked for %s, showing %s" % (other, after),
         )
 
+    # The household/user management card must not exist for a household owner.
+    # Hiding it with a class left the markup, its form fields and its buttons in
+    # the page; it is mounted for a system administrator only.
+    absent = page.evaluate(
+        """() => ({
+            card: document.getElementById('adminTenantManagementCard') === null,
+            fields: document.getElementById('createHouseholdName') === null
+                 && document.getElementById('createUserUsername') === null,
+            role: (window.currentSessionUser || {}).role
+        })"""
+    )
+    audit.record(
+        "H the household and user management card is not in the page for an owner",
+        absent["card"] and absent["role"] not in ("ADMIN", "SYSTEM_ADMIN"),
+        "the card is present in the DOM for role %s" % absent["role"],
+    )
+
     # A hidden group must not be able to swallow a validation message. Clear a
     # staff name while the Staff group is closed and save: the save is blocked,
     # and the group holding the bad field opens so the person can see why.
@@ -2253,6 +2285,7 @@ def audit_permission_editor(browser, audit):
 
     goto_tab(page, "admin")
     page.wait_for_timeout(1200)
+    audit_number_fields(page, audit, ADMIN_NUMBER_FIELD_CASES, who="system administrator")
     page.evaluate("() => window.showSettingsSection && window.showSettingsSection('view-admin', 'household')")
     # The directory is fetched asynchronously; picking a user before it lands
     # finds an empty list and fails for a reason that is not the editor's.
@@ -2513,6 +2546,124 @@ def audit_desktop_widths(browser, audit):
             )
 
         ctx.close()
+
+def audit_notifications(browser, audit):
+    """Two phones in one household, one in another.
+
+    Pallavi (H001) has the app open. Palash (H001) adds an expense. Expected:
+    Pallavi gets ONE compact banner; Palash gets none for his own action; Sanjay
+    (H002) gets nothing; the same event arriving again does not stack; a burst of
+    different events never takes over the screen.
+    """
+    print("\n[N] household notifications on a phone")
+
+    def new_device(user, pw):
+        ctx = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+        pg = ctx.new_page()
+        attach_listeners(pg, audit)
+        login(pg, user, pw)
+        return ctx, pg
+
+    ctx_b = ctx_a = ctx_c = None
+    try:
+        ctx_b, pg_b = new_device("pallavi", "Pallavi@123")
+        ctx_c, pg_c = new_device("sanjay", "Sanjay@123")
+        # Both devices must finish their first sync: events that exist at load
+        # time are deliberately not announced, only ones that arrive after.
+        pg_b.wait_for_timeout(2500)
+        ctx_a, pg_a = new_device("palash", "Palash@123")
+        pg_a.wait_for_timeout(2500)
+
+        api_a = make_api(pg_a)
+        note = "NotifAudit%d" % (int(time.time()) % 100000)
+        res = api_a("POST", "/api/expenses", {
+            "date": time.strftime("%Y-%m-%d"), "amount": 851, "category": "Grocery & Vegetables",
+            "paidBy": "Palash", "paidTo": note, "notes": note, "paymentMethod": "UPI / GPay / PhonePe",
+        })
+        expense_id = (res.get("data") or {}).get("id")
+        audit.record("N the expense that triggers the notification was saved", bool(expense_id), "save failed: %s" % (res,))
+
+        # The other member's open app polls; give it a full cycle plus margin.
+        got = None
+        for _ in range(8):
+            pg_b.wait_for_timeout(2500)
+            got = pg_b.evaluate(
+                """() => {
+                    const b = Array.from(document.querySelectorAll('.in-app-banner'));
+                    return b.map(e => { const r = e.getBoundingClientRect();
+                        return {h: Math.round(r.height), w: Math.round(r.width), text: e.innerText.trim().slice(0, 80)}; });
+                }"""
+            )
+            if got:
+                break
+        audit.record(
+            "N the other household member gets a banner",
+            bool(got) and any("851" in b["text"] for b in got),
+            "banners seen: %s" % (got,),
+        )
+        audit.record(
+            "N it is exactly one banner for one event",
+            len(got or []) == 1,
+            "%d banners for one expense" % len(got or []),
+        )
+        if got:
+            audit.record(
+                "N it is compact: no taller than 130px and within the screen width",
+                got[0]["h"] <= 130 and got[0]["w"] <= 390 - 24 + 2,
+                "banner is %dx%d px" % (got[0]["w"], got[0]["h"]),
+            )
+
+        own = pg_a.evaluate("() => document.querySelectorAll('.in-app-banner').length")
+        audit.record("N the person who added it gets no banner for their own action", own == 0, "%d banners on the actor's phone" % own)
+
+        other = pg_c.evaluate("() => document.querySelectorAll('.in-app-banner').length")
+        audit.record("N a user in another household gets nothing", other == 0, "%d banners in H002" % other)
+
+        # The same event arriving by a second route must not stack.
+        before = pg_b.evaluate("() => document.querySelectorAll('.in-app-banner').length")
+        pg_b.evaluate(
+            """() => { for (let i = 0; i < 3; i++) window.showInAppNotificationBanner(
+                {id: 'dup-evt', eventId: 'dup-evt', title: 'Duplicate probe', body: 'same event'}); }"""
+        )
+        pg_b.wait_for_timeout(500)
+        after_dup = pg_b.evaluate("() => document.querySelectorAll('.in-app-banner').length")
+        audit.record("N the same event delivered three times shows once", after_dup <= before + 1, "banners %d -> %d" % (before, after_dup))
+
+        # A burst of different events never covers the screen.
+        pg_b.evaluate(
+            """() => { for (let i = 0; i < 6; i++) window.showInAppNotificationBanner(
+                {id: 'burst-' + i, eventId: 'burst-' + i, title: 'Event ' + i, body: 'burst'}); }"""
+        )
+        pg_b.wait_for_timeout(600)
+        burst = pg_b.evaluate(
+            """() => { const b = Array.from(document.querySelectorAll('.in-app-banner'));
+                return {n: b.length, total: Math.round(b.reduce((a, e) => a + e.getBoundingClientRect().height, 0))}; }"""
+        )
+        audit.record("N six different events show at most two banners", burst["n"] <= 2, "%d banners on screen" % burst["n"])
+        audit.record("N and together take under a quarter of the screen height", burst["total"] <= 844 * 0.25,
+                     "%dpx of banners on an 844px screen" % burst["total"])
+
+        # A push for another household, or one this user caused, is ignored.
+        ignored = pg_b.evaluate(
+            """() => {
+                const before = document.querySelectorAll('.in-app-banner').length;
+                window.showInAppNotificationBanner({id: 'x-h2', eventId: 'x-h2', title: 'Other household', body: 'no', householdId: 'H002'});
+                const me = (window.currentSessionUser || {}).userId;
+                window.showInAppNotificationBanner({id: 'x-me', eventId: 'x-me', title: 'My own action', body: 'no', householdId: 'H001', actorUserId: me});
+                return Array.from(document.querySelectorAll('.in-app-banner')).filter(e => /Other household|My own action/.test(e.innerText)).length;
+            }"""
+        )
+        audit.record("N a push for another household, or caused by me, is not shown", ignored == 0, "%d wrongly displayed" % ignored)
+
+        if expense_id:
+            api_a("DELETE", "/api/expenses?id=" + expense_id)
+    finally:
+        for c in (ctx_a, ctx_b, ctx_c):
+            if c:
+                try:
+                    c.close()
+                except Exception:
+                    pass
 
 def audit_logout(page, audit, api):
     """Section E: signing out must actually end the session. A token left in
@@ -3158,6 +3309,15 @@ def main():
             )
 
         audit_number_fields(page, audit)
+        gone = page.evaluate(
+            """() => ['createHouseholdBudget', 'editHouseholdBudget']
+                .filter(id => document.getElementById(id) !== null)"""
+        )
+        audit.record(
+            "C1 the household-budget fields are not in the page for an owner",
+            not gone,
+            "present for a non-admin: %s" % (gone,),
+        )
         audit_delete_confirm(page, audit)
         for fn, label in ((audit_staff_shortname, "C2 staff round-trip"),
                           (audit_no_silent_defaults, "C3 blank fields blocked"),
@@ -3224,6 +3384,11 @@ def main():
             audit.record("H permission editor", False, f"audit error: {type(e).__name__}: {e}")
 
         try:
+            audit_notifications(browser, audit)
+        except Exception as e:
+            audit.record("N notifications", False, f"audit error: {type(e).__name__}: {e}")
+
+        try:
             audit_desktop_widths(browser, audit)
         except Exception as e:
             audit.record("I desktop widths", False, f"audit error: {type(e).__name__}: {e}")
@@ -3238,7 +3403,8 @@ def main():
         audit.record(
             "no JS console errors during audit",
             not audit.console_errors,
-            "; ".join(audit.console_errors[:4]),
+            "; ".join(audit.console_errors[:4])
+            + ("  |  failed requests: " + " ; ".join(audit.failed_requests[:6]) if audit.failed_requests else ""),
         )
         audit.record(
             "no blocking alert/confirm dialogs",

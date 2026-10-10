@@ -1226,6 +1226,35 @@ function renderAccountCard() {
 }
 window.renderAccountCard = renderAccountCard;
 
+// Mount or remove the Household & User Access Management card.
+// Only a system administrator gets it in the DOM at all; for everyone else it
+// is removed rather than hidden. Returns the card, or null when not allowed.
+function syncAdminTenantCard() {
+    const allowed = !!authToken && isAdminRole(currentSessionUser && currentSessionUser.role);
+    let card = document.getElementById("adminTenantManagementCard");
+    const tpl = document.getElementById("adminTenantManagementTemplate");
+    const modalsTpl = document.getElementById("adminModalsTemplate");
+    const MODAL_IDS = ["modalCreateHousehold", "modalCreateUser", "modalEditHousehold", "modalEditUser"];
+    if (allowed && !card && tpl && tpl.parentNode) {
+        tpl.parentNode.insertBefore(tpl.content.cloneNode(true), tpl);
+        card = document.getElementById("adminTenantManagementCard");
+        if (card) card.classList.remove("hidden");
+    } else if (!allowed && card) {
+        card.remove();
+        card = null;
+    }
+    // The four admin dialogs travel with the card.
+    if (allowed && modalsTpl && !document.getElementById("modalEditUser")) {
+        document.body.appendChild(modalsTpl.content.cloneNode(true));
+    } else if (!allowed) {
+        document.querySelectorAll(
+            ".modal-backdrop[id^='modalCreate'], .modal-backdrop[id^='modalEdit']"
+        ).forEach(el => el.remove());
+    }
+    return allowed ? card : null;
+}
+window.syncAdminTenantCard = syncAdminTenantCard;
+
 function switchTab(tabId) {
     // The views all live in one document and switchTab is global, so hiding a
     // nav button is presentation only. This is the client-side guard; the API
@@ -1273,6 +1302,10 @@ function switchTab(tabId) {
 
     if (tabId === 'admin' || tabId === 'settings') {
         try {
+            // The tenant card must be in the page before the section chips are
+            // counted and before its group is shown or hidden; mounted afterwards
+            // it would carry no hidden class and appear under every group.
+            syncAdminTenantCard();
             renderAccountCard();
             initSettingsSections();
         } catch (e) { /* a settings screen that is not rendered yet */ }
@@ -1308,15 +1341,10 @@ function switchTab(tabId) {
     }
 
     if (tabId === 'admin' || tabId === 'settings') {
-        const adminCard = document.getElementById("adminTenantManagementCard");
-        const isSysAdmin = currentSessionUser && (currentSessionUser.role === 'ADMIN' || currentSessionUser.role === 'SYSTEM_ADMIN');
-        if (adminCard) {
-            if (isSysAdmin) {
-                adminCard.classList.remove("hidden");
-            } else {
-                adminCard.classList.add("hidden");
-            }
-        }
+        // Declared here because the code below still reads it: it used to come
+        // from the block this call replaced, and removing it broke every tab switch.
+        const isSysAdmin = isAdminRole(currentSessionUser && currentSessionUser.role);
+        syncAdminTenantCard();
         if (window.loadMasterConfig) {
             window.loadMasterConfig().then(() => {
                 if (window.renderAdminView) window.renderAdminView();
@@ -1576,14 +1604,7 @@ function updateUserProfileUI() {
     if (mobActionRole) mobActionRole.textContent = role;
 
     // Restrict Section 0: Household & User Access Management STRICTLY to System Admin
-    const adminCard = document.getElementById("adminTenantManagementCard");
-    if (adminCard) {
-        if (isAdminRole(currentSessionUser && currentSessionUser.role)) {
-            adminCard.classList.remove("hidden");
-        } else {
-            adminCard.classList.add("hidden");
-        }
-    }
+    syncAdminTenantCard();
 }
 window.updateUserProfileUI = updateUserProfileUI;
 
@@ -4131,47 +4152,66 @@ function showToast(type, title, message = "") {
     if (!container) {
         container = document.createElement("div");
         container.id = "toastContainer";
-        container.className = "fixed top-5 right-5 z-50 flex flex-col space-y-3 pointer-events-none max-w-sm w-full";
         document.body.appendChild(container);
     }
+    // Phones: a thin strip under the header, centred, never over the bottom bar
+    // or a form. Wider screens keep the top-right corner. Positioning lives in
+    // one place so it is not re-decided per toast.
+    container.className = "toast-stack pointer-events-none";
+
+    // The same message twice in a moment is one message. Bursts of identical
+    // saves used to pile up into a wall of cards.
+    const key = type + '|' + title + '|' + message;
+    const live = Array.from(container.querySelectorAll('.toast-item'));
+    const twin = live.find(t => t.dataset.key === key);
+    if (twin) {
+        clearTimeout(twin._timer);
+        twin._timer = setTimeout(() => dismissToast(twin), 3000);
+        return;
+    }
+    // At most two on screen; the oldest makes way.
+    while (live.length >= 2) {
+        const oldest = live.shift();
+        oldest.remove();
+    }
+
+    const tone = type === "success" ? "toast-success" : (type === "error" ? "toast-error" : "toast-info");
+    const icon = type === "success" ? "i-check" : (type === "error" ? "i-triangle-alert" : "i-info");
 
     const toast = document.createElement("div");
-    const isSuccess = type === "success";
-    const isError = type === "error";
-
-    toast.className = `toast-item pointer-events-auto flex items-start space-x-3 p-4 rounded-2xl shadow-2xl border backdrop-blur-md transition-all duration-300 ${
-        isSuccess 
-            ? "bg-slate-900/95 text-white border-emerald-500/50 shadow-emerald-950/30" 
-            : (isError ? "bg-slate-900/95 text-white border-rose-500/50 shadow-rose-950/30" : "bg-slate-900/95 text-white border-indigo-500/50 shadow-indigo-950/30")
-    }`;
-
-    const iconHtml = isSuccess 
-        ? `<div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 text-base font-black"><svg class="ic" aria-hidden="true"><use href="#i-check"></use></svg></div>`
-        : (isError 
-            ? `<div class="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 text-base font-black"><svg class="ic" aria-hidden="true"><use href="#i-triangle-alert"></use></svg></div>`
-            : `<div class="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 text-base font-black"><svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></div>`);
-
+    toast.className = `toast-item pointer-events-auto ${tone}`;
+    toast.dataset.key = key;
+    toast.setAttribute("role", type === "error" ? "alert" : "status");
     toast.innerHTML = `
-        ${iconHtml}
-        <div class="flex-1 min-w-0 pt-0.5">
-            <h4 class="text-xs font-black tracking-wide text-white leading-tight">${escapeHtml(title)}</h4>
-            ${message ? `<p class="text-[11px] text-slate-300 font-bold mt-0.5 truncate">${message}</p>` : ''}
-        </div>
-        <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white transition p-1 text-xs" aria-label="Remove">
+        <svg class="ic toast-icon" aria-hidden="true"><use href="#${icon}"></use></svg>
+        <span class="toast-text"><strong>${escapeHtml(title)}</strong>${message ? `<span class="toast-sub"> · ${escapeHtml(String(message).replace(/<[^>]*>/g, ''))}</span>` : ''}</span>
+        <button type="button" class="toast-close" aria-label="Dismiss">
             <svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg>
         </button>
     `;
-
+    toast.querySelector('.toast-close').addEventListener('click', () => dismissToast(toast));
     container.appendChild(toast);
 
-    setTimeout(() => {
-        toast.classList.add("toast-out");
-        setTimeout(() => toast.remove(), 350);
-    }, 3800);
+    // Errors stay a little longer: they are the ones somebody has to read.
+    toast._timer = setTimeout(() => dismissToast(toast), type === "error" ? 5000 : 3000);
+}
+
+function dismissToast(toast) {
+    if (!toast || !toast.parentNode) return;
+    clearTimeout(toast._timer);
+    toast.classList.add("toast-out");
+    setTimeout(() => toast.remove(), 200);
 }
 
 // ================= CRUD: ADD, EDIT, DELETE EXPENSES =================
+// The client operation id for the expense currently being added; see saveExpense.
+let pendingExpenseOpId = null;
+
 function openExpenseModal(editId = null) {
+    // Opening the form afresh starts a new operation. Reopening after a failed
+    // save deliberately does not clear it from saveExpense, only from here when
+    // the person starts over.
+    if (!editId) pendingExpenseOpId = null;
     triggerHaptic('tap');
     const modal = document.getElementById("expenseModal");
     const form = document.getElementById("expenseForm");
@@ -4431,6 +4471,17 @@ async function saveExpense(e) {
         clientUpdatedAt: new Date().toISOString()
     };
 
+    // One id per logical "add this expense", kept until the server confirms it.
+    // A retry after a timeout, a double tap, or the offline queue replaying the
+    // same draft all carry the same id, so the server can recognise them as one
+    // operation. The in-memory isSavingExpense flag alone could not: it dies with
+    // the page, and the queue outlives it.
+    if (!isEdit) {
+        pendingExpenseOpId = pendingExpenseOpId
+            || ('op-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
+        payload.clientOpId = pendingExpenseOpId;
+    }
+
     // 3. Double-Click & Rapid Save Protection
     const submitBtn = document.getElementById("btnSubmitExpense");
     if (submitBtn) {
@@ -4513,6 +4564,9 @@ async function saveExpense(e) {
             // 6. Recalculate Filtered Data & All Dashboard Views Automatically
             renderAllViews();
             updateHeaderStatus();
+
+            // Confirmed by the server: the next add is a new operation.
+            pendingExpenseOpId = null;
 
             // 7. Close Modal
             closeExpenseModal();
@@ -5393,7 +5447,7 @@ let adminDirectoryData = { households: [], users: [], activeHouseholdId: '' };
 window.adminDirectoryData = adminDirectoryData;
 
 async function loadAdminConsoleData(showFeedback = false) {
-    const card = document.getElementById("adminTenantManagementCard");
+    const card = syncAdminTenantCard();
     // Must match what /api/auth?action=admin_overview actually allows:
     // ADMIN or SYSTEM_ADMIN. This used to test for ADMIN or OWNER, which hid
     // the whole tenant-management card from SYSTEM_ADMIN - the one account that

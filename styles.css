@@ -483,22 +483,7 @@ select:focus, input:focus, textarea:focus {
     background-color: rgba(99, 102, 241, 0.04);
 }
 
-/* =============================================
-   TOAST NOTIFICATIONS
-   ============================================= */
-.toast-item {
-    pointer-events: auto;
-    animation: toastIn 0.35s var(--ease-spring) forwards;
-    transition: all 0.3s ease;
-}
-.toast-item.toast-out {
-    opacity: 0;
-    transform: translateX(110%) scale(0.9);
-}
-@keyframes toastIn {
-    from { opacity: 0; transform: translateY(-16px) scale(0.95); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
-}
+/* Toasts: see the TOASTS section at the end of this file. */
 
 /* =============================================
    STAFF ATTENDANCE CALENDAR
@@ -3023,3 +3008,60 @@ button.min-h-\[36px\] { min-height: 36px; }
     fill: none;
     pointer-events: none;
 }
+
+
+/* =================================================================
+   TOASTS
+   -----------------------------------------------------------------
+   One line, 40px, two at most. "Category saved" does not need a card.
+   ================================================================= */
+.toast-stack {
+    position: fixed;
+    z-index: 70;
+    left: 12px;
+    right: 12px;
+    top: calc(env(safe-area-inset-top, 0px) + 64px);   /* below the header */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+@media (min-width: 640px) {
+    .toast-stack { left: auto; right: 20px; top: 76px; align-items: flex-end; width: 360px; }
+}
+.toast-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    min-height: 40px;
+    padding: 6px 6px 6px 12px;
+    border-radius: var(--r-md);
+    border: 1px solid transparent;
+    background: rgba(15, 23, 42, 0.96);
+    color: #f8fafc;
+    font-size: var(--fs-xs);
+    box-shadow: 0 6px 20px rgba(2, 6, 23, 0.28);
+    animation: toastIn 160ms ease-out;
+}
+.toast-success { border-color: rgba(16, 185, 129, 0.55); }
+.toast-error   { border-color: rgba(244, 63, 94, 0.6); }
+.toast-info    { border-color: rgba(99, 102, 241, 0.55); }
+.toast-icon { flex-shrink: 0; }
+.toast-success .toast-icon { color: #34d399; }
+.toast-error .toast-icon   { color: #fb7185; }
+.toast-info .toast-icon    { color: #818cf8; }
+.toast-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast-text strong { font-weight: var(--fw-heading); }
+.toast-sub { color: #cbd5e1; font-weight: var(--fw-body); }
+.toast-close {
+    flex-shrink: 0;
+    width: 32px; height: 32px; min-height: 32px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--r-sm);
+    color: #94a3b8;
+}
+.toast-close:hover { color: #fff; }
+.toast-out { opacity: 0; transform: translateY(-4px); transition: opacity 180ms ease, transform 180ms ease; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .toast-item { animation: none; } }

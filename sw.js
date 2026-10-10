@@ -1,5 +1,5 @@
 // HomeExpenses Progressive Web App Service Worker
-const CACHE_NAME = 'homeexpenses-v13';
+const CACHE_NAME = 'homeexpenses-v14';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -93,11 +93,16 @@ self.addEventListener('push', event => {
     ]
   };
 
-  const promiseChain = self.registration.showNotification(data.title, options)
-    .then(() => {
-      // Notify all open browser clients to refresh transactions without cache AND show in-app banner
-      return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
-        for (let client of windowClients) {
+  // If the app is open and visible, the in-app banner is the notification; a
+  // system notification on top of it is the same event twice. Chrome allows a
+  // push to be handled without one when a window is visible. Otherwise (app
+  // closed or in the background) the system notification is what the user sees.
+  const promiseChain = self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    .then(windowClients => {
+      const visible = windowClients.some(c => c.visibilityState === 'visible');
+      const shown = visible ? Promise.resolve() : self.registration.showNotification(data.title, options);
+      return shown.then(() => {
+        for (const client of windowClients) {
           client.postMessage({ type: 'SYNC_TRANSACTIONS', payload: data });
           client.postMessage({ type: 'SHOW_IN_APP_BANNER', payload: data });
         }

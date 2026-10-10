@@ -206,6 +206,26 @@
     dispatch("submit", "data-submit");
     dispatch("input", "data-input");
 
+    // Keyboard-aware focus. Touch devices only: a mouse user has no keyboard
+    // to lose a field behind.
+    function revealFocused(el) {
+        if (!el || !el.scrollIntoView) return;
+        if (!/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return;
+        // Wait for the keyboard animation; scrolling before it finishes lands
+        // the field where the keyboard is about to be.
+        setTimeout(function () {
+            try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+        }, 300);
+    }
+    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+        document.addEventListener('focusin', function (e) { revealFocused(e.target); });
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', function () {
+                revealFocused(document.activeElement);
+            });
+        }
+    }
+
     // Exposed so the audit can assert the registry covers the markup, rather
     // than inferring that from the markup itself.
     window.UI_ACTIONS = ACTIONS;

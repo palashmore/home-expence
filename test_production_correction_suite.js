@@ -362,6 +362,9 @@ async function login(username, password) {
     assert((await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { layout: 'wild' } })).status === 422, 'an invalid layout is refused');
     assert((await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { heroBudget: 'hidden' } })).status === 200, 'the budget display mode can be set');
     assert((await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { design: 'new' } })).status === 200, 'the dashboard design can be set to new');
+    for (const d of ['minimal', 'analytics', 'timeline']) {
+        assert((await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { design: d } })).status === 200, 'the ' + d + ' dashboard design can be set');
+    }
     assert((await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { design: 'neon' } })).status === 422, 'an unknown dashboard design is refused');
     assert((await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { heroBudget: 'bogus' } })).status === 422, 'an unknown budget display mode is refused');
     assert((await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { sections: { recent: 'no' } } })).status === 422, 'a non-boolean section flag is refused');

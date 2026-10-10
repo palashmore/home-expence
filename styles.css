@@ -3076,8 +3076,8 @@ button.min-h-\[36px\] { min-height: 36px; }
    as the rest of the app, so every theme applies.
    ================================================================= */
 #dashNew { display: none; }
-html[data-dash-design="new"] #dashNew { display: block; }
-html[data-dash-design="new"] #view-dashboard > :not(#dashNew) { display: none !important; }
+html:is([data-dash-design="new"], [data-dash-design="minimal"], [data-dash-design="analytics"], [data-dash-design="timeline"]) #dashNew { display: block; }
+html:is([data-dash-design="new"], [data-dash-design="minimal"], [data-dash-design="analytics"], [data-dash-design="timeline"]) #view-dashboard > :not(#dashNew) { display: none !important; }
 .dash-section-off { display: none !important; }
 .dn-off { display: none !important; }
 
@@ -3261,3 +3261,47 @@ html[data-dash-kpi="compact"] .dn-kpi-ic { display: none; }
     #dashNew .dn-reimb { max-height: none; overflow: visible; }
 }
 .dn-card-title { margin-bottom: 0; }
+
+
+/* ---- new dashboard: design variants ---------------------------------------
+   Minimal, Analytics and Timeline rearrange the same pieces. Everything here
+   is scoped by the data-dn-design attribute on #dashNew. */
+.dn-span-8 { grid-column: span 8; } .dn-span-12 { grid-column: span 12; }
+.dn-aside { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.dn-aside > .dn-card { grid-column: auto; }
+
+/* Minimal: one calm column, large type, nothing competing with the budget */
+.dn[data-dn-design="minimal"] { max-width: 760px; margin-inline: auto; }
+.dn[data-dn-design="minimal"] .dn-hero { text-align: center; grid-template-columns: 1fr; justify-items: center; background: var(--surface-1); }
+.dn[data-dn-design="minimal"] .dn-hero-fig { font-size: 3rem; }
+.dn[data-dn-design="minimal"] .dn-hero-stats { text-align: center; }
+.dn[data-dn-design="minimal"] .dn-hero-actions { justify-content: center; }
+.dn[data-dn-design="minimal"] .dn-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dn[data-dn-design="minimal"] .dn-more { display: none; }
+.dn[data-dn-design="minimal"] .dn-morebtn { display: none !important; }
+.dn[data-dn-design="minimal"] .dn-kpi:nth-child(n+5) { display: none; }
+.dn[data-dn-design="minimal"] .dn-kpi-ic { display: none; }
+
+/* Analytics: charts lead, taller trend, accent edge on cards */
+.dn[data-dn-design="analytics"] .dn-card { border-top: 3px solid var(--accent); }
+.dn[data-dn-design="analytics"] .dn-tall .dn-trend { height: 240px; }
+.dn[data-dn-design="analytics"] .dn-hero { grid-template-columns: auto 1fr auto; }
+.dn[data-dn-design="analytics"] .dn-hero-stats, .dn[data-dn-design="analytics"] .dn-hero-actions { grid-column: 1 / -1; }
+.dn[data-dn-design="analytics"] .dn-kpi-v { font-size: var(--fs-xl, 1.35rem); }
+
+/* Timeline: day groups with their total */
+.dn-day + .dn-day { margin-top: 1rem; }
+.dn-day-head { display: flex; justify-content: space-between; align-items: center; padding: 0 .25rem .4rem;
+    font-size: var(--fs-xs); font-weight: var(--fw-heading); text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
+.dn-day-head span:last-child { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.dn[data-dn-design="timeline"] .dn-day .dn-list { border-left: 2px solid var(--line-2); padding-left: .6rem; margin-left: .25rem; }
+
+@media (max-width: 1023px) {
+    .dn-span-8, .dn-span-12 { grid-column: span 12; }
+    .dn-aside { grid-column: span 12; }
+    .dn[data-dn-design="analytics"] .dn-hero { grid-template-columns: auto 1fr; }
+}
+@media (max-width: 767px) {
+    .dn[data-dn-design="minimal"] .dn-hero-fig { font-size: 2.4rem; }
+    .dn[data-dn-design="analytics"] .dn-tall .dn-trend { height: 170px; }
+}

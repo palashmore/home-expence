@@ -72,7 +72,7 @@ Lucide has no equivalent for.
 works under a strict Content-Security-Policy.
 
 **Dashboard design.** Two designs share the dashboard tab. *Default dashboard*
-is the original and is what everyone starts with; *New UI dashboard* is built
+is the original and is what everyone starts with; *New UI dashboard* (Overview, Minimal, Analytics or Timeline) is built
 by `dashboard_ui.js` into `#dashNew`. Choose it under Master Settings →
 Appearance: on this device for anybody, or as the household default for an
 owner (`masterConfig.dashboardUi`, validated server-side). The new design only

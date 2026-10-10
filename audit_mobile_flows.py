@@ -2769,6 +2769,19 @@ def audit_dashboard_redesign(browser, audit):
         pg.keyboard.press("Escape")
         pg.wait_for_timeout(300)
 
+        for dsg in ("minimal", "analytics", "timeline"):
+            save_device(pg, dashUiDesign=dsg)
+            goto_tab(pg, "dashboard")
+            pg.wait_for_timeout(1200)
+            sd = state(pg)
+            nf = pg.evaluate(NEW_FIGURES)
+            audit.record("R %s design shows on laptop with the same figures" % dsg,
+                         sd["design"] == dsg and sd["newShown"] and not sd["classicShown"] and nf == classic,
+                         "state %s, classic %s vs %s" % (sd, classic, nf))
+            audit.record("R %s design has no horizontal overflow on laptop" % dsg, sd["overflow"] <= 1, "%dpx wider" % sd["overflow"])
+        tl = pg.evaluate("() => document.querySelectorAll('#dnTimeline .dn-day').length")
+        audit.record("R timeline groups activity by day", tl >= 1, "%d day groups" % tl)
+
         # switching back restores the classic dashboard
         save_device(pg, dashUiDesign="classic")
         goto_tab(pg, "dashboard")
@@ -2823,6 +2836,20 @@ def audit_dashboard_redesign(browser, audit):
         audit.record("R no desktop table appears on phone", ph["tables"] == 0, "%d tables" % ph["tables"])
         audit.record("R nothing in the new dashboard sticks out past the phone screen", ph["wide"] == 0, "%d elements extend past the screen" % ph["wide"])
         audit.record("R phone buttons are at least 44px tall", ph["small"] == 0, "%d buttons under 44px" % ph["small"])
+
+        for dsg in ("minimal", "analytics", "timeline"):
+            save_device(pg, dashUiDesign=dsg)
+            goto_tab(pg, "dashboard")
+            pg.wait_for_timeout(1200)
+            sd = state(pg)
+            wide = pg.evaluate("() => Array.from(document.querySelectorAll('#dashNew *')).filter(e => e.getBoundingClientRect().right > window.innerWidth + 1).length")
+            small = pg.evaluate("(VIS) => { const vis = eval('(' + VIS + ')'); return Array.from(document.querySelectorAll('#dashNew button')).filter(vis).filter(b => b.getBoundingClientRect().height < 44).length; }", VIS)
+            audit.record("R %s design fits the phone with no overflow" % dsg,
+                         sd["design"] == dsg and sd["newShown"] and sd["overflow"] <= 1 and wide == 0, "state %s, %d wide elements" % (sd, wide))
+            audit.record("R %s design phone buttons are at least 44px tall" % dsg, small == 0, "%d buttons under 44px" % small)
+        save_device(pg, dashUiDesign="new")
+        goto_tab(pg, "dashboard")
+        pg.wait_for_timeout(1000)
 
         # hide budget on the hero
         save_device(pg, dashUiHeroBudget="hidden")

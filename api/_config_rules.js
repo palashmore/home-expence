@@ -44,14 +44,14 @@ function validateConfigPayload(body) {
     if (body.dashboardUi !== undefined) {
         const ui = body.dashboardUi;
         const SEC = ['kpi', 'insights', 'chart-category', 'chart-family', 'chart-trend', 'chart-payment',
-            'bills', 'reimbursement', 'staff', 'top', 'recent'];
+            'bills', 'reimbursement', 'staff', 'top', 'recent', 'timeline'];
         const bad = (msg) => errors.push({ field: 'dashboardUi', message: msg });
         if (ui === null || typeof ui !== 'object' || Array.isArray(ui)) {
             bad('Dashboard UI preferences must be an object.');
         } else {
             const allowed = ['design', 'layout', 'kpiDensity', 'mobileDensity', 'heroBudget', 'defaultTheme', 'sections'];
             Object.keys(ui).forEach(k => { if (!allowed.includes(k)) bad('Unknown dashboard UI setting: ' + k + '.'); });
-            if (ui.design !== undefined && !['classic', 'new'].includes(ui.design)) bad('Design must be classic or new.');
+            if (ui.design !== undefined && !['classic', 'new', 'minimal', 'analytics', 'timeline'].includes(ui.design)) bad('Design must be classic, new, minimal, analytics or timeline.');
             if (ui.layout !== undefined && !['default', 'compact', 'focus'].includes(ui.layout)) bad('Layout must be default, compact or focus.');
             if (ui.kpiDensity !== undefined && !['comfortable', 'compact'].includes(ui.kpiDensity)) bad('KPI density must be comfortable or compact.');
             if (ui.mobileDensity !== undefined && !['comfortable', 'compact'].includes(ui.mobileDensity)) bad('Mobile density must be comfortable or compact.');

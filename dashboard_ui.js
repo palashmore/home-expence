@@ -14,16 +14,16 @@
     const SECTION_KEYS = [
         'kpi', 'insights',
         'chart-category', 'chart-family', 'chart-trend', 'chart-payment',
-        'bills', 'reimbursement', 'staff', 'top', 'recent'
+        'bills', 'reimbursement', 'staff', 'top', 'recent', 'timeline'
     ];
     const SECTION_LABELS = {
         'kpi': 'Key figures', 'insights': 'Financial insights',
         'chart-category': 'Spending by category', 'chart-family': 'Spending by family member',
         'chart-trend': 'Monthly cash-flow trend', 'chart-payment': 'Payment methods',
         'bills': 'Upcoming bills', 'reimbursement': 'Who owes whom', 'staff': 'Staff payments',
-        'top': 'Top expenses', 'recent': 'Recent transactions'
+        'top': 'Top expenses', 'recent': 'Recent transactions', 'timeline': 'Activity timeline'
     };
-    const DESIGNS = ['classic', 'new'];
+    const DESIGNS = ['classic', 'new', 'minimal', 'analytics', 'timeline'];
     const LAYOUTS = ['default', 'compact', 'focus'];
     const DENSITIES = ['comfortable', 'compact'];
     // How the home card treats the monthly budget: lead with what is left, lead
@@ -87,6 +87,10 @@
     const fmt = (v) => (window.formatINR ? window.formatINR(v) : '₹' + Number(v || 0).toLocaleString('en-IN'));
     const esc = (v) => (window.escapeHtml ? window.escapeHtml(String(v == null ? '' : v)) : String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])));
     const $ = (id) => document.getElementById(id);
+    // New-design pieces differ per design; a piece a design does not lay out
+    // resolves to a detached node so its render function is simply a no-op.
+    const SINK = document.createElement('div');
+    const $d = (id) => document.getElementById(id) || SINK;
     const text = (id) => { const e = $(id); return e ? e.textContent.trim() : ''; };
     const isHidden = (id) => { const e = $(id); return !e || e.classList.contains('hidden'); };
     const INCOME_CATEGORY = 'Accepted Payments (Income)';
@@ -161,20 +165,20 @@
             + '<div id="' + bodyId + '"></div></details>';
     }
 
-    function build() {
-        const host = $('dashNew');
-        if (!host || host.dataset.built) return;
-        host.dataset.built = '1';
-        host.innerHTML =
-            '<header class="dn-top">'
+    // Pieces shared by every new design. A design is a different arrangement of
+    // the same pieces, each one filled by the render functions below.
+    const TITLES = { new: 'Overview', minimal: 'At a glance', analytics: 'Analytics', timeline: 'Activity' };
+    function headHtml(design) {
+        return '<header class="dn-top">'
             + '<div class="dn-top-text"><p id="dnPeriod" class="dn-eyebrow">This month</p>'
-            + '<h2 class="dn-title">Overview</h2></div>'
+            + '<h2 class="dn-title">' + esc(TITLES[design] || 'Overview') + '</h2></div>'
             + '<button type="button" id="dnScope" class="dn-chip" data-click="a038" aria-label="Dashboard view mode. Change it in Master Settings.">'
             + '<svg class="ic" aria-hidden="true"><use href="#i-house"></use></svg><span>Household</span></button>'
-            + '</header>'
-
-            // hero: the one number that matters, with the budget ring
-            + '<section class="dn-hero" aria-label="Budget">'
+            + '</header>';
+    }
+    // The one number that matters, with the budget ring.
+    function heroHtml() {
+        return '<section class="dn-hero" aria-label="Budget">'
             + '<div class="dn-ring" id="dnRingWrap"><svg viewBox="0 0 100 100" class="dn-ring-svg" aria-hidden="true">'
             + '<circle class="dn-ring-bg" cx="50" cy="50" r="42"></circle>'
             + '<circle id="dnRing" class="dn-ring-fg" cx="50" cy="50" r="42" pathLength="100" stroke-dasharray="0 100"></circle></svg>'
@@ -190,10 +194,10 @@
             + '<button type="button" class="dn-btn dn-btn-primary" data-click="a024"><svg class="ic" aria-hidden="true"><use href="#i-plus"></use></svg><span>Record expense</span></button>'
             + '<button type="button" class="dn-btn" data-dn-go="bills"><svg class="ic" aria-hidden="true"><use href="#i-receipt"></use></svg><span>Bills</span></button>'
             + '<button type="button" class="dn-btn" data-click="a053"><svg class="ic" aria-hidden="true"><use href="#i-file-down"></use></svg><span>Export</span></button>'
-            + '</div></section>'
-
-            // key figures
-            + '<section class="dn-kpis" id="dnKpis" data-dash-section="kpi" aria-label="Key figures">'
+            + '</div></section>';
+    }
+    function kpiHtml() {
+        return '<section class="dn-kpis" id="dnKpis" data-dash-section="kpi" aria-label="Key figures">'
             + KPIS.map(k => '<div class="dn-kpi' + (k.more ? ' dn-more' : '') + '" data-dn-kpi="' + k.id + '"'
                 + (k.source ? ' data-dn-source="' + k.source + '"' : '') + '>'
                 + '<span class="dn-kpi-ic"><svg class="ic" aria-hidden="true"><use href="#' + k.icon + '"></use></svg></span>'
@@ -201,11 +205,16 @@
                 + '<strong class="dn-kpi-v" id="dn_' + k.id + '">-</strong></div>').join('')
             + '<button type="button" id="dnMoreFigures" class="dn-morebtn" aria-expanded="false" aria-controls="dnKpis">'
             + '<span>More figures</span><svg class="ic" aria-hidden="true"><use href="#i-chevron-down"></use></svg></button>'
-            + '</section>'
+            + '</section>';
+    }
+    const insightsHtml = () => '<section class="dn-insights" id="dnInsights" data-dash-section="insights" aria-label="Financial insights"></section>';
+    const recentHtml = (extra) => section('recent', 'Recent transactions', '<div id="dnRecent" class="dn-list"></div>'
+        + '<button type="button" class="dn-link" data-dn-go="expenses">See all expenses</button>', extra);
 
-            + '<section class="dn-insights" id="dnInsights" data-dash-section="insights" aria-label="Financial insights"></section>'
-
-            + '<div class="dn-grid">'
+    // The four arrangements. "new" is the overview; the others are for
+    // different habits: glance only, chart led, and a day-by-day activity feed.
+    const BODIES = {
+        new: () => '<div class="dn-grid">'
             + section('chart-category', 'Where the money goes', '<div id="dnCategory"></div>', 'dn-span-5')
             + section('chart-trend', 'Cash flow this year', '<div id="dnTrend"></div>', 'dn-span-7')
             + section('bills', 'Upcoming bills', '<div id="dnBills"></div>', 'dn-span-4')
@@ -213,10 +222,47 @@
             + fold('chart-family', 'Spending by family member', 'dnFamily', 'dn-span-4')
             + fold('reimbursement', 'Who owes whom', 'dnReimb', 'dn-span-6')
             + fold('staff', 'Staff payments', 'dnStaff', 'dn-span-6')
-            + section('recent', 'Recent transactions', '<div id="dnRecent" class="dn-list"></div>'
-                + '<button type="button" class="dn-link" data-dn-go="expenses">See all expenses</button>', 'dn-span-6')
+            + recentHtml('dn-span-6')
             + fold('top', 'Top expenses', 'dnTop', 'dn-span-6')
-            + '</div>';
+            + '</div>',
+        // Glance: the budget, what is due and what just happened. Nothing else.
+        minimal: () => '<div class="dn-grid">'
+            + section('bills', 'Upcoming bills', '<div id="dnBills"></div>', 'dn-span-12')
+            + recentHtml('dn-span-12')
+            + '</div>',
+        // Analytics: charts first, no transaction lists.
+        analytics: () => insightsHtml()
+            + '<div class="dn-grid">'
+            + section('chart-trend', 'Cash flow this year', '<div id="dnTrend"></div>', 'dn-span-12 dn-tall')
+            + section('chart-category', 'Where the money goes', '<div id="dnCategory"></div>', 'dn-span-6')
+            + section('chart-payment', 'Payment methods', '<div id="dnPayment"></div>', 'dn-span-6')
+            + fold('chart-family', 'Spending by family member', 'dnFamily', 'dn-span-6')
+            + section('bills', 'Upcoming bills', '<div id="dnBills"></div>', 'dn-span-6')
+            + fold('reimbursement', 'Who owes whom', 'dnReimb', 'dn-span-6')
+            + fold('staff', 'Staff payments', 'dnStaff', 'dn-span-6')
+            + '</div>',
+        // Timeline: activity grouped by day beside a slim summary column.
+        timeline: () => '<div class="dn-grid">'
+            + section('timeline', 'Activity', '<div id="dnTimeline"></div>'
+                + '<button type="button" class="dn-link" data-dn-go="expenses">See all expenses</button>', 'dn-span-8')
+            + '<div class="dn-aside dn-span-4">'
+            + section('bills', 'Upcoming bills', '<div id="dnBills"></div>')
+            + section('chart-category', 'Where the money goes', '<div id="dnCategory"></div>')
+            + fold('reimbursement', 'Who owes whom', 'dnReimb')
+            + fold('staff', 'Staff payments', 'dnStaff')
+            + '</div></div>'
+    };
+    // A design shows the insight row only if it lays one out itself.
+    const WITH_INSIGHTS = { new: true, minimal: false, analytics: false, timeline: true };
+
+    function build(design) {
+        const host = $('dashNew');
+        if (!host || host.dataset.built === design) return;
+        host.dataset.built = design;
+        host.dataset.dnDesign = design;
+        host.innerHTML = headHtml(design) + heroHtml() + kpiHtml()
+            + (design === 'analytics' ? '' : (WITH_INSIGHTS[design] ? insightsHtml() : ''))
+            + (BODIES[design] || BODIES.new)();
     }
 
     // ------------------------------------------------------------- the render
@@ -240,9 +286,9 @@
         const mode = p.heroBudget;
         const showBudget = mode !== 'hidden';
 
-        $('dnRingWrap').classList.toggle('dn-off', !(showBudget && hasBudget));
-        $('dnHeroBudgetStat').classList.toggle('dn-off', !showBudget);
-        const ring = $('dnRing');
+        $d('dnRingWrap').classList.toggle('dn-off', !(showBudget && hasBudget));
+        $d('dnHeroBudgetStat').classList.toggle('dn-off', !showBudget);
+        const ring = $d('dnRing');
         ring.setAttribute('stroke-dasharray', Math.min(100, Math.max(0, pct)) + ' 100');
         ring.classList.toggle('is-warn', pct >= 75 && pct <= 100);
         ring.classList.toggle('is-over', pct > 100);
@@ -252,27 +298,27 @@
             setText('dnHeroLabel', label);
             setText('dnHeroFig', text('statBudgetRemaining'));
             setText('dnHeroNote', usedTxt + ' of ' + capText());
-            $('dnHeroFig').classList.toggle('is-over', /over/i.test(label));
+            $d('dnHeroFig').classList.toggle('is-over', /over/i.test(label));
         } else {
             setText('dnHeroLabel', 'Total spent');
             setText('dnHeroFig', spent);
             setText('dnHeroNote', showBudget ? (hasBudget ? usedTxt + ' of ' + capText() : 'No budget set in Master Settings') : '');
-            $('dnHeroFig').classList.remove('is-over');
+            $d('dnHeroFig').classList.remove('is-over');
         }
         setText('dnHeroSpent', spent);
         setText('dnHeroNet', text('statNetCashFlow') || fmt(0));
         setText('dnHeroBudget', hasBudget ? capText() : 'Not set');
-        $('dnHeroNet').classList.toggle('is-negative', isDeficit());
+        $d('dnHeroNet').classList.toggle('is-negative', isDeficit());
 
         setText('dnPeriod', text('statPeriodLabel') || 'This month');
         const badge = $('dashboardModeBadge');
-        const scope = $('dnScope');
+        const scope = $d('dnScope');
         if (scope && badge) scope.querySelector('span').textContent = badge.textContent.trim() || 'Household';
     }
 
     function renderKpis() {
         KPIS.forEach(k => {
-            const el = $('dn_' + k.id);
+            const el = $d('dn_' + k.id);
             if (el) {
                 const v = text(k.id);
                 el.textContent = v || '-';
@@ -328,7 +374,7 @@
             ['Cash flow', flow || '-', /deficit|negative|over/i.test(flow) ? 'bad' : (/surplus|positive/i.test(flow) ? 'good' : '')],
             ['Next bill due', nb ? nb.name + ' · ' + dueText(nb.days) : '-', nb && nb.days < 0 ? 'bad' : '']
         ];
-        $('dnInsights').innerHTML = items.map(i =>
+        $d('dnInsights').innerHTML = items.map(i =>
             '<div class="dn-ins"><span>' + esc(i[0]) + '</span><strong data-tone="' + i[2] + '">' + esc(i[1]) + '</strong></div>').join('');
     }
 
@@ -340,23 +386,23 @@
     function renderCategory(list) {
         const types = categoryTypes();
         const g = group(list.filter(e => isSpend(e, types)), e => e.category);
-        if (!g.keys.length || g.total <= 0) { $('dnCategory').innerHTML = emptyLine('No spending in this period.'); return; }
+        if (!g.keys.length || g.total <= 0) { $d('dnCategory').innerHTML = emptyLine('No spending in this period.'); return; }
         const rest = g.keys.slice(6).reduce((s, k) => s + g.by[k], 0);
         let html = shareRows(g, 6);
         if (rest > 0) html += barRow('Other', fmt(rest) + ' · ' + Math.round(rest / g.total * 100) + '%', rest / g.total * 100, 5);
-        $('dnCategory').innerHTML = html;
+        $d('dnCategory').innerHTML = html;
     }
 
     function renderFamily(list) {
         const types = categoryTypes();
         const g = group(list.filter(e => isSpend(e, types)), e => e.paidBy);
-        $('dnFamily').innerHTML = (!g.keys.length || g.total <= 0) ? emptyLine('No spending in this period.') : shareRows(g, 6);
+        $d('dnFamily').innerHTML = (!g.keys.length || g.total <= 0) ? emptyLine('No spending in this period.') : shareRows(g, 6);
     }
 
     function renderPayment(list) {
         const types = categoryTypes();
         const g = group(list.filter(e => isSpend(e, types)), e => e.paymentMethod);
-        $('dnPayment').innerHTML = (!g.keys.length || g.total <= 0) ? emptyLine('No spending in this period.') : shareRows(g, 5);
+        $d('dnPayment').innerHTML = (!g.keys.length || g.total <= 0) ? emptyLine('No spending in this period.') : shareRows(g, 5);
     }
 
     // Same rule as the existing cash-flow chart: the selected year, income being
@@ -375,8 +421,8 @@
         const max = Math.max.apply(null, spend.concat(inc, [1]));
         const names = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
         const sel = (f.month && f.month !== 'all') ? new Date(f.month + ' 1, ' + year).getMonth() : -1;
-        if (max <= 1) { $('dnTrend').innerHTML = emptyLine('No activity recorded for ' + year + '.'); return; }
-        $('dnTrend').innerHTML = '<div class="dn-trend" role="img" aria-label="Monthly expenses and income for ' + esc(year) + '">'
+        if (max <= 1) { $d('dnTrend').innerHTML = emptyLine('No activity recorded for ' + year + '.'); return; }
+        $d('dnTrend').innerHTML = '<div class="dn-trend" role="img" aria-label="Monthly expenses and income for ' + esc(year) + '">'
             + names.map((n, i) => '<div class="dn-trend-col' + (i === sel ? ' is-sel' : '') + '"><div class="dn-trend-bars">'
                 + '<span class="dn-trend-b dn-trend-exp" style="height:' + Math.round(spend[i] / max * 100) + '%" title="Expenses ' + esc(fmt(spend[i])) + '"></span>'
                 + '<span class="dn-trend-b dn-trend-inc" style="height:' + Math.round(inc[i] / max * 100) + '%" title="Income ' + esc(fmt(inc[i])) + '"></span>'
@@ -385,7 +431,7 @@
     }
 
     function renderBills(bills) {
-        $('dnBills').innerHTML = !bills.length
+        $d('dnBills').innerHTML = !bills.length
             ? emptyLine('Nothing pending this month.')
             : '<ul class="dn-rows">' + bills.slice(0, 4).map(b =>
                 '<li><span>' + esc(b.name) + '</span><span class="dn-row-r' + (b.days < 0 ? ' is-bad' : '') + '">'
@@ -393,7 +439,7 @@
     }
 
     function renderReimbursement() {
-        const body = $('dnReimb');
+        const body = $d('dnReimb');
         const grid = $('splitwiseCardsGrid');
         if (!grid || !grid.innerHTML.trim()) { body.innerHTML = emptyLine('Nothing to settle in this period.'); return; }
         const settle = $('settleUpActionContainer');
@@ -407,7 +453,7 @@
         const sum = text('statStaffStatusSummary');
         const badge = text('statStaffPayrollBadge');
         const pay = text('statStaffTotal');
-        $('dnStaff').innerHTML = isHidden('kpiStaffPayroll')
+        $d('dnStaff').innerHTML = isHidden('kpiStaffPayroll')
             ? emptyLine('No staff configured.')
             : '<ul class="dn-rows"><li><span>Payroll</span><span class="dn-row-r">' + esc(pay || '-') + '</span></li>'
               + (badge ? '<li><span>Status</span><span class="dn-row-r">' + esc(badge) + '</span></li>' : '')
@@ -436,8 +482,39 @@
         const top = live.filter(e => isSpend(e, types)).slice().sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0)).slice(0, 5);
         const recent = live.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
         const rows = (l) => l.length ? l.map(e => txRow(e, types)).join('') : emptyLine('Nothing recorded for this period.');
-        $('dnRecent').innerHTML = rows(recent);
-        $('dnTop').innerHTML = '<div class="dn-list">' + rows(top) + '</div>';
+        $d('dnRecent').innerHTML = rows(recent);
+        $d('dnTop').innerHTML = '<div class="dn-list">' + rows(top) + '</div>';
+    }
+
+    // Activity grouped by day, newest first, each day carrying its spend total.
+    function renderTimeline(list) {
+        const host = $d('dnTimeline');
+        if (host === SINK) return;
+        const types = categoryTypes();
+        const live = list.filter(e => !e.isDeleted && e.date).slice()
+            .sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 40);
+        if (!live.length) { host.innerHTML = emptyLine('Nothing recorded for this period.'); return; }
+        const days = {};
+        const order = [];
+        live.forEach(e => {
+            const k = String(e.date).slice(0, 10);
+            if (!days[k]) { days[k] = []; order.push(k); }
+            days[k].push(e);
+        });
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const label = (k) => {
+            const d = new Date(k + 'T00:00:00');
+            const diff = Math.round((today - d) / 86400000);
+            if (diff === 0) return 'Today';
+            if (diff === 1) return 'Yesterday';
+            return d.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' });
+        };
+        host.innerHTML = order.map(k => {
+            const spend = days[k].filter(e => isSpend(e, types)).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+            return '<div class="dn-day"><div class="dn-day-head"><span>' + esc(label(k)) + '</span>'
+                + '<span>' + (spend > 0 ? esc(fmt(spend)) : '') + '</span></div>'
+                + '<div class="dn-list">' + days[k].map(e => txRow(e, types)).join('') + '</div></div>';
+        }).join('');
     }
 
     function syncFolds() {
@@ -454,8 +531,8 @@
         const p = apply();
         const host = $('dashNew');
         // The classic design is untouched; nothing is built or drawn for it.
-        if (!host || p.design !== 'new') return;
-        build();
+        if (!host || p.design === 'classic' || !BODIES[p.design]) return;
+        build(p.design);
         const list = (Array.isArray(filtered) ? filtered : (window.currentFilteredExpenses || [])).filter(e => !e.isDeleted);
         const bills = nextBills();
         renderHero(p);
@@ -469,6 +546,7 @@
         renderReimbursement();
         renderStaff();
         renderLists(list);
+        renderTimeline(list);
         apply();
         syncFolds();
     }
@@ -573,7 +651,7 @@
         }
         const more = t.closest('#dnMoreFigures');
         if (more) {
-            const sec = $('dnKpis');
+            const sec = $d('dnKpis');
             const openNow = sec.classList.toggle('is-open');
             more.setAttribute('aria-expanded', openNow ? 'true' : 'false');
             return;

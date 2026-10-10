@@ -2312,78 +2312,6 @@
                      nothing this role may see - is never offered. -->
                 <nav id="adminSettingsNav" class="settings-nav" aria-label="Settings sections"></nav>
 
-                <!-- Appearance. Dashboard layout and visibility preferences. Saved on this
-                     device for anybody; a household owner can also set the household
-                     default, which every member starts from. -->
-                <div class="glass-card p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4" data-settings-section="appearance">
-                    <div class="flex items-center space-x-3 border-b border-slate-100 pb-4">
-                        <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-lg">
-                            <svg class="ic" aria-hidden="true"><use href="#i-palette"></use></svg>
-                        </div>
-                        <div>
-                            <h3 class="text-base font-bold text-slate-900">Dashboard Appearance</h3>
-                            <p class="text-xs text-slate-500 font-medium">How the dashboard is laid out. Changes only presentation; no figure changes.</p>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiDesign">Dashboard design</label>
-                            <select id="dashUiDesign" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
-                                <option value="classic">Default dashboard (existing design)</option>
-                                <option value="new">New UI dashboard - Overview</option>
-                                <option value="minimal">New UI dashboard - Minimal (glance)</option>
-                                <option value="analytics">New UI dashboard - Analytics (charts first)</option>
-                                <option value="timeline">New UI dashboard - Timeline (day by day)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiLayout">New dashboard layout</label>
-                            <select id="dashUiLayout" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
-                                <option value="default">Default</option>
-                                <option value="compact">Compact</option>
-                                <option value="focus">Financial Focus</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiKpi">KPI card density</label>
-                            <select id="dashUiKpi" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
-                                <option value="comfortable">Comfortable</option>
-                                <option value="compact">Compact</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiMobile">Mobile dashboard density</label>
-                            <select id="dashUiMobile" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
-                                <option value="comfortable">Comfortable</option>
-                                <option value="compact">Compact</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiHeroBudget">Budget on the phone home card</label>
-                            <select id="dashUiHeroBudget" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
-                                <option value="remaining">Show remaining budget</option>
-                                <option value="spent">Show amount spent (budget below)</option>
-                                <option value="hidden">Hide budget</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiTheme">Default theme</label>
-                            <select id="dashUiTheme" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold"></select>
-                        </div>
-                    </div>
-                    <fieldset>
-                        <legend class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Show these sections (charts and lists)</legend>
-                        <div id="dashUiSections" class="grid grid-cols-1 sm:grid-cols-2 gap-1"></div>
-                    </fieldset>
-                    <p id="dashUiScopeNote" class="text-xs text-slate-500 font-medium"></p>
-                    <div class="flex flex-wrap gap-2">
-                        <button type="button" id="dashUiSaveDevice" class="px-3.5 py-2.5 min-h-[44px] bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl">Save on this device</button>
-                        <button type="button" id="dashUiSaveHousehold" class="hidden px-3.5 py-2.5 min-h-[44px] bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl">Set as household default</button>
-                        <button type="button" id="dashUiReset" class="px-3.5 py-2.5 min-h-[44px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">Reset dashboard UI</button>
-                        <button type="button" id="dashUiResetHousehold" class="hidden px-3.5 py-2.5 min-h-[44px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">Reset household default</button>
-                    </div>
-                </div>
-
                 <!-- Account. Who is signed in, where, and as what. This used to
                      be visible only inside the profile modal, which left the
                      Account section of the settings with nothing in it. -->
@@ -4173,6 +4101,72 @@
                         </p>
                     </div>
                 </div>
+
+                <!-- Dashboard design for this person. Set here by the administrator who
+                     manages the account; the person simply gets it when they sign in. -->
+                <details id="editUserDashboard" class="border border-slate-200 rounded-xl overflow-hidden">
+                    <summary class="px-3 py-2.5 bg-slate-50 hover:bg-slate-100 flex items-center justify-between gap-2 cursor-pointer min-h-[44px]">
+                        <span class="flex items-center gap-2 min-w-0">
+                            <svg class="ic text-slate-400 text-xs" aria-hidden="true"><use href="#i-palette"></use></svg>
+                            <span class="text-xs font-semibold text-slate-700 uppercase tracking-wider">Dashboard Design</span>
+                        </span>
+                        <span id="dashUiSummary" class="text-xs font-medium text-slate-500">Default</span>
+                    </summary>
+                    <div id="editUserDashboardBody" class="p-3 space-y-3 border-t border-slate-200">
+                        <p class="text-xs text-slate-500 leading-relaxed">Which dashboard this person sees, and how it is laid out. Presentation only: no figure changes.</p>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiDesign">Dashboard design</label>
+                            <select id="dashUiDesign" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
+                                <option value="classic">Default dashboard</option>
+                                <option value="new">New UI dashboard - Overview</option>
+                                <option value="minimal">New UI dashboard - Minimal (glance)</option>
+                                <option value="analytics">New UI dashboard - Analytics (charts first)</option>
+                                <option value="timeline">New UI dashboard - Timeline (day by day)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiLayout">New dashboard layout</label>
+                            <select id="dashUiLayout" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
+                                <option value="default">Default</option>
+                                <option value="compact">Compact</option>
+                                <option value="focus">Financial Focus</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiKpi">KPI card density</label>
+                            <select id="dashUiKpi" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
+                                <option value="comfortable">Comfortable</option>
+                                <option value="compact">Compact</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiMobile">Mobile dashboard density</label>
+                            <select id="dashUiMobile" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
+                                <option value="comfortable">Comfortable</option>
+                                <option value="compact">Compact</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiHeroBudget">Budget on the phone home card</label>
+                            <select id="dashUiHeroBudget" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
+                                <option value="remaining">Show remaining budget</option>
+                                <option value="spent">Show amount spent (budget below)</option>
+                                <option value="hidden">Hide budget</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiTheme">Default theme</label>
+                            <select id="dashUiTheme" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold"></select>
+                        </div>
+                    </div>
+                    <fieldset>
+                        <legend class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Show these sections (charts and lists)</legend>
+                        <div id="dashUiSections" class="grid grid-cols-1 sm:grid-cols-2 gap-1"></div>
+                    </fieldset>
+                        <button type="button" id="dashUiClear" class="px-3 py-2 min-h-[44px] bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">Use the default dashboard</button>
+                    </div>
+                </details>
 
                 <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
                     <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider" for="editUserPassword">Reset Password (Optional)</label>

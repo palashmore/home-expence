@@ -376,10 +376,32 @@ async function login(username, password) {
         'saving a preference leaves the budget and categories untouched');
     assert(!/fetch\(|XMLHttpRequest|sendBeacon/.test(dui),
         'the dashboard UI layer makes no network requests of its own');
-    assert(!/localStorage\.setItem\((?!deviceKey)/.test(dui),
-        'it writes only its own, user-and-household-namespaced storage key');
-    assert(/ghar_dash_ui:/.test(dui) && /u\.userId/.test(dui) && /u\.householdId/.test(dui),
-        'the device preference key includes both the user and the household');
+    assert(!/localStorage\.setItem|localStorage\.removeItem/.test(dui),
+        'the dashboard UI layer writes no browser storage: the design comes from the account');
+
+    // Per-user dashboard design, assigned by an administrator.
+    const palashId = palash.user.userId;
+    const setUi = (ui, tok) => call('POST', '/api/auth', tok || admin.token, { action: 'edit_user', userId: palashId, dashboardUi: ui });
+    assert((await setUi({ design: 'timeline', layout: 'focus', sections: { recent: false } })).status === 200,
+        'an administrator can assign a dashboard design to one user');
+    const palashAgain = await login('palash', 'Palash@123');
+    assert(palashAgain.user.dashboardUi && palashAgain.user.dashboardUi.design === 'timeline'
+        && palashAgain.user.dashboardUi.sections.recent === false,
+        'the user receives the assigned design when they sign in');
+    const pallaviAgain = await login('pallavi', 'Pallavi@123');
+    assert(!pallaviAgain.user.dashboardUi || Object.keys(pallaviAgain.user.dashboardUi).length === 0,
+        'another user in the same household is unaffected');
+    assert((await setUi({ design: 'neon' })).status === 422, 'an unknown design is refused');
+    assert((await setUi({ hack: 1 })).status === 422, 'an unknown setting is refused');
+    assert((await setUi({ sections: { nope: true } })).status === 422, 'an unknown section is refused');
+    assert((await setUi({ design: 'new' }, palash.token)).status === 403, 'a user cannot assign their own dashboard design');
+    assert((await setUi({ design: 'new' }, pallavi.token)).status === 403, 'a member cannot assign anybody a dashboard design');
+    const adminSeen = await call('GET', '/api/auth?action=admin_overview', admin.token);
+    const listedUi = ((adminSeen.json || {}).users || []).find(u => u.userId === palashId);
+    assert(listedUi && listedUi.dashboardUi && listedUi.dashboardUi.design === 'timeline', 'the administrator console lists each user\'s assignment');
+    assert((await setUi({})).status === 200, 'an empty object clears the assignment');
+    const palashCleared = await login('palash', 'Palash@123');
+    assert(!palashCleared.user.dashboardUi || Object.keys(palashCleared.user.dashboardUi).length === 0, 'a cleared assignment returns to the default design');
 
     console.log('\n--- I: logout ends protected access ---');
     const tmp = await login('pallavi', 'Pallavi@123');

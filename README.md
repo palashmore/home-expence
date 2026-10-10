@@ -71,13 +71,14 @@ Lucide has no equivalent for.
 `data-submit` attributes and `ui_actions.js` holds the behaviour, so the page
 works under a strict Content-Security-Policy.
 
-**Dashboard design.** Two designs share the dashboard tab. *Default dashboard*
-is the original and is what everyone starts with; *New UI dashboard* (Overview, Minimal, Analytics or Timeline) is built
-by `dashboard_ui.js` into `#dashNew`. Choose it under Master Settings →
-Appearance: on this device for anybody, or as the household default for an
-owner (`masterConfig.dashboardUi`, validated server-side). The new design only
-presents figures the existing render pass already computed, makes no requests
-of its own, and stores per-device choices under `ghar_dash_ui:{userId}:{householdId}`.
+**Dashboard design.** Two kinds of dashboard share the dashboard tab. *Default dashboard*
+is the original and is what everyone gets until told otherwise; *New UI dashboard*
+(Overview, Minimal, Analytics or Timeline) is built by `dashboard_ui.js` into
+`#dashNew`. It is assigned **per user by an administrator**: Admin → Users → edit
+user → Dashboard design. The choice is stored on that user's record
+(`user.dashboardUi`, validated server-side by `dashboardUiErrors`) and arrives with
+their session. The new designs only present figures the existing render pass already
+computed, make no requests of their own and store nothing in the browser.
 
 ---
 

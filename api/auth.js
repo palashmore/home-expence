@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const storage = require('./_storage');
 const perms = require('./_permissions');
+const configRules = require('./_config_rules');
 
 // Session tokens are signed with this. The previous fallback was a literal
 // string committed to this repository, so anyone reading the source could forge
@@ -327,7 +328,8 @@ module.exports = async function handler(req, res) {
                             // What this account may do right now, and whether
                             // that is an explicit list or the role's defaults.
                             permissions: perms.permissionsFor(u),
-                            permissionsAreCustom: perms.hasExplicitPermissions(u)
+                            permissionsAreCustom: perms.hasExplicitPermissions(u),
+                            dashboardUi: u.dashboardUi || {}
                         };
                     });
 
@@ -387,7 +389,8 @@ module.exports = async function handler(req, res) {
                         // list wins over the role's defaults.
                         permissions: perms.permissionsFor(
                             hasOverride ? userRec : activeRole),
-                        permissionsAreCustom: hasOverride
+                        permissionsAreCustom: hasOverride,
+                        dashboardUi: (userRec && userRec.dashboardUi) || {}
                     }
                 });
             } else {
@@ -460,7 +463,8 @@ module.exports = async function handler(req, res) {
                         householdId: user.householdId,
                         householdName: household ? household.householdName : user.householdId,
                         role: user.role,
-                        permissions: perms.permissionsFor(user)
+                        permissions: perms.permissionsFor(user),
+                        dashboardUi: user.dashboardUi || {}
                     },
                     message: `Welcome back, ${user.name}!`
                 });
@@ -830,6 +834,16 @@ module.exports = async function handler(req, res) {
                         });
                     }
                     updates.permissions = requested;
+                }
+
+                // Dashboard design for this person, set by the administrator who
+                // manages them. The same closed shape the household default uses.
+                if (body.dashboardUi !== undefined) {
+                    const problems = configRules.dashboardUiErrors(body.dashboardUi);
+                    if (problems.length) {
+                        return res.status(422).json({ success: false, error: problems[0], errors: problems });
+                    }
+                    updates.dashboardUi = body.dashboardUi;
                 }
 
                 // If password is being reset

@@ -1122,7 +1122,6 @@ const SETTINGS_SECTIONS = [
     { key: 'account',   label: 'Account',   icon: 'i-id-card' },
     { key: 'household', label: 'Household', icon: 'i-house' },
     { key: 'finance',   label: 'Finance',   icon: 'i-indian-rupee' },
-    { key: 'appearance', label: 'Appearance', icon: 'i-palette' },
     { key: 'bills',     label: 'Bills',     icon: 'i-receipt-text' },
     { key: 'staff',     label: 'Staff',     icon: 'i-users' },
     { key: 'data',      label: 'Data',      icon: 'i-database' },
@@ -1308,7 +1307,6 @@ function switchTab(tabId) {
             // it would carry no hidden class and appear under every group.
             syncAdminTenantCard();
             renderAccountCard();
-            if (window.renderDashboardUiSettings) window.renderDashboardUiSettings();
             initSettingsSections();
         } catch (e) { /* a settings screen that is not rendered yet */ }
     }
@@ -6373,6 +6371,9 @@ function openEditUserModal(userId) {
 
     userPermissionsTouched = false;
     renderUserPermissionEditor(u);
+    if (window.DashboardUi) window.DashboardUi.fillUserForm(u.dashboardUi);
+    const dashDetails = document.getElementById("editUserDashboard");
+    if (dashDetails) dashDetails.open = false;
     // Collapsed by default: most edits are a name or a role, and 25 checkboxes
     // in front of them would make the common case the awkward one.
     const permBody = document.getElementById("editUserPermissionsBody");
@@ -6441,6 +6442,10 @@ async function submitEditUser() {
         if (userPermissionsTouched) {
             payload.permissions = collectUserPermissions();
         }
+        // Same rule as the permissions: only when the administrator changed it.
+        if (window.DashboardUi && window.DashboardUi.formTouched()) {
+            payload.dashboardUi = window.DashboardUi.readUserForm();
+        }
         if (password) payload.password = password;
 
         const res = await fetch('/api/auth', {
@@ -6459,8 +6464,11 @@ async function submitEditUser() {
                     ...currentSessionUser,
                     ...result.user
                 };
+                if (payload.dashboardUi !== undefined) currentSessionUser.dashboardUi = payload.dashboardUi;
+                window.currentSessionUser = currentSessionUser;
                 localStorage.setItem("household_session_user", JSON.stringify(currentSessionUser));
                 updateUserProfileUI();
+                if (window.DashboardUi) window.DashboardUi.setOwnPrefs(currentSessionUser.dashboardUi);
             }
             await loadAdminConsoleData();
         } else {

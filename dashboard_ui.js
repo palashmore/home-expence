@@ -4,9 +4,12 @@
 // is the default; "New" is built here into #dashNew and shown instead of it.
 // Either way the figures come from the same place: the New design copies the
 // values the existing render pass already computed and only groups the
-// filtered ledger for its own lists, so the two designs cannot disagree. This
-// file makes no API calls and reads no storage other than its own preference
-// key.
+// filtered ledger for its own lists, so the two designs cannot disagree.
+//
+// Which design a person sees is decided per user by an administrator (Admin ->
+// Users -> edit user -> Dashboard design) and travels with their session as
+// user.dashboardUi. This file makes no API calls and reads no storage: the
+// administrator's form is read here and saved by the existing edit-user call.
 (function () {
     "use strict";
 
@@ -65,22 +68,16 @@
     }
 
     function user() { return window.currentSessionUser || {}; }
-    function deviceKey() {
-        const u = user();
-        // Namespaced by user AND household, so a later login on the same device
-        // never inherits somebody else's layout.
-        return 'ghar_dash_ui:' + (u.userId || 'anon') + ':' + (u.householdId || 'none');
-    }
-    function readDevice() {
-        try { return sanitize(JSON.parse(localStorage.getItem(deviceKey()) || 'null')); } catch (e) { return {}; }
-    }
+    // What the administrator assigned to this person.
+    function userPrefs() { return sanitize(user().dashboardUi); }
+    // Older household-wide default, if one was ever stored.
     function householdPrefs() {
         const cfg = window.masterConfig || {};
         return sanitize(cfg.dashboardUi);
     }
-    // Defaults < household default (owner-set) < this device.
+    // Defaults < household default < the person's own assignment.
     function effective() {
-        return merge(merge(defaults(), householdPrefs()), readDevice());
+        return merge(merge(defaults(), householdPrefs()), userPrefs());
     }
 
     // ---------------------------------------------------------------- helpers
@@ -551,32 +548,19 @@
         syncFolds();
     }
 
-    // The home card reads its mode while rendering, so repaint after a change.
-    function repaint() { if (typeof window.renderAllViews === 'function') window.renderAllViews(); }
+    // ------------------------------------------------- administrator's form
+    // The form lives in the edit-user dialog (admin only). It is filled from the
+    // person being edited, and its value is sent with the rest of that save only
+    // when the administrator actually changed something.
+    let formTouched = false;
+    let formCleared = false;
 
-    // ----------------------------------------------------------- settings
-    function canSetHousehold() {
-        return typeof window.hasPermission === 'function' ? window.hasPermission('settings.manage') : false;
-    }
-
-    function readForm() {
-        const sections = {};
-        document.querySelectorAll('#dashUiSections input[type="checkbox"]').forEach(cb => { sections[cb.value] = cb.checked; });
-        return sanitize({
-            design: ($('dashUiDesign') || {}).value,
-            layout: ($('dashUiLayout') || {}).value,
-            kpiDensity: ($('dashUiKpi') || {}).value,
-            mobileDensity: ($('dashUiMobile') || {}).value,
-            heroBudget: ($('dashUiHeroBudget') || {}).value,
-            defaultTheme: ($('dashUiTheme') || {}).value || '',
-            sections
-        });
-    }
-
-    function renderSettings() {
+    function fillUserForm(raw) {
         const host = $('dashUiSections');
         if (!host) return;
-        const p = effective();
+        formTouched = false;
+        formCleared = false;
+        const p = merge(defaults(), raw || {});
         const sel = (id, v) => { const e = $(id); if (e) e.value = v; };
         sel('dashUiDesign', p.design);
         sel('dashUiLayout', p.layout);
@@ -593,46 +577,31 @@
         host.innerHTML = SECTION_KEYS.map(k =>
             '<label class="dash-check"><input type="checkbox" value="' + k + '"' + (p.sections[k] !== false ? ' checked' : '') + '>'
             + '<span>' + esc(SECTION_LABELS[k]) + '</span></label>').join('');
-        const hh = $('dashUiSaveHousehold');
-        const hhReset = $('dashUiResetHousehold');
-        [hh, hhReset].forEach(b => { if (b) b.classList.toggle('hidden', !canSetHousehold()); });
-        const note = $('dashUiScopeNote');
-        if (note) note.textContent = 'Scope follows Dashboard View Mode: ' + ((window.getDashboardMode && window.getDashboardMode()) || 'household') + '. Layout, density and section choices apply to the New dashboard design.';
+        const sum = $('dashUiSummary');
+        if (sum) sum.textContent = (raw && Object.keys(sanitize(raw)).length) ? 'Custom' : 'Default';
     }
 
-    function toast(type, title, msg) { if (window.showToast) window.showToast(type, title, msg || ''); }
-
-    function saveDevice() {
-        const patch = readForm();
-        try {
-            localStorage.setItem(deviceKey(), JSON.stringify(patch));
-        } catch (e) {
-            toast('error', 'Not saved', 'This browser would not store the preference.');
-            return;
-        }
-        apply(); repaint();
-        toast('success', 'Saved on this device');
+    // The closed shape the server validates; {} means "use the default".
+    function readUserForm() {
+        if (formCleared) return {};
+        const sections = {};
+        document.querySelectorAll('#dashUiSections input[type="checkbox"]').forEach(cb => { sections[cb.value] = cb.checked; });
+        return sanitize({
+            design: ($('dashUiDesign') || {}).value,
+            layout: ($('dashUiLayout') || {}).value,
+            kpiDensity: ($('dashUiKpi') || {}).value,
+            mobileDensity: ($('dashUiMobile') || {}).value,
+            heroBudget: ($('dashUiHeroBudget') || {}).value,
+            defaultTheme: ($('dashUiTheme') || {}).value || '',
+            sections
+        });
     }
 
-    async function saveHousehold() {
-        if (!canSetHousehold()) { toast('error', 'Not allowed', 'Only a household owner can set the household default.'); return; }
-        const patch = readForm();
-        const ok = typeof window.saveMasterConfig === 'function'
-            ? await window.saveMasterConfig({ dashboardUi: patch })
-            : false;
-        if (ok) { apply(); renderSettings(); repaint(); }
-    }
-
-    function reset() {
-        try { localStorage.removeItem(deviceKey()); } catch (e) { /* nothing to remove */ }
-        apply(); renderSettings(); repaint();
-        toast('success', 'Dashboard reset', 'This device now follows the household default.');
-    }
-
-    async function resetHousehold() {
-        if (!canSetHousehold()) return;
-        const ok = typeof window.saveMasterConfig === 'function' ? await window.saveMasterConfig({ dashboardUi: {} }) : false;
-        if (ok) { apply(); renderSettings(); repaint(); }
+    // After the administrator edits themselves, the session copy is refreshed.
+    function setOwnPrefs(raw) {
+        if (window.currentSessionUser) window.currentSessionUser.dashboardUi = sanitize(raw);
+        apply();
+        if (typeof window.renderAllViews === 'function') window.renderAllViews();
     }
 
     // ----------------------------------------------------------- wiring
@@ -656,11 +625,20 @@
             more.setAttribute('aria-expanded', openNow ? 'true' : 'false');
             return;
         }
-        const id = (t.closest('button') || {}).id;
-        if (id === 'dashUiSaveDevice') saveDevice();
-        else if (id === 'dashUiSaveHousehold') saveHousehold();
-        else if (id === 'dashUiReset') reset();
-        else if (id === 'dashUiResetHousehold') resetHousehold();
+        if (t.closest('#dashUiClear')) {
+            fillUserForm({});
+            formTouched = true;
+            formCleared = true;
+            const sum = $('dashUiSummary');
+            if (sum) sum.textContent = 'Default (not saved yet)';
+        }
+    });
+    // Any change inside the form marks it as something to save.
+    document.addEventListener('change', function (ev) {
+        if (ev.target && ev.target.closest && ev.target.closest('#editUserDashboardBody')) {
+            formTouched = true;
+            formCleared = false;
+        }
     });
     document.addEventListener('toggle', function (ev) {
         if (ev.target && ev.target.hasAttribute && ev.target.hasAttribute('data-dn-fold')) ev.target.dataset.touched = '1';
@@ -671,6 +649,8 @@
     }
 
     window.renderDashboardUi = render;
-    window.renderDashboardUiSettings = renderSettings;
-    window.DashboardUi = { effective, HERO_BUDGET, apply, sanitize, SECTION_KEYS, defaults };
+    window.DashboardUi = {
+        effective, HERO_BUDGET, apply, sanitize, SECTION_KEYS, defaults,
+        fillUserForm, readUserForm, setOwnPrefs, formTouched: () => formTouched
+    };
 })();

@@ -33,41 +33,47 @@ function parseDay(raw) {
  * the payload is acceptable. Only validates keys actually present in the body,
  * so a partial update is not forced to resend everything.
  */
+// Dashboard UI preferences: a small closed shape. Unknown keys and values are
+// refused rather than stored, so the field cannot become a dumping ground. An
+// empty object clears the preference. Used for the household default (config)
+// and for the per-user preference an administrator assigns (edit_user).
+const DASHBOARD_SECTIONS = ['kpi', 'insights', 'chart-category', 'chart-family', 'chart-trend', 'chart-payment',
+    'bills', 'reimbursement', 'staff', 'top', 'recent', 'timeline'];
+function dashboardUiErrors(ui) {
+    const out = [];
+    const bad = (msg) => out.push(msg);
+    if (ui === null || typeof ui !== 'object' || Array.isArray(ui)) {
+        bad('Dashboard UI preferences must be an object.');
+        return out;
+    }
+    const allowed = ['design', 'layout', 'kpiDensity', 'mobileDensity', 'heroBudget', 'defaultTheme', 'sections'];
+    Object.keys(ui).forEach(k => { if (!allowed.includes(k)) bad('Unknown dashboard UI setting: ' + k + '.'); });
+    if (ui.design !== undefined && !['classic', 'new', 'minimal', 'analytics', 'timeline'].includes(ui.design)) bad('Design must be classic, new, minimal, analytics or timeline.');
+    if (ui.layout !== undefined && !['default', 'compact', 'focus'].includes(ui.layout)) bad('Layout must be default, compact or focus.');
+    if (ui.kpiDensity !== undefined && !['comfortable', 'compact'].includes(ui.kpiDensity)) bad('KPI density must be comfortable or compact.');
+    if (ui.mobileDensity !== undefined && !['comfortable', 'compact'].includes(ui.mobileDensity)) bad('Mobile density must be comfortable or compact.');
+    if (ui.heroBudget !== undefined && !['remaining', 'spent', 'hidden'].includes(ui.heroBudget)) bad('Hero budget must be remaining, spent or hidden.');
+    if (ui.defaultTheme !== undefined && !(typeof ui.defaultTheme === 'string' && /^[a-z0-9_-]{0,24}$/i.test(ui.defaultTheme))) bad('Default theme is not valid.');
+    if (ui.sections !== undefined) {
+        if (!ui.sections || typeof ui.sections !== 'object' || Array.isArray(ui.sections)) {
+            bad('Sections must be an object of true/false values.');
+        } else {
+            Object.keys(ui.sections).forEach(k => {
+                if (!DASHBOARD_SECTIONS.includes(k)) bad('Unknown dashboard section: ' + k + '.');
+                else if (typeof ui.sections[k] !== 'boolean') bad('Section ' + k + ' must be true or false.');
+            });
+        }
+    }
+    return out;
+}
+
 const DASHBOARD_MODES = ['household', 'personal', 'combined'];
 
 function validateConfigPayload(body) {
     const errors = [];
 
-    // Dashboard UI preferences: a small closed shape. Unknown keys and values
-    // are refused rather than stored, so the field cannot become a dumping
-    // ground. An empty object clears the household default.
     if (body.dashboardUi !== undefined) {
-        const ui = body.dashboardUi;
-        const SEC = ['kpi', 'insights', 'chart-category', 'chart-family', 'chart-trend', 'chart-payment',
-            'bills', 'reimbursement', 'staff', 'top', 'recent', 'timeline'];
-        const bad = (msg) => errors.push({ field: 'dashboardUi', message: msg });
-        if (ui === null || typeof ui !== 'object' || Array.isArray(ui)) {
-            bad('Dashboard UI preferences must be an object.');
-        } else {
-            const allowed = ['design', 'layout', 'kpiDensity', 'mobileDensity', 'heroBudget', 'defaultTheme', 'sections'];
-            Object.keys(ui).forEach(k => { if (!allowed.includes(k)) bad('Unknown dashboard UI setting: ' + k + '.'); });
-            if (ui.design !== undefined && !['classic', 'new', 'minimal', 'analytics', 'timeline'].includes(ui.design)) bad('Design must be classic, new, minimal, analytics or timeline.');
-            if (ui.layout !== undefined && !['default', 'compact', 'focus'].includes(ui.layout)) bad('Layout must be default, compact or focus.');
-            if (ui.kpiDensity !== undefined && !['comfortable', 'compact'].includes(ui.kpiDensity)) bad('KPI density must be comfortable or compact.');
-            if (ui.mobileDensity !== undefined && !['comfortable', 'compact'].includes(ui.mobileDensity)) bad('Mobile density must be comfortable or compact.');
-            if (ui.heroBudget !== undefined && !['remaining', 'spent', 'hidden'].includes(ui.heroBudget)) bad('Hero budget must be remaining, spent or hidden.');
-            if (ui.defaultTheme !== undefined && !(typeof ui.defaultTheme === 'string' && /^[a-z0-9_-]{0,24}$/i.test(ui.defaultTheme))) bad('Default theme is not valid.');
-            if (ui.sections !== undefined) {
-                if (!ui.sections || typeof ui.sections !== 'object' || Array.isArray(ui.sections)) {
-                    bad('Sections must be an object of true/false values.');
-                } else {
-                    Object.keys(ui.sections).forEach(k => {
-                        if (!SEC.includes(k)) bad('Unknown dashboard section: ' + k + '.');
-                        else if (typeof ui.sections[k] !== 'boolean') bad('Section ' + k + ' must be true or false.');
-                    });
-                }
-            }
-        }
+        dashboardUiErrors(body.dashboardUi).forEach(message => errors.push({ field: 'dashboardUi', message }));
     }
 
     if (body.dashboardMode !== undefined && !DASHBOARD_MODES.includes(body.dashboardMode)) {
@@ -208,6 +214,8 @@ module.exports = {
     parseAmount,
     parseDay,
     validateConfigPayload,
+    dashboardUiErrors,
+    DASHBOARD_SECTIONS,
     entitySpec,
     countReferences,
     ENTITY_FIELDS

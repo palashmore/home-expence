@@ -1553,15 +1553,10 @@
         const json = await res.json();
         const config = json.data || json;
         if (config && typeof config === 'object') {
-          // Preserve locally added categories during replication window
-          if (window.masterConfig && Array.isArray(window.masterConfig.categories) && Array.isArray(config.categories)) {
-            const serverCatNames = new Set(config.categories.map(c => c.name.toLowerCase()));
-            window.masterConfig.categories.forEach(localCat => {
-              if (localCat && localCat.name && !serverCatNames.has(localCat.name.toLowerCase())) {
-                config.categories.push(localCat);
-              }
-            });
-          }
+          // The server's categories are the categories. A locally held name the
+          // server does not have is either unconfirmed or was deleted elsewhere;
+          // merging it back used to resurrect deleted categories and re-save
+          // phantom ones.
 
           // Restore cached budget if server returned undefined
           const cachedBudget = localStorage.getItem(`household_budget_limit_${activeHId}`);
@@ -2986,101 +2981,87 @@
 
   // 3. Category Modals & Actions
   // 3. Category Modals & Actions
-  window.quickAddCategoryToHousehold = async function (name, icon = '🏷️', type = 'expense', defaultPaidTo = '') {
+  window.quickAddCategoryToHousehold = async function (name, icon = '\u{1F3F7}\uFE0F', type = 'expense', defaultPaidTo = '') {
     const cleanName = String(name || '').trim();
     if (!cleanName) return false;
 
     if (window.currentSessionUser && window.currentSessionUser.role === 'VIEWER') {
       const msg = 'Viewer role has read-only access and cannot add or edit categories.';
-      if (window.showToast) window.showToast('error', 'Access Denied', msg);
-      else alert(msg);
+      if (window.showToast) window.showToast('error', 'Access denied', msg);
       return false;
     }
 
-    // 1. Immediate optimistic addition to in-memory config & DOM
-    if (!window.masterConfig) window.masterConfig = {};
-    if (!Array.isArray(window.masterConfig.categories)) window.masterConfig.categories = [];
-    
-    const existingIdx = window.masterConfig.categories.findIndex(c => c.name.toLowerCase() === cleanName.toLowerCase());
     const newCatObj = {
       name: cleanName,
-      icon: icon || '🏷️',
+      icon: icon || '\u{1F3F7}\uFE0F',
       type: type || 'expense',
       defaultPaidTo: defaultPaidTo || ''
     };
-    if (existingIdx !== -1) {
-      window.masterConfig.categories[existingIdx] = { ...window.masterConfig.categories[existingIdx], ...newCatObj };
-    } else {
-      window.masterConfig.categories.push(newCatObj);
+
+    // PERSIST FIRST. Nothing on screen changes until the server has said yes.
+    let json = null;
+    try {
+      const activeHId = (typeof getActiveHouseholdId === 'function')
+        ? getActiveHouseholdId()
+        : ((window.currentSessionUser && window.currentSessionUser.householdId) || 'H001');
+
+      const res = await fetch(`/api/config?householdId=${encodeURIComponent(activeHId)}`, {
+        method: 'POST',
+        headers: getAdvanceAuthHeaders({
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }),
+        cache: 'no-store',
+        body: JSON.stringify({ action: 'add_category', category: newCatObj, householdId: activeHId })
+      });
+      json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success || !json.data) {
+        // The server's own words, not a generic "failed".
+        const why = (json && (json.error || (json.errors && json.errors[0] && json.errors[0].message)))
+          || ('The server refused the request (' + res.status + ').');
+        if (window.showToast) window.showToast('error', 'Category not saved', why);
+        return false;
+      }
+    } catch (e) {
+      // Offline or unreachable: the category does NOT exist, and the screen
+      // must not pretend it does.
+      if (window.showToast) {
+        window.showToast('error', 'Category not saved', 'Could not reach the server. Nothing was changed.');
+      }
+      return false;
     }
 
-    // Immediately update globals and dropdowns with the new category pre-selected
-    if (window.updateGlobalsFromConfig) window.updateGlobalsFromConfig(window.masterConfig);
+    // READ BACK. The response is the canonical configuration; adopt it whole
+    // rather than splicing our own object in.
+    window.masterConfig = json.data;
+    if (window.updateGlobalsFromConfig) window.updateGlobalsFromConfig(json.data);
     syncDropdownsWithConfig(cleanName);
     if (window.renderAdminView) window.renderAdminView();
 
-    // Directly ensure #inputCategory selects the new category
+    const stored = (json.data.categories || []).some(c => String(c.name).toLowerCase() === cleanName.toLowerCase());
+    if (!stored) {
+      if (window.showToast) {
+        window.showToast('error', 'Category not saved', 'The server did not keep the new category. Try again.');
+      }
+      return false;
+    }
+
+    // Now that it is real, select it in the expense form if that is where the
+    // person was.
     const catSelect = document.getElementById('inputCategory');
     if (catSelect) {
       catSelect.value = cleanName;
       if (typeof onCategoryChange === 'function') onCategoryChange();
     }
-
-    // If default payee is provided and paidTo field is empty, autofill it
     if (defaultPaidTo) {
       const paidToInput = document.getElementById('inputPaidTo');
-      if (paidToInput && !paidToInput.value.trim()) {
-        paidToInput.value = defaultPaidTo;
-      }
+      if (paidToInput && !paidToInput.value.trim()) paidToInput.value = defaultPaidTo;
     }
+    if (window.renderAllViews) window.renderAllViews();
 
-    try {
-      const activeHId = (typeof getActiveHouseholdId === 'function') 
-        ? getActiveHouseholdId() 
-        : ((window.currentSessionUser && window.currentSessionUser.householdId) || 'H001');
-
-      const headers = getAdvanceAuthHeaders({
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
-      });
-
-      const res = await fetch(`/api/config?householdId=${encodeURIComponent(activeHId)}`, {
-        method: 'POST',
-        headers: headers,
-        cache: 'no-store',
-        body: JSON.stringify({
-          action: 'add_category',
-          category: newCatObj,
-          householdId: activeHId
-        })
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data) {
-          window.masterConfig = json.data;
-          if (window.updateGlobalsFromConfig) window.updateGlobalsFromConfig(json.data);
-          syncDropdownsWithConfig(cleanName);
-          if (window.renderAdminView) window.renderAdminView();
-          
-          if (catSelect) {
-            catSelect.value = cleanName;
-            if (typeof onCategoryChange === 'function') onCategoryChange();
-          }
-        }
-      }
-      if (window.showToast) {
-        window.showToast('success', 'Category Saved', `"${cleanName}" has been added to Master Settings.`);
-      }
-      return true;
-    } catch (e) {
-      console.warn('quickAddCategoryToHousehold network notice:', e);
-      if (window.showToast) {
-        window.showToast('success', 'Category Saved', `"${cleanName}" has been added to Master Settings.`);
-      }
-      return true;
-    }
+    if (window.showToast) window.showToast('success', 'Category saved', cleanName);
+    return true;
   };
 
   window.promptNewCategoryForExpense = function () {
@@ -4845,8 +4826,12 @@
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
-          const currentUsername = (window.currentUser && (window.currentUser.username || window.currentUser.name) || '').toLowerCase();
-          const currentUserId = (window.currentUser && (window.currentUser.userId || window.currentUser.id)) || '';
+          // The signed-in user. This used to read a global that
+          // nothing assigns, so "me" was always empty: read state never matched
+          // and every event looked like it came from somebody else.
+          const me = window.currentSessionUser || {};
+          const currentUsername = String(me.username || me.name || '').toLowerCase();
+          const currentUserId = me.userId || me.id || '';
 
           json.data.forEach(item => {
             if (dismissed.includes(item.id)) return;
@@ -4859,11 +4844,16 @@
               shownInAppBannerIds.add(item.id);
               const notifTime = item.timestamp ? new Date(item.timestamp).getTime() : 0;
               const age = Date.now() - notifTime;
-              const isOtherUser = (item.actor && item.actor.toLowerCase() !== currentUsername && item.actor.toLowerCase() !== 'you') || item.type === 'TEST_PUSH';
+              // Compare by user id when the record has one; the display name is only
+              // a fallback for events written before actorUserId existed.
+              const isOtherUser = item.actorUserId
+                ? item.actorUserId !== currentUserId
+                : !!(item.actor && item.actor.toLowerCase() !== currentUsername && item.actor.toLowerCase() !== 'you');
               if (age < 60000 && isOtherUser) {
                 if (window.showInAppNotificationBanner) {
                   window.showInAppNotificationBanner({
                     id: item.id,
+                    eventId: item.eventId || item.id,
                     title: item.title,
                     body: item.body,
                     url: item.url,
@@ -5258,7 +5248,7 @@
 
       // 3. Register Subscription with Backend (Tagged with current logged in user & household)
       const authHeaders = typeof getAdvanceAuthHeaders === 'function' ? getAdvanceAuthHeaders() : { 'Content-Type': 'application/json' };
-      const curUser = (typeof currentUser !== 'undefined' && currentUser) || (window.currentUser) || {};
+      const curUser = window.currentSessionUser || {};
       const curHousehold = (typeof currentHouseholdId !== 'undefined' && currentHouseholdId) || window.currentHouseholdId || curUser.householdId || 'H001';
 
       const subRes = await fetch('/api/notifications', {
@@ -5305,6 +5295,14 @@
   const seenNotificationEventIds = new Set();
 
   window.showInAppNotificationBanner = function ({ id, eventId, notificationEventId, title, body, icon, url, type, actor, amount } = {}) {
+    // A push is addressed to a household and caused by somebody. Ignore one
+    // that belongs to another household, or that this user caused themselves.
+    try {
+      const meNow = window.currentSessionUser || {};
+      const extra = arguments[0] || {};
+      if (extra.householdId && meNow.householdId && extra.householdId !== meNow.householdId) return;
+      if (extra.actorUserId && meNow.userId && extra.actorUserId === meNow.userId) return;
+    } catch (e) {}
     const uniqueKey = eventId || notificationEventId || id || (title + ':' + body);
     if (uniqueKey) {
       if (seenNotificationEventIds.has(uniqueKey)) return;

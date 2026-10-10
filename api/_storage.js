@@ -861,6 +861,8 @@ async function saveHouseholdExpense(householdId, record, actorUser = 'System') {
         ...(existing || {}),
         id: record.id || `exp-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
         householdId: cleanHId,
+        // Kept so a retried create can be recognised; see api/expenses.js.
+        ...(record.clientOpId ? { clientOpId: String(record.clientOpId) } : {}),
         date: record.date,
         amount: Number(record.amount),
         category: category,

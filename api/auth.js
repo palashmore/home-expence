@@ -604,7 +604,21 @@ module.exports = async function handler(req, res) {
                     return res.status(400).json({ success: false, error: "Household name must be at least 2 characters long." });
                 }
 
-                const initialBudget = Number(body.initialBudget) || 50000;
+                // A budget that was supplied but cannot be read is an error, not
+                // an invitation to substitute 50000 - and a deliberate 0 is a
+                // budget, not a missing one. Only an absent field takes the
+                // default.
+                let initialBudget = 50000;
+                if (body.initialBudget !== undefined && body.initialBudget !== null && body.initialBudget !== '') {
+                    const parsed = Number(String(body.initialBudget).replace(/[\u20B9,\s]/g, ''));
+                    if (!Number.isFinite(parsed) || parsed < 0) {
+                        return res.status(422).json({
+                            success: false,
+                            error: "Validation Error: the household budget must be a number of 0 or more."
+                        });
+                    }
+                    initialBudget = parsed;
+                }
                 const ownerUserId = body.ownerUserId || session.userId;
                 const ownerUser = storage.getUserById(ownerUserId);
 
@@ -744,8 +758,10 @@ module.exports = async function handler(req, res) {
                 const session = authenticateRequest(req);
                 if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
                 const isSysAdmin = session.role === 'ADMIN' || session.role === 'SYSTEM_ADMIN';
-                if (!isSysAdmin && session.role !== 'OWNER') {
-                    return res.status(403).json({ success: false, error: "Forbidden: Administrator or Household Owner role required to edit users." });
+                // User management is a System Administrator function. A household
+                // owner manages their household's data, not its accounts.
+                if (!isSysAdmin) {
+                    return res.status(403).json({ success: false, error: "Forbidden: only a System Administrator can edit users." });
                 }
 
                 const targetUId = String(body.userId || '').trim();
@@ -842,8 +858,10 @@ module.exports = async function handler(req, res) {
                 const session = authenticateRequest(req);
                 if (!session) return res.status(401).json({ success: false, error: "Authentication required." });
                 const isSysAdmin = session.role === 'ADMIN' || session.role === 'SYSTEM_ADMIN';
-                if (!isSysAdmin && session.role !== 'OWNER') {
-                    return res.status(403).json({ success: false, error: "Forbidden: Administrator or Household Owner role required to delete users." });
+                // User management is a System Administrator function. A household
+                // owner manages their household's data, not its accounts.
+                if (!isSysAdmin) {
+                    return res.status(403).json({ success: false, error: "Forbidden: only a System Administrator can delete users." });
                 }
 
                 const targetUId = String(body.userId || '').trim();

@@ -2441,7 +2441,10 @@
                 </div>
 
                 <!-- CARD 0: Multi-Tenant Household & User Directory (System Administrator Only) -->
-                <div id="adminTenantManagementCard" class="hidden glass-card p-6 rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/40 via-white to-slate-50/50 shadow-sm space-y-5" data-settings-section="household">
+                <!-- Inert until mounted. syncAdminTenantCard() clones this into the page
+                     for a system administrator and removes it for everyone else, so the
+                     card, its fields and its buttons do not exist for a household user. -->
+                <template id="adminTenantManagementTemplate"><div id="adminTenantManagementCard" class="hidden glass-card p-6 rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/40 via-white to-slate-50/50 shadow-sm space-y-5" data-settings-section="household">
                     <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-indigo-100 pb-4">
                         <div class="flex items-center space-x-3">
                             <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-indigo-500/20">
@@ -2527,7 +2530,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
+                </div></template>
 
                 <!-- CARD 1: Domestic Staff & Leave Policy Configurator -->
                 <div class="glass-card p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4" data-settings-section="staff">
@@ -3465,7 +3468,7 @@
     </div>
 
     <!-- Toast Notification System -->
-    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col space-y-3 pointer-events-none max-w-sm w-full"></div>
+    <div id="toastContainer" class="toast-stack pointer-events-none" aria-live="polite"></div>
 
 
     <!-- ================= ADMIN MODAL 1: ADD STAFF MEMBER ================= -->
@@ -3813,6 +3816,9 @@
         </div>
     </div>
 
+    <!-- Admin-only dialogs. Inert until syncAdminTenantCard() mounts them for a
+         system administrator; for everyone else they are not in the page. -->
+    <template id="adminModalsTemplate">
     <!-- ================= MODAL: CREATE NEW HOUSEHOLD ================= -->
     <div id="modalCreateHousehold" class="modal-backdrop fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="modalCreateHouseholdTitle">
         <div class="modal-content glass-card bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden transform transition-all">
@@ -4113,6 +4119,7 @@
     </div>
 
     <!-- Core Application Logic -->
+    </template>
     <script src="tracker_app.js?v=5.6.0"></script>
     <script src="advance_modules.js?v=5.6.0"></script>
     <script src="ui_actions.js?v=5.6.0"></script>

@@ -135,7 +135,7 @@ function getHouseholdInAppNotifications(householdId, limit = 50) {
     return [];
 }
 
-function recordHouseholdInAppNotification({ householdId, title, body, url, tag, actor, type = 'activity', amount = null }) {
+function recordHouseholdInAppNotification({ householdId, title, body, url, tag, actor, actorUserId = null, type = 'activity', amount = null, eventId = null }) {
     try {
         const file = getHouseholdNotifsFile(householdId);
         let list = [];
@@ -145,17 +145,21 @@ function recordHouseholdInAppNotification({ householdId, title, body, url, tag, 
         if (!Array.isArray(list)) list = [];
 
         const newRecord = {
-            id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            id: eventId || `notif_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            eventId: eventId || undefined,
             householdId: householdId || 'H001',
             title,
             body,
             url: url || '/#tab-expenses',
             tag: tag || `notif-${Date.now()}`,
             actor: actor || 'System',
+            actorUserId: actorUserId || undefined,
             type,
             amount,
             timestamp: new Date().toISOString(),
-            readBy: []
+            // The person who did it already knows. It stays in their activity
+            // feed but is not an unread alert for them.
+            readBy: actorUserId ? [actorUserId] : []
         };
 
         list.unshift(newRecord);
@@ -200,14 +204,22 @@ async function sendPushToAll(payload) {
 
 // Dispatch push notification to ALL linked household members (including actor confirmation)
 async function sendPushToHouseholdMembers({ householdId, title, body, url, tag, excludeUserId, excludeUsername, actor, type = 'activity', amount = null }) {
+    // One id for one logical event. The in-app record, the push payload and any
+    // local notification all carry it, so the client can recognise the same
+    // event arriving by three routes and show it once. Deduplicating on title or
+    // text could not: the actor sees a different title from everyone else.
+    const eventId = `evt_${householdId}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
     // 1. Record In-App notification for the household
     recordHouseholdInAppNotification({
+        eventId,
         householdId,
         title,
         body,
         url,
         tag,
         actor: actor?.name || actor?.username || 'Household Member',
+        actorUserId: actor?.userId || null,
         type,
         amount
     });
@@ -263,11 +275,16 @@ async function sendPushToHouseholdMembers({ householdId, title, body, url, tag, 
                 body,
                 url: url || '/#tab-expenses',
                 tag: alertTag,
+                eventId,
+                householdId,
+                actorUserId: actor?.userId || null,
                 icon: '/icon-192.png',
                 badge: '/icon-192.png',
                 silent: false,
-                requireInteraction: true,
-                vibrate: [300, 100, 300, 100, 300],
+                // A routine "expense added" must not pin itself to the screen
+                // until somebody swipes it away, nor buzz for a second.
+                requireInteraction: false,
+                vibrate: [120],
                 timestamp: Date.now()
             });
 
@@ -655,11 +672,17 @@ module.exports = async function handler(req, res) {
                     return res.status(400).json({ success: false, error: "Invalid PushSubscription payload." });
                 }
 
+                // Identity comes from the session and nowhere else. Reading it from
+                // the request body, defaulting to H001, let an anonymous caller
+                // register a device for any household's expense notifications.
                 const session = authenticateRequest(req);
-                const householdId = (session && session.householdId) || body.householdId || 'H001';
-                const userId = (session && session.userId) || body.userId || 'U001';
-                const username = (session && (session.username || session.name)) || body.username || 'user';
-                const name = (session && (session.name || session.username)) || body.name || username;
+                if (!session) {
+                    return res.status(401).json({ success: false, error: "Sign in to enable notifications on this device." });
+                }
+                const householdId = session.householdId;
+                const userId = session.userId;
+                const username = session.username || session.name || 'user';
+                const name = session.name || session.username || username;
 
                 const subs = await readSubscriptions();
                 const existingIdx = subs.findIndex(s => s.endpoint === subscription.endpoint);
@@ -715,9 +738,17 @@ module.exports = async function handler(req, res) {
             if (postAction === 'unsubscribe') {
                 const endpoint = body.endpoint;
                 if (!endpoint) return res.status(400).json({ success: false, error: "Endpoint required." });
+                const unsubSession = authenticateRequest(req);
+                if (!unsubSession) {
+                    return res.status(401).json({ success: false, error: "Sign in required." });
+                }
+                const isAdminCaller = unsubSession.role === 'ADMIN' || unsubSession.role === 'SYSTEM_ADMIN';
 
                 let subs = await readSubscriptions();
-                subs = subs.filter(s => s.endpoint !== endpoint);
+                // Only the caller's own device, so one user cannot silence
+                // another's notifications by naming their endpoint.
+                subs = subs.filter(s => !(s.endpoint === endpoint &&
+                    (isAdminCaller || s.userId === unsubSession.userId)));
                 await writeSubscriptions(subs);
 
                 return res.status(200).json({
@@ -727,19 +758,14 @@ module.exports = async function handler(req, res) {
                 });
             }
 
-            // 3. Test Push Route (Disabled in Production)
-            if (postAction === 'test_push') {
-                return res.status(403).json({
-                    success: false,
-                    error: "Test push notifications are disabled in production environment."
-                });
-            }
-
             // 4. Dismiss in-app notifications
             if (postAction === 'dismiss' || postAction === 'dismiss_all') {
                 const session = authenticateRequest(req);
-                const householdId = (session && session.householdId) || body.householdId || 'H001';
-                const userKey = (session && (session.userId || session.username)) || 'user';
+                if (!session) {
+                    return res.status(401).json({ success: false, error: "Sign in required." });
+                }
+                const householdId = session.householdId;
+                const userKey = session.userId || session.username;
                 const notifId = body.id;
 
                 const file = getHouseholdNotifsFile(householdId);

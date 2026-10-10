@@ -112,6 +112,37 @@ module.exports = async function handler(req, res) {
             }
 
             const isEdit = req.method === 'PUT';
+
+            // Idempotency. A client operation id marks one logical "add this
+            // expense". If the same id arrives again - double click, retry after
+            // a timeout, offline-queue replay - hand back the record that
+            // already exists rather than writing a second one. Matched inside
+            // this household only, and skipped for edits, which are already
+            // idempotent by record id and version.
+            // Only a true create is deduplicated. A POST that names an existing
+            // record id is an upsert - an edit - and the stored record keeps its
+            // original clientOpId, so treating that as a retry swallowed real
+            // edits (the two-device audit caught a stale write being "accepted").
+            const isCreate = !isEdit && !body.id;
+            const opId = (isCreate && body.clientOpId)
+                ? String(body.clientOpId).trim().slice(0, 80)
+                : '';
+            if (opId) {
+                const existingList = await storage.getHouseholdExpenses(householdId, true);
+                const prior = (existingList || []).find(e => e && e.clientOpId === opId);
+                if (prior) {
+                    return res.status(200).json({
+                        success: true,
+                        duplicate: true,
+                        message: "Expense record was already saved.",
+                        data: prior
+                    });
+                }
+                body.clientOpId = opId;
+            } else {
+                delete body.clientOpId;
+            }
+
             const saved = await storage.saveHouseholdExpense(householdId, body, actorUser);
 
             // Automatically ensure newly recorded category is synced into household Master Settings

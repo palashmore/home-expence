@@ -804,6 +804,11 @@
 
         <!-- ================= TAB 1: LUXURY DASHBOARD COMMAND CENTER ================= -->
         <div id="view-dashboard" class="tab-view space-y-6">
+
+            <!-- New dashboard design. Empty until the Appearance setting selects it;
+                 built and filled by dashboard_ui.js. The classic dashboard below is
+                 the default and is left exactly as it was. -->
+            <div id="dashNew" class="dn" aria-label="Dashboard"></div>
             
             <!-- ================= MOBILE HOME (phone only) =================
                  Phones lead with one figure and a period switch; the desktop
@@ -4097,6 +4102,72 @@
                     </div>
                 </div>
 
+                <!-- Dashboard design for this person. Set here by the administrator who
+                     manages the account; the person simply gets it when they sign in. -->
+                <details id="editUserDashboard" class="border border-slate-200 rounded-xl overflow-hidden">
+                    <summary class="px-3 py-2.5 bg-slate-50 hover:bg-slate-100 flex items-center justify-between gap-2 cursor-pointer min-h-[44px]">
+                        <span class="flex items-center gap-2 min-w-0">
+                            <svg class="ic text-slate-400 text-xs" aria-hidden="true"><use href="#i-palette"></use></svg>
+                            <span class="text-xs font-semibold text-slate-700 uppercase tracking-wider">Dashboard Design</span>
+                        </span>
+                        <span id="dashUiSummary" class="text-xs font-medium text-slate-500">Default</span>
+                    </summary>
+                    <div id="editUserDashboardBody" class="p-3 space-y-3 border-t border-slate-200">
+                        <p class="text-xs text-slate-500 leading-relaxed">Which dashboard this person sees, and how it is laid out. Presentation only: no figure changes.</p>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiDesign">Dashboard design</label>
+                            <select id="dashUiDesign" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
+                                <option value="classic">Default dashboard</option>
+                                <option value="new">New UI dashboard - Overview</option>
+                                <option value="minimal">New UI dashboard - Minimal (glance)</option>
+                                <option value="analytics">New UI dashboard - Analytics (charts first)</option>
+                                <option value="timeline">New UI dashboard - Timeline (day by day)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiLayout">New dashboard layout</label>
+                            <select id="dashUiLayout" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
+                                <option value="default">Default</option>
+                                <option value="compact">Compact</option>
+                                <option value="focus">Financial Focus</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiKpi">KPI card density</label>
+                            <select id="dashUiKpi" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
+                                <option value="comfortable">Comfortable</option>
+                                <option value="compact">Compact</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiMobile">Mobile dashboard density</label>
+                            <select id="dashUiMobile" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
+                                <option value="comfortable">Comfortable</option>
+                                <option value="compact">Compact</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiHeroBudget">Budget on the phone home card</label>
+                            <select id="dashUiHeroBudget" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold">
+                                <option value="remaining">Show remaining budget</option>
+                                <option value="spent">Show amount spent (budget below)</option>
+                                <option value="hidden">Hide budget</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="dashUiTheme">Default theme</label>
+                            <select id="dashUiTheme" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold"></select>
+                        </div>
+                    </div>
+                    <fieldset>
+                        <legend class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Show these sections (charts and lists)</legend>
+                        <div id="dashUiSections" class="grid grid-cols-1 sm:grid-cols-2 gap-1"></div>
+                    </fieldset>
+                        <button type="button" id="dashUiClear" class="px-3 py-2 min-h-[44px] bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">Use the default dashboard</button>
+                    </div>
+                </details>
+
                 <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
                     <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider" for="editUserPassword">Reset Password (Optional)</label>
                     <input type="password" id="editUserPassword" placeholder="Leave blank to keep current password" class="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-900 focus:border-emerald-500 transition">
@@ -4123,5 +4194,7 @@
     <script src="tracker_app.js?v=5.6.0"></script>
     <script src="advance_modules.js?v=5.6.0"></script>
     <script src="ui_actions.js?v=5.6.0"></script>
+    <script src="dashboard_ui.js?v=5.6.0"></script>
+    <script src="modal_ui.js?v=5.6.0"></script>
 </body>
 </html>

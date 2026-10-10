@@ -346,24 +346,6 @@ button, select, input, .tab-btn, .bnav-btn, [role="button"] {
     to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* Mobile modal enhancements */
-@media (max-width: 640px) {
-    .modal-backdrop { padding: 8px !important; }
-    /* ...except a bottom sheet, which is supposed to meet the edge. */
-    #expenseModal.modal-backdrop { padding: 0 !important; }
-    .modal-content {
-        max-height: 95vh !important;
-        display: flex !important;
-        flex-direction: column !important;
-    }
-    .modal-content form,
-    .modal-content .modal-scroll-body {
-        max-height: calc(95vh - 120px) !important;
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch;
-    }
-}
-
 /* =============================================
    FORM CONTROLS
    ============================================= */
@@ -3065,3 +3047,443 @@ button.min-h-\[36px\] { min-height: 36px; }
 .toast-out { opacity: 0; transform: translateY(-4px); transition: opacity 180ms ease, transform 180ms ease; }
 @keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .toast-item { animation: none; } }
+
+
+/* =================================================================
+   NEW DASHBOARD DESIGN  (#dashNew)
+   -----------------------------------------------------------------
+   Shown only when Appearance selects "New UI dashboard". The classic
+   dashboard is the default and is not styled or altered from here:
+   it is simply not displayed while the new design is on. Same tokens
+   as the rest of the app, so every theme applies.
+   ================================================================= */
+#dashNew { display: none; }
+html:is([data-dash-design="new"], [data-dash-design="minimal"], [data-dash-design="analytics"], [data-dash-design="timeline"]) #dashNew { display: block; }
+html:is([data-dash-design="new"], [data-dash-design="minimal"], [data-dash-design="analytics"], [data-dash-design="timeline"]) #view-dashboard > :not(#dashNew) { display: none !important; }
+.dash-section-off { display: none !important; }
+.dn-off { display: none !important; }
+
+.dn { color: var(--ink-1); }
+.dn > * + * { margin-top: 1rem; }
+.dn .ic { width: 1.1em; height: 1.1em; flex: none; }
+
+/* header */
+.dn-top { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.dn-eyebrow { font-size: var(--fs-xs); font-weight: var(--fw-heading); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
+.dn-title { font-size: var(--fs-2xl); font-weight: var(--fw-figure); line-height: 1.1; }
+.dn-chip { display: inline-flex; align-items: center; gap: .4rem; min-height: 44px; padding: 0 .9rem; border-radius: var(--r-pill);
+    background: var(--surface-1); border: 1px solid var(--line-2); color: var(--ink-2); font-size: var(--fs-xs); font-weight: var(--fw-heading); }
+
+/* hero */
+.dn-hero { display: grid; grid-template-columns: auto 1fr; gap: 1rem 1.25rem; align-items: center; padding: 1.25rem;
+    border-radius: var(--r-lg); border: 1px solid var(--line-1);
+    background: linear-gradient(135deg, var(--accent-soft), var(--surface-1) 70%); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.dn-ring { position: relative; width: 112px; height: 112px; }
+.dn-ring-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.dn-ring-bg { fill: none; stroke: var(--surface-3); stroke-width: 9; }
+.dn-ring-fg { fill: none; stroke: var(--accent); stroke-width: 9; stroke-linecap: round; transition: stroke-dasharray .4s ease; }
+.dn-ring-fg.is-warn { stroke: var(--sem-warning); }
+.dn-ring-fg.is-over { stroke: var(--sem-danger); }
+.dn-ring-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: var(--fw-figure); font-size: var(--fs-lg); font-variant-numeric: tabular-nums; }
+.dn-hero-label { font-size: var(--fs-xs); font-weight: var(--fw-heading); color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+.dn-hero-fig { font-size: 2.25rem; line-height: 1.1; font-weight: var(--fw-figure); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.dn-hero-fig.is-over { color: var(--sem-danger); }
+.dn-hero-note { font-size: var(--fs-xs); color: var(--ink-3); margin-top: .15rem; }
+.dn-hero-stats { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; padding-top: .75rem; border-top: 1px solid var(--line-1); }
+.dn-hero-stats dt { font-size: var(--fs-xs); color: var(--ink-3); font-weight: var(--fw-heading); text-transform: uppercase; letter-spacing: .04em; }
+.dn-hero-stats dd { font-weight: var(--fw-figure); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dn-hero-stats dd.is-negative, .dn-kpi-v.is-negative { color: var(--sem-danger); }
+.dn-hero-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .5rem; }
+.dn-btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 44px; padding: 0 1rem; flex: 1 1 8rem;
+    border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-1); color: var(--ink-1); font-size: var(--fs-sm); font-weight: var(--fw-heading); }
+.dn-btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+/* key figures */
+.dn-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+.dn-kpi { display: grid; grid-template-columns: auto 1fr; column-gap: .6rem; align-items: center; padding: .85rem 1rem; min-width: 0;
+    border-radius: var(--r-md); border: 1px solid var(--line-1); background: var(--surface-1); }
+.dn-kpi-ic { grid-row: span 2; display: flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--accent); }
+.dn-kpi-k { font-size: var(--fs-xs); color: var(--ink-3); font-weight: var(--fw-heading); text-transform: uppercase; letter-spacing: .04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dn-kpi-v { font-size: var(--fs-lg); font-weight: var(--fw-figure); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dn-morebtn { display: none; }
+
+/* insights */
+.dn-insights { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .5rem; }
+.dn-ins { min-width: 0; padding: .6rem .8rem; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line-1); }
+.dn-ins span { display: block; font-size: .6875rem; color: var(--ink-3); font-weight: var(--fw-heading); text-transform: uppercase; letter-spacing: .04em; }
+.dn-ins strong { display: block; font-size: var(--fs-sm); font-weight: var(--fw-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dn-ins strong[data-tone="good"] { color: var(--sem-success); }
+.dn-ins strong[data-tone="bad"] { color: var(--sem-danger); }
+
+/* cards */
+.dn-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 1rem; }
+.dn-card { grid-column: span 12; min-width: 0; padding: 1rem 1.1rem; border-radius: var(--r-lg); border: 1px solid var(--line-1); background: var(--surface-1); }
+.dn-span-4 { grid-column: span 4; } .dn-span-5 { grid-column: span 5; } .dn-span-6 { grid-column: span 6; } .dn-span-7 { grid-column: span 7; }
+.dn-card-title { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-sm); font-weight: var(--fw-heading); margin-bottom: .75rem; list-style: none; }
+.dn-card-title::-webkit-details-marker { display: none; }
+.dn-fold > summary { cursor: pointer; }
+.dn-fold[open] > summary .ic { transform: rotate(180deg); }
+.dn-empty { font-size: var(--fs-xs); color: var(--ink-3); padding: .5rem 0; }
+.dn-link { margin-top: .5rem; min-height: 44px; font-size: var(--fs-xs); font-weight: var(--fw-heading); color: var(--accent); }
+
+/* bars */
+.dn-bar + .dn-bar { margin-top: .7rem; }
+.dn-bar-head { display: flex; justify-content: space-between; gap: .5rem; font-size: var(--fs-xs); font-weight: var(--fw-heading); color: var(--ink-2); }
+.dn-bar-head span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dn-bar-head span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dn-bar-track { height: 8px; margin-top: 4px; border-radius: var(--r-pill); background: var(--surface-3); overflow: hidden; }
+.dn-bar-fill { height: 100%; border-radius: var(--r-pill); }
+.dn-t0 { background: #6366f1; } .dn-t1 { background: #10b981; } .dn-t2 { background: #f59e0b; }
+.dn-t3 { background: #ec4899; } .dn-t4 { background: #06b6d4; } .dn-t5 { background: #94a3b8; }
+
+/* trend */
+.dn-trend { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; align-items: end; height: 170px; }
+.dn-trend-col { display: flex; flex-direction: column; align-items: center; height: 100%; }
+.dn-trend-bars { flex: 1; display: flex; align-items: flex-end; gap: 2px; width: 100%; justify-content: center; }
+.dn-trend-b { display: block; width: 42%; max-width: 14px; min-height: 2px; border-radius: 3px 3px 0 0; }
+.dn-trend-exp { background: #6366f1; }
+.dn-trend-inc { background: #10b981; }
+.dn-trend-m { font-size: .6875rem; color: var(--ink-3); margin-top: 4px; }
+.dn-legend { display: flex; align-items: center; gap: .4rem; margin-top: .6rem; font-size: var(--fs-xs); color: var(--ink-3); }
+.dn-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+
+/* rows and transactions */
+.dn-rows { display: flex; flex-direction: column; gap: .5rem; }
+.dn-rows li { display: flex; justify-content: space-between; gap: .75rem; font-size: var(--fs-sm); padding: .5rem 0; border-bottom: 1px solid var(--line-1); }
+.dn-row-r { color: var(--ink-2); font-weight: var(--fw-heading); text-align: right; }
+.dn-row-r.is-bad { color: var(--sem-danger); }
+.dn-list { display: flex; flex-direction: column; gap: .5rem; }
+.dn-tx { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; min-height: 56px; padding: .5rem .75rem; text-align: left;
+    border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line-1); }
+.dn-tx-main { display: flex; flex-direction: column; min-width: 0; }
+.dn-tx-main strong { font-size: var(--fs-sm); font-weight: var(--fw-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dn-tx-main small { font-size: var(--fs-xs); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dn-tx-amt { font-weight: var(--fw-figure); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dn-reimb { max-height: 300px; overflow-y: auto; }
+
+/* density */
+html[data-dash-layout="compact"] .dn > * + * { margin-top: .6rem; }
+html[data-dash-layout="compact"] .dn-card { padding: .7rem .8rem; }
+html[data-dash-kpi="compact"] .dn-kpi { padding: .5rem .7rem; }
+html[data-dash-kpi="compact"] .dn-kpi-ic { display: none; }
+
+/* tablet / small laptop */
+@media (max-width: 1023px) {
+    .dn-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dn-insights { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .dn-span-4, .dn-span-5, .dn-span-6, .dn-span-7 { grid-column: span 12; }
+}
+
+/* phone: one column, secondary figures and cards folded, no horizontal scroll */
+@media (max-width: 767px) {
+    .dn-hero { grid-template-columns: 1fr; justify-items: start; padding: 1rem; }
+    .dn-ring { width: 88px; height: 88px; }
+    .dn-hero-fig { font-size: 2rem; }
+    .dn-hero-stats, .dn-hero-actions { width: 100%; }
+    .dn-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+    .dn-kpi { grid-template-columns: 1fr; padding: .6rem .75rem; }
+    .dn-kpi-ic { display: none; }
+    .dn-kpis:not(.is-open) .dn-more { display: none; }
+    .dn-morebtn { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 .9rem;
+        border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface-1); color: var(--ink-2); font-size: var(--fs-xs); font-weight: var(--fw-heading); }
+    .dn-kpis.is-open .dn-morebtn .ic { transform: rotate(180deg); }
+    .dn-insights { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dn-fold > summary { min-height: 44px; margin-bottom: 0; }
+    html[data-dash-mobile="compact"] .dn-card { padding: .6rem .75rem; }
+    html[data-dash-mobile="compact"] .dn-trend { height: 120px; }
+}
+@media (min-width: 768px) {
+    .dn-fold > summary { pointer-events: none; }
+    .dn-fold > summary .ic { display: none; }
+}
+
+
+/* ---- new dashboard: polish ------------------------------------------------
+   The phone tap-target rule centres every button's content with a selector
+   more specific than a class, so the new dashboard's buttons are anchored by
+   id to keep their own alignment. */
+#dashNew button.dn-tx,
+#dashNew button.dn-btn,
+#dashNew button.dn-chip,
+#dashNew button.dn-morebtn { min-width: 0; }
+#dashNew button.dn-tx { display: flex; align-items: center; justify-content: flex-start; gap: .75rem; text-align: left; }
+#dashNew button.dn-btn, #dashNew button.dn-chip { display: inline-flex; align-items: center; justify-content: center; }
+#dashNew button.dn-morebtn { justify-content: space-between; }
+#dashNew button.dn-link { display: inline-flex; align-items: center; justify-content: flex-start; padding: 0; }
+
+.dn-av { flex: none; display: flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border-radius: 50%;
+    color: #fff; font-size: var(--fs-sm); font-weight: var(--fw-heading); }
+.dn-tx-main { flex: 1 1 auto; align-items: flex-start; text-align: left; }
+.dn-tx-main strong, .dn-tx-main small { max-width: 100%; text-align: left; }
+.dn-tx-amt { flex: none; }
+.dn-tx-amt.is-income { color: var(--sem-success); }
+
+/* a card header is a real header: space around it and a clear focus ring */
+.dn-card-title { padding: .1rem 0 .65rem; border-bottom: 1px solid var(--line-1); }
+.dn-card > .dn-card-title + * { margin-top: .85rem; }
+.dn-fold > summary.dn-card-title { border-radius: var(--r-sm); }
+.dn-fold > summary:focus-visible { outline: none; box-shadow: var(--ring); }
+.dn-fold:not([open]) > summary.dn-card-title { padding-bottom: .1rem; margin-bottom: 0; border-bottom-color: transparent; }
+.dn-fold > div { margin-top: .85rem; }
+
+/* trend: current period stands out, the rest recedes */
+.dn-trend-col.is-sel .dn-trend-m { color: var(--accent); font-weight: var(--fw-figure); }
+.dn-trend:has(.is-sel) .dn-trend-col:not(.is-sel) .dn-trend-b { opacity: .45; }
+.dn-legend-max { margin-right: auto; font-weight: var(--fw-heading); color: var(--ink-2); }
+
+/* figures: calmer weight for labels, stronger numbers */
+.dn-kpi-v { letter-spacing: -.01em; }
+.dn-kpi:hover { border-color: var(--line-2); }
+.dn-hero-stats dd { font-size: var(--fs-base); }
+
+@media (max-width: 767px) {
+    .dn-card { padding: .85rem .9rem; }
+    .dn-card-title { font-size: var(--fs-base); }
+    .dn-tx { min-height: 60px; }
+    #dashNew .dn-reimb { max-height: none; overflow: visible; }
+}
+.dn-card-title { margin-bottom: 0; }
+
+
+/* ---- new dashboard: design variants ---------------------------------------
+   Minimal, Analytics and Timeline rearrange the same pieces. Everything here
+   is scoped by the data-dn-design attribute on #dashNew. */
+.dn-span-8 { grid-column: span 8; } .dn-span-12 { grid-column: span 12; }
+.dn-aside { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.dn-aside > .dn-card { grid-column: auto; }
+
+/* Minimal: one calm column, large type, nothing competing with the budget */
+.dn[data-dn-design="minimal"] { max-width: 760px; margin-inline: auto; }
+.dn[data-dn-design="minimal"] .dn-hero { text-align: center; grid-template-columns: 1fr; justify-items: center; background: var(--surface-1); }
+.dn[data-dn-design="minimal"] .dn-hero-fig { font-size: 3rem; }
+.dn[data-dn-design="minimal"] .dn-hero-stats { text-align: center; }
+.dn[data-dn-design="minimal"] .dn-hero-actions { justify-content: center; }
+.dn[data-dn-design="minimal"] .dn-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dn[data-dn-design="minimal"] .dn-more { display: none; }
+.dn[data-dn-design="minimal"] .dn-morebtn { display: none !important; }
+.dn[data-dn-design="minimal"] .dn-kpi:nth-child(n+5) { display: none; }
+.dn[data-dn-design="minimal"] .dn-kpi-ic { display: none; }
+
+/* Analytics: charts lead, taller trend, accent edge on cards */
+.dn[data-dn-design="analytics"] .dn-card { border-top: 3px solid var(--accent); }
+.dn[data-dn-design="analytics"] .dn-tall .dn-trend { height: 240px; }
+.dn[data-dn-design="analytics"] .dn-hero { grid-template-columns: auto 1fr auto; }
+.dn[data-dn-design="analytics"] .dn-hero-stats, .dn[data-dn-design="analytics"] .dn-hero-actions { grid-column: 1 / -1; }
+.dn[data-dn-design="analytics"] .dn-kpi-v { font-size: var(--fs-xl, 1.35rem); }
+
+/* Timeline: day groups with their total */
+.dn-day + .dn-day { margin-top: 1rem; }
+.dn-day-head { display: flex; justify-content: space-between; align-items: center; padding: 0 .25rem .4rem;
+    font-size: var(--fs-xs); font-weight: var(--fw-heading); text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
+.dn-day-head span:last-child { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.dn[data-dn-design="timeline"] .dn-day .dn-list { border-left: 2px solid var(--line-2); padding-left: .6rem; margin-left: .25rem; }
+
+@media (max-width: 1023px) {
+    .dn-span-8, .dn-span-12 { grid-column: span 12; }
+    .dn-aside { grid-column: span 12; }
+    .dn[data-dn-design="analytics"] .dn-hero { grid-template-columns: auto 1fr; }
+}
+@media (max-width: 767px) {
+    .dn[data-dn-design="minimal"] .dn-hero-fig { font-size: 2.4rem; }
+    .dn[data-dn-design="analytics"] .dn-tall .dn-trend { height: 170px; }
+}
+
+
+/* =================================================================
+   DIALOG SYSTEM  (every .modal-backdrop / .modal-content)
+   -----------------------------------------------------------------
+   One set of rules for every open window. The panel never grows past
+   the visible screen: the header stays put, the fields scroll, and the
+   button row stays in view. On a phone, form dialogs are bottom sheets
+   (where the thumb is) and questions or messages stay centred. modal_ui.js
+   adds the behaviour: page scroll lock, focus, Tab and Escape.
+   ================================================================= */
+.modal-backdrop {
+    overscroll-behavior: contain;
+    padding: max(.75rem, env(safe-area-inset-top)) max(.75rem, env(safe-area-inset-right)) max(.75rem, env(safe-area-inset-bottom)) max(.75rem, env(safe-area-inset-left));
+}
+.modal-backdrop .modal-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-height: calc(100vh - 1.5rem);
+    max-height: calc(100dvh - 1.5rem);
+    overflow: hidden;
+}
+/* Header and footer keep their size; the form or body is what scrolls. */
+.modal-backdrop .modal-content > *:not(form):not(.modal-scroll-body) { flex-shrink: 0; }
+.modal-backdrop .modal-content > form:not(#expenseForm),
+.modal-backdrop .modal-content > .modal-scroll-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+#expenseModal .modal-content { max-height: min(92dvh, 760px); }
+
+/* The button row at the end of a form stays in view while fields scroll. */
+.dlg-foot {
+    position: sticky;
+    bottom: calc(-1 * var(--dlg-pb, 1.25rem));
+    z-index: 2;
+    margin-inline: calc(-1 * var(--dlg-px, 1.25rem));
+    margin-bottom: calc(-1 * var(--dlg-pb, 1.25rem));
+    padding: .75rem var(--dlg-px, 1.25rem) max(.75rem, env(safe-area-inset-bottom));
+    background: var(--surface-1);
+    border-top: 1px solid var(--line-1);
+}
+
+/* The page behind a dialog does not scroll. */
+html.dlg-open, body.dlg-open { overflow: hidden; }
+
+/* Complex forms get room: two columns of fields need more than a phone card. */
+@media (min-width: 640px) {
+    #modalEditUser .modal-content, #modalCreateUser .modal-content,
+    #modalEditHousehold .modal-content, #modalCreateHousehold .modal-content { max-width: 40rem; }
+    #adminAddStaffModal .modal-content, #settleUpModal .modal-content, #modalMobileFilter .modal-content { max-width: 32rem; }
+}
+
+/* Close buttons are real targets everywhere, not only on a phone. */
+.modal-backdrop .modal-content button[aria-label^="Close"] {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 2.5rem; min-height: 2.5rem; border-radius: var(--r-sm);
+}
+
+/* Phone: form dialogs rise from the bottom edge as sheets. */
+@media (max-width: 639px) {
+    .modal-backdrop:not(.dlg-center) { align-items: flex-end !important; padding: 0 !important; }
+    .modal-backdrop:not(.dlg-center) > .modal-content {
+        max-width: none;
+        max-height: calc(100dvh - max(1rem, env(safe-area-inset-top)));
+        border-radius: var(--r-xl) var(--r-xl) 0 0 !important;
+        border-bottom: 0;
+        padding-bottom: env(safe-area-inset-bottom);
+        animation: sheetRise 220ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    }
+    /* Grab handle: a visual cue that this is a sheet. */
+    .modal-backdrop:not(.dlg-center):not(#expenseModal) > .modal-content::before {
+        content: ""; flex: none; align-self: center;
+        width: 2.5rem; height: 4px; margin: .5rem 0 .25rem; border-radius: 999px; background: var(--line-2);
+    }
+    /* Questions and messages stay centred, with a little air. */
+    .modal-backdrop.dlg-center { padding: 1rem !important; align-items: center !important; }
+    .modal-backdrop.dlg-center > .modal-content { max-height: calc(100dvh - 2rem); }
+}
+@media (max-width: 639px) and (orientation: landscape) {
+    /* A phone on its side has little height: everything becomes a scrolling panel. */
+    .modal-backdrop .modal-content { max-height: calc(100dvh - .5rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .modal-backdrop .modal-content { animation: none !important; }
+}
+
+#btnToggleUserPermissions { justify-content: space-between; }
+
+
+/* =================================================================
+   NEW UI - PRODUCT-WIDE SKIN   (html[data-ui="new"])
+   -----------------------------------------------------------------
+   Set by dashboard_ui.js whenever a user is assigned any New UI
+   dashboard design. Restyles every tab, form, table and dialog to the
+   same language as the new dashboard: calm cards, uppercase eyebrow
+   labels, light table headers, 44px controls, accent only where it
+   means something. Pure CSS on existing markup: no layout, data or
+   behaviour change, and the classic UI (no attribute) is untouched.
+   Everything reads the theme tokens, so every theme and dark mode apply.
+   ================================================================= */
+html[data-ui="new"] body { background: var(--surface-0); }
+
+/* ---- surfaces ------------------------------------------------------------ */
+html[data-ui="new"] .glass-card:not(#desktopSidebar *),
+html[data-ui="new"] .kpi-card {
+    background: var(--surface-1);
+    border: 1px solid var(--line-1);
+    border-radius: var(--r-lg);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+html[data-ui="new"] .kpi-card { transition: border-color .15s ease; }
+html[data-ui="new"] .kpi-card:hover { border-color: var(--line-2); transform: none; box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+html[data-ui="new"] .rounded-2xl:not(.modal-content):not(.luxury-header):not(.m-hero) { border-radius: var(--r-lg); }
+html[data-ui="new"] .rounded-xl { border-radius: var(--r-md); }
+
+/* ---- screen headings ------------------------------------------------------ */
+html[data-ui="new"] .tab-view > h2:first-child,
+html[data-ui="new"] .tab-view > div > h2:first-child { font-size: var(--fs-2xl); font-weight: var(--fw-figure); letter-spacing: -.01em; }
+html[data-ui="new"] .tab-view h3 { letter-spacing: -.005em; }
+html[data-ui="new"] .tab-view .text-xs.uppercase { letter-spacing: .06em; }
+
+/* ---- controls -------------------------------------------------------------- */
+html[data-ui="new"] select,
+html[data-ui="new"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html[data-ui="new"] textarea {
+    background: var(--surface-1);
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-md);
+    color: var(--ink-1);
+}
+html[data-ui="new"] select:focus,
+html[data-ui="new"] input:focus,
+html[data-ui="new"] textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+html[data-ui="new"] label.text-xs, html[data-ui="new"] .tab-view label.block {
+    color: var(--ink-3); font-weight: var(--fw-heading); letter-spacing: .05em;
+}
+html[data-ui="new"] input[type="checkbox"], html[data-ui="new"] input[type="radio"] { accent-color: var(--accent); }
+
+html[data-ui="new"] button:focus-visible, html[data-ui="new"] a:focus-visible, html[data-ui="new"] summary:focus-visible {
+    outline: none; box-shadow: var(--ring);
+}
+/* filled primary buttons use the accent; the rest read as quiet secondary */
+html[data-ui="new"] .tab-view button[class*="bg-indigo-600"], html[data-ui="new"] .tab-view button[class*="bg-indigo-500"],
+html[data-ui="new"] .modal-content button[class*="bg-indigo-600"] {
+    background: var(--accent); color: var(--accent-ink); border-radius: var(--r-md);
+}
+html[data-ui="new"] .tab-view button[class*="bg-slate-100"], html[data-ui="new"] .modal-content button[class*="bg-slate-100"] {
+    background: var(--surface-2); border: 1px solid var(--line-1); color: var(--ink-2); border-radius: var(--r-md);
+}
+
+/* ---- tabs, chips, segmented controls -------------------------------------- */
+html[data-ui="new"] .nav-tabs-scroll .tab-btn { border-radius: var(--r-pill); }
+html[data-ui="new"] .m-seg { background: var(--surface-2); border: 1px solid var(--line-1); border-radius: var(--r-pill); }
+html[data-ui="new"] .active-filter-tag { border-radius: var(--r-pill); }
+
+/* ---- tables: light header, quiet rows --------------------------------------- */
+html[data-ui="new"] table { border-collapse: separate; border-spacing: 0; width: 100%; }
+html[data-ui="new"] table thead, html[data-ui="new"] table thead tr { background: var(--surface-2) !important; }
+html[data-ui="new"] table thead th {
+    background: var(--surface-2) !important;
+    color: var(--ink-3) !important;
+    font-size: var(--fs-xs); font-weight: var(--fw-heading);
+    text-transform: uppercase; letter-spacing: .06em;
+    border-bottom: 1px solid var(--line-2);
+}
+html[data-ui="new"] table tbody tr { transition: background-color .12s ease; }
+html[data-ui="new"] table tbody tr:hover { background: var(--surface-2); }
+html[data-ui="new"] table tbody td { border-bottom: 1px solid var(--line-1); color: var(--ink-1); }
+html[data-ui="new"] table tfoot td { background: var(--surface-2); font-weight: var(--fw-heading); }
+html[data-ui="new"] .overflow-x-auto { border-radius: var(--r-md); }
+
+/* ---- empty states ------------------------------------------------------------- */
+html[data-ui="new"] #emptyDashboardState, html[data-ui="new"] .tab-view [class*="py-12"][class*="text-center"] { color: var(--ink-3); }
+
+/* ---- page chrome -------------------------------------------------------------- */
+html[data-ui="new"] .sidebar-link { border-radius: var(--r-md); }
+html[data-ui="new"] .bnav-btn { border-radius: var(--r-md); }
+html[data-ui="new"] .toast-item { border-radius: var(--r-md); }
+
+/* ---- dialogs ------------------------------------------------------------------ */
+html[data-ui="new"] .modal-content { border-radius: var(--r-lg); border: 1px solid var(--line-1); box-shadow: var(--elev-4); }
+html[data-ui="new"] .modal-content > div:first-child { background: var(--surface-1) !important; border-bottom: 1px solid var(--line-1); color: var(--ink-1); }
+html[data-ui="new"] .modal-content h3 { color: var(--ink-1); font-weight: var(--fw-heading); }
+html[data-ui="new"] #expenseModal .modal-content > div[class*="bg-slate-900"] { background: var(--surface-1) !important; color: var(--ink-1); border-bottom: 1px solid var(--line-1); }
+html[data-ui="new"] #expenseModal .modal-content > div[class*="bg-slate-900"] h3 { color: var(--ink-1); }
+html[data-ui="new"] #expenseModal .modal-content > div[class*="bg-slate-900"] button { color: var(--ink-3); }
+
+/* ---- dark theme keeps contrast ------------------------------------------------ */
+[data-theme="dark"][data-ui="new"] .glass-card,
+html[data-theme="dark"][data-ui="new"] .kpi-card { box-shadow: none; }
+
+/* The shell (header) keeps its own chrome in the new UI. */
+html[data-ui="new"] header select, html[data-ui="new"] header input { background: transparent; border: 0; color: inherit; box-shadow: none; }

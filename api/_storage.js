@@ -621,6 +621,14 @@ function updateUser(userId, updates, actor = 'System') {
         }
     }
 
+    // Dashboard design assigned to this person by an administrator. Stored as the
+    // validated closed shape only; an empty object removes it.
+    if (updates.dashboardUi !== undefined) {
+        const ui = updates.dashboardUi;
+        if (ui && typeof ui === 'object' && Object.keys(ui).length) current.dashboardUi = ui;
+        else delete current.dashboardUi;
+    }
+
     // Check household transfer
     if (updates.householdId && updates.householdId !== current.householdId) {
         const newHId = sanitizeId(updates.householdId);

@@ -1405,6 +1405,9 @@ def audit_dashboard_mode(page, audit, api):
     )
 
     def mode_state():
+        # These checks are about mode gating, not about whether a phone fold is
+        # open: open them so a closed fold cannot read as "section hidden".
+        page.evaluate("() => document.querySelectorAll('details.dash-phone-fold').forEach(d => d.open = true)")
         return page.evaluate(
             """() => {
                 const vis = (id) => {
@@ -1860,6 +1863,7 @@ def audit_design_system(page, audit, api):
                     if (r.width < 18 || r.height < 18) continue;
                     const s = getComputedStyle(el);
                     if (s.visibility === 'hidden' || s.display === 'none') continue;
+                    { const det = el.closest('details'); if (det && !det.open && !el.closest('summary')) continue; }
                     const bg = s.backgroundColor;
                     const alpha = (bg.match(/-?[\d.]+/g) || [])[3];
                     if (alpha !== undefined && Number(alpha) < 0.5) continue;
@@ -1968,6 +1972,10 @@ ACCESSIBLE_NAME_JS = r"""
     };
     const visible = (el) => {
         if (el.offsetParent === null && getComputedStyle(el).position !== 'fixed') return false;
+        // Inside a closed <details> the content is not rendered or exposed, so it
+        // is neither visible nor in need of a name until the section is opened.
+        const det = el.closest('details');
+        if (det && !det.open && !el.closest('summary')) return false;
         const r = el.getBoundingClientRect();
         return r.width > 0 && r.height > 0;
     };
@@ -2664,6 +2672,388 @@ def audit_notifications(browser, audit):
                     c.close()
                 except Exception:
                     pass
+
+def audit_dashboard_redesign(browser, audit):
+    """Which dashboard a person sees is assigned to them, per user, by an
+    administrator. The existing design is the default and must be untouched;
+    every new design must show the same figures. Presentation only."""
+    print("\n[R] dashboard design: assigned per user by an administrator")
+
+    def device(user, pw, w, h, mobile):
+        ctx = browser.new_context(viewport={"width": w, "height": h}, is_mobile=mobile, has_touch=mobile)
+        pg = ctx.new_page()
+        attach_listeners(pg, audit)
+        login(pg, user, pw)
+        pg.wait_for_timeout(1500)
+        return ctx, pg
+
+    PICK_MONTH = """() => { const m = document.getElementById('filterMonth');
+        const o = Array.from(m.options).find(x => /september/i.test(x.textContent));
+        if (o) { m.value = o.value; m.dispatchEvent(new Event('change', {bubbles: true})); } }"""
+    FIGURES = ("() => ['statTotalSpent','statTotalIncome','statNetCashFlow','statAvgPerDay','statBudgetUsed',"
+               "'statBudgetRemaining'].map(id => (document.getElementById(id)||{textContent:''}).textContent.trim())")
+    NEW_FIGURES = ("() => ['dn_statTotalSpent','dn_statTotalIncome','dn_statNetCashFlow','dn_statAvgPerDay','dn_statBudgetUsed',"
+                   "'dn_statBudgetRemaining'].map(id => (document.getElementById(id)||{textContent:''}).textContent.trim())")
+    VIS = "(el) => !!el && el.offsetParent !== null && getComputedStyle(el).visibility !== 'hidden' && el.getBoundingClientRect().height > 0"
+
+    # One administrator session assigns designs to palash, the way the edit-user
+    # dialog does, through the same API call.
+    actx, apg = device("admin", "Admin@123", 1280, 900, False)
+    palash_id = apg.evaluate("""async () => {
+        const r = await fetch('/api/auth?action=admin_overview', {headers: getAuthHeaders()});
+        const j = await r.json();
+        return ((j.users || []).find(u => u.username === 'palash') || {}).userId || null; }""")
+
+    def assign(ui):
+        return apg.evaluate("""async ([id, ui]) => {
+            const r = await fetch('/api/auth', {method: 'POST', headers: getAuthHeaders(),
+                body: JSON.stringify({action: 'edit_user', userId: id, dashboardUi: ui})});
+            return r.status; }""", [palash_id, ui])
+
+    def set_ui(pg, ui):
+        status = assign(ui)
+        reload_app(pg)
+        goto_tab(pg, "dashboard")
+        pg.wait_for_timeout(900)
+        pg.evaluate(PICK_MONTH)
+        pg.wait_for_timeout(1500)
+        return status
+
+    def state(pg):
+        return pg.evaluate("""(VIS) => { const vis = eval('(' + VIS + ')');
+            const q = (s) => document.querySelector(s);
+            return {
+                design: document.documentElement.dataset.dashDesign,
+                newShown: vis(q('#dashNew')),
+                classicShown: vis(q('#statTotalSpent')) || vis(q('#mHeroPrimaryVal')),
+                overflow: Math.round(document.documentElement.scrollWidth - document.documentElement.clientWidth)
+            }; }""", VIS)
+
+    try:
+        audit.record("R the administrator console knows who palash is", bool(palash_id), "no user id for palash")
+        assign({})
+
+        # ------------------------------------------------ the admin's own form
+        apg.evaluate("window.adminFormDirty = false")
+        goto_tab(apg, "admin")
+        apg.wait_for_timeout(1000)
+        apg.evaluate("(id) => openEditUserModal(id)", palash_id)
+        apg.wait_for_timeout(700)
+        has_form = apg.evaluate("() => !!document.getElementById('dashUiDesign') && !!document.getElementById('editUserDashboard')")
+        audit.record("R the edit-user dialog has a Dashboard design section", has_form, "section missing from the dialog")
+        apg.evaluate("() => { document.getElementById('editUserDashboard').open = true; }")
+        apg.select_option("#dashUiDesign", "minimal")
+        apg.evaluate("() => submitEditUser()")
+        apg.wait_for_timeout(2200)
+        saved = apg.evaluate("""async (id) => {
+            const r = await fetch('/api/auth?action=admin_overview', {headers: getAuthHeaders()});
+            const j = await r.json();
+            return ((j.users || []).find(u => u.userId === id) || {}).dashboardUi || null; }""", palash_id)
+        audit.record("R saving the dialog stores that user's dashboard design",
+                     bool(saved) and saved.get("design") == "minimal", "stored %r" % (saved,))
+        apg.evaluate("(id) => openEditUserModal(id)", palash_id)
+        apg.wait_for_timeout(500)
+        audit.record("R reopening the dialog shows the saved design",
+                     apg.input_value("#dashUiDesign") == "minimal", "shows %r" % apg.input_value("#dashUiDesign"))
+        apg.evaluate("() => closeEditUserModal()")
+        assign({})
+
+        # ---------------------------------------------------------------- desktop
+        ctx, pg = device("palash", "Palash@123", 1440, 900, False)
+        try:
+            goto_tab(pg, "dashboard")
+            pg.evaluate(PICK_MONTH)
+            pg.wait_for_timeout(2000)
+            st = state(pg)
+            audit.record("R with nothing assigned the dashboard is the existing (classic) design",
+                         st["design"] in ("classic", None) and st["classicShown"] and not st["newShown"], "state %s" % (st,))
+            audit.record("R classic dashboard carries none of the new pieces",
+                         pg.evaluate("() => !document.querySelector('.dash-phone-fold, #dashInsights, #dashSecondary, #dashChartPayment')"),
+                         "new elements found inside the classic dashboard")
+            audit.record("R classic dashboard keeps its quick-select chips",
+                         pg.evaluate("() => { const r = Array.from(document.querySelectorAll('span')).find(s => /Quick Select/i.test(s.textContent)); return !!r && r.offsetParent !== null; }"),
+                         "quick-select row missing on classic dashboard")
+            audit.record("R Master Settings no longer has an Appearance section",
+                         pg.evaluate("() => !document.querySelector('[data-settings-section=\"appearance\"], #dashUiDesign')"),
+                         "Appearance is still in Master Settings")
+            # Done outside the page so the expected refusal is not logged as a page error.
+            token = pg.evaluate("() => localStorage.getItem('household_auth_token')")
+            denied = ctx.request.post(pg.url.split('#')[0].rstrip('/') + '/api/auth',
+                                      headers={"Authorization": "Bearer " + str(token), "Content-Type": "application/json"},
+                                      data=json.dumps({"action": "edit_user", "userId": palash_id, "dashboardUi": {"design": "new"}}))
+            audit.record("R a user cannot assign their own dashboard design",
+                         denied.status in (401, 403), "a non-administrator got HTTP %s" % denied.status)
+            classic = pg.evaluate(FIGURES)
+
+            set_ui(pg, {"design": "new"})
+            st = state(pg)
+            audit.record("R an assigned New UI dashboard shows instead of the classic one",
+                         st["design"] == "new" and st["newShown"] and not st["classicShown"], "state %s" % (st,))
+            newfig = pg.evaluate(NEW_FIGURES)
+            audit.record("R the new design shows identical figures to the classic design",
+                         newfig == classic and all(classic), "classic %s vs new %s" % (classic, newfig))
+            d = pg.evaluate("""(VIS) => { const vis = eval('(' + VIS + ')');
+                const all = (s) => Array.from(document.querySelectorAll(s));
+                return { kpis: all('#dnKpis .dn-kpi').filter(vis).length, ins: all('#dnInsights .dn-ins').filter(vis).length,
+                         folds: all('#dashNew .dn-fold > summary .ic').filter(vis).length,
+                         hero: vis(document.getElementById('dnHeroFig')),
+                         cat: document.querySelectorAll('#dnCategory .dn-bar').length,
+                         trend: document.querySelectorAll('#dnTrend .dn-trend-col').length,
+                         more: vis(document.getElementById('dnMoreFigures')),
+                         small: all('#dashNew button').filter(vis).filter(b => b.getBoundingClientRect().height < 40).length }; }""", VIS)
+            audit.record("R the new design shows the key figures, insights, hero and charts on laptop",
+                         d["kpis"] >= 6 and d["ins"] == 6 and d["hero"] and d["cat"] >= 1 and d["trend"] == 12, "state %s" % (d,))
+            audit.record("R the new design has no phone-only controls on laptop", not d["more"] and d["folds"] == 0, "state %s" % (d,))
+            audit.record("R the new design buttons are comfortable to click", d["small"] == 0, "%d buttons under 40px" % d["small"])
+            audit.record("R no horizontal overflow on laptop (new design)", st["overflow"] <= 1, "%dpx wider" % st["overflow"])
+
+            pg.evaluate("() => { const b = document.querySelector('#dnRecent .dn-tx'); if (b) b.click(); }")
+            pg.wait_for_timeout(500)
+            opened = pg.evaluate("() => !!document.querySelector('#transactionDetailModal:not(.hidden), dialog[open]')")
+            audit.record("R tapping a recent transaction opens its details", opened, "no detail view opened")
+            pg.keyboard.press("Escape")
+            pg.wait_for_timeout(300)
+
+            for dsg in ("minimal", "analytics", "timeline"):
+                set_ui(pg, {"design": dsg})
+                sd = state(pg)
+                nf = pg.evaluate(NEW_FIGURES)
+                audit.record("R %s design shows on laptop with the same figures" % dsg,
+                             sd["design"] == dsg and sd["newShown"] and not sd["classicShown"] and nf == classic,
+                             "state %s, classic %s vs %s" % (sd, classic, nf))
+                audit.record("R %s design has no horizontal overflow on laptop" % dsg, sd["overflow"] <= 1, "%dpx wider" % sd["overflow"])
+            tl = pg.evaluate("() => document.querySelectorAll('#dnTimeline .dn-day').length")
+            audit.record("R timeline groups activity by day", tl >= 1, "%d day groups" % tl)
+
+            set_ui(pg, {})
+            st = state(pg)
+            audit.record("R clearing the assignment brings the classic design back",
+                         st["design"] == "classic" and st["classicShown"] and not st["newShown"], "state %s" % (st,))
+            audit.record("R switching design does not change any figure", pg.evaluate(FIGURES) == classic,
+                         "figures changed from %s to %s" % (classic, pg.evaluate(FIGURES)))
+        finally:
+            ctx.close()
+
+        # ------------------------------------------------------------------ phone
+        ctx, pg = device("palash", "Palash@123", 390, 844, True)
+        try:
+            set_ui(pg, {})
+            st = state(pg)
+            audit.record("R phone default is the existing design", st["design"] in ("classic", None) and st["classicShown"] and not st["newShown"], "state %s" % (st,))
+            set_ui(pg, {"design": "new"})
+            st = state(pg)
+            audit.record("R phone shows the assigned new dashboard", st["design"] == "new" and st["newShown"] and not st["classicShown"], "state %s" % (st,))
+            audit.record("R no horizontal overflow on phone (new design)", st["overflow"] <= 1, "%dpx wider" % st["overflow"])
+            ph = pg.evaluate("""(VIS) => { const vis = eval('(' + VIS + ')');
+                const all = (s) => Array.from(document.querySelectorAll(s));
+                return {
+                    visibleKpis: all('#dnKpis .dn-kpi').filter(vis).length,
+                    more: vis(document.getElementById('dnMoreFigures')),
+                    folds: all('#dashNew details[data-dn-fold]').map(d => ({open: d.open, h: Math.round(d.querySelector('summary').getBoundingClientRect().height), shown: vis(d)})),
+                    tx: all('#dnRecent .dn-tx').map(b => Math.round(b.getBoundingClientRect().height)),
+                    tables: all('#dashNew table').filter(vis).length,
+                    wide: all('#dashNew *').filter(e => e.getBoundingClientRect().right > window.innerWidth + 1).length,
+                    small: all('#dashNew button').filter(vis).filter(b => b.getBoundingClientRect().height < 44).length
+                }; }""", VIS)
+            audit.record("R phone shows four figures first with a More figures button", ph["visibleKpis"] == 4 and ph["more"], "state %s" % (ph,))
+            pg.evaluate("() => document.getElementById('dnMoreFigures').click()")
+            pg.wait_for_timeout(300)
+            more_n = pg.evaluate("(VIS) => { const vis = eval('(' + VIS + ')'); return Array.from(document.querySelectorAll('#dnKpis .dn-kpi')).filter(vis).length; }", VIS)
+            audit.record("R More figures reveals the rest", more_n >= 6, "only %d figures visible after expanding" % more_n)
+            audit.record("R secondary cards are folded behind 44px headers on phone",
+                         len(ph["folds"]) >= 3 and all((not f["open"]) and f["h"] >= 44 for f in ph["folds"] if f["shown"]), "folds %s" % (ph["folds"],))
+            pg.evaluate("() => document.querySelector('#dashNew details[data-dn-fold] > summary').click()")
+            pg.wait_for_timeout(300)
+            audit.record("R opening a fold shows its content",
+                         pg.evaluate("() => { const d = document.querySelector('#dashNew details[data-dn-fold][open]'); return !!d && d.querySelector(':scope > div').getBoundingClientRect().height > 0; }"),
+                         "fold content still hidden")
+            audit.record("R phone transaction rows are at least 44px tall", ph["tx"] and all(h >= 44 for h in ph["tx"]), "heights %s" % (ph["tx"],))
+            audit.record("R no desktop table appears on phone", ph["tables"] == 0, "%d tables" % ph["tables"])
+            audit.record("R nothing in the new dashboard sticks out past the phone screen", ph["wide"] == 0, "%d elements extend past the screen" % ph["wide"])
+            audit.record("R phone buttons are at least 44px tall", ph["small"] == 0, "%d buttons under 44px" % ph["small"])
+
+            for dsg in ("minimal", "analytics", "timeline"):
+                set_ui(pg, {"design": dsg})
+                sd = state(pg)
+                wide = pg.evaluate("() => Array.from(document.querySelectorAll('#dashNew *')).filter(e => e.getBoundingClientRect().right > window.innerWidth + 1).length")
+                small = pg.evaluate("(VIS) => { const vis = eval('(' + VIS + ')'); return Array.from(document.querySelectorAll('#dashNew button')).filter(vis).filter(b => b.getBoundingClientRect().height < 44).length; }", VIS)
+                audit.record("R %s design fits the phone with no overflow" % dsg,
+                             sd["design"] == dsg and sd["newShown"] and sd["overflow"] <= 1 and wide == 0, "state %s, %d wide elements" % (sd, wide))
+                audit.record("R %s design phone buttons are at least 44px tall" % dsg, small == 0, "%d buttons under 44px" % small)
+
+            set_ui(pg, {"design": "new", "heroBudget": "hidden"})
+            hb = pg.evaluate("""(VIS) => { const vis = eval('(' + VIS + ')');
+                return { ring: vis(document.getElementById('dnRingWrap')), stat: vis(document.getElementById('dnHeroBudgetStat')),
+                         label: document.getElementById('dnHeroLabel').textContent }; }""", VIS)
+            audit.record("R Hide budget removes the ring and budget figure from the home card",
+                         (not hb["ring"] and not hb["stat"] and "spent" in hb["label"].lower()), "state %s" % (hb,))
+
+            status = set_ui(pg, {"design": "new", "layout": "focus", "sections": {"insights": False}})
+            a = pg.evaluate("""(VIS) => { const vis = eval('(' + VIS + ')'); const v = (id) => vis(document.getElementById(id));
+                return { layout: document.documentElement.dataset.dashLayout, kpi: v('dnKpis'), top: v('dnTop'), insights: v('dnInsights') }; }""", VIS)
+            audit.record("R Financial Focus drops long lists and keeps figures", status == 200 and a["layout"] == "focus" and a["kpi"] and not a["top"], "state %s" % (a,))
+            audit.record("R an individual section can be switched off", not a["insights"], "insights still showing")
+
+            reload_app(pg)
+            goto_tab(pg, "dashboard")
+            pg.wait_for_timeout(1200)
+            kept = pg.evaluate("() => [document.documentElement.dataset.dashDesign, document.documentElement.dataset.dashLayout]")
+            audit.record("R the assigned design survives a reload and a fresh sign-in", kept == ["new", "focus"], "after reload: %s" % (kept,))
+        finally:
+            ctx.close()
+
+        # another user is unaffected by palash's assignment
+        ctx, pg = device("pallavi", "Pallavi@123", 390, 844, True)
+        try:
+            other = pg.evaluate("() => [document.documentElement.dataset.dashDesign, document.documentElement.dataset.dashLayout]")
+            audit.record("R another user in the household keeps the default design", other[0] != "new" and other[1] != "focus", "pallavi sees %s" % (other,))
+        finally:
+            ctx.close()
+    finally:
+        try:
+            assign({})
+        finally:
+            actx.close()
+
+
+def audit_dialogs(browser, audit):
+    """Every open window follows one set of rules: it never outgrows the screen,
+    keeps its buttons in view, locks the page behind it, takes and returns focus,
+    keeps Tab inside and closes on Escape (unless a decision is required)."""
+    print("\n[D] dialogs / open windows")
+
+    SHOW = "(id) => { const m = document.getElementById(id); m.classList.remove('hidden'); m.style.display = 'flex'; }"
+    HIDE = "(id) => { const m = document.getElementById(id); m.classList.add('hidden'); m.style.display = ''; }"
+    MEASURE = """(id) => { const m = document.getElementById(id); const p = m.querySelector(':scope > .modal-content') || m.firstElementChild;
+        const r = p.getBoundingClientRect(); const f = p.querySelector('.dlg-foot'); const fr = f ? f.getBoundingClientRect() : null;
+        const x = p.querySelector('button[aria-label^="Close"]'); const xr = x ? x.getBoundingClientRect() : null;
+        return {fits: r.top >= -1 && r.bottom <= innerHeight + 1 && r.left >= -1 && r.right <= innerWidth + 1,
+                hScroll: p.scrollWidth > p.clientWidth + 1, lock: document.body.classList.contains('dlg-open'),
+                footOk: fr ? (fr.bottom <= innerHeight + 1 && fr.top >= 0) : true,
+                closeOk: xr ? (xr.width >= 36 && xr.height >= 36) : true,
+                bottom: Math.round(r.bottom), vh: innerHeight, center: m.classList.contains('dlg-center')}; }"""
+    IDS = ['expenseModal', 'transactionDetailModal', 'adminEditCategoryModal', 'deleteConfirmModal', 'quickFillModal',
+           'settleUpModal', 'pwaInstallGuideModal', 'adminAddStaffModal', 'adminAddBillModal', 'adminAddCategoryModal',
+           'modalMobileFilter', 'userProfileModal', 'modalCreateHousehold', 'modalCreateUser', 'modalEditHousehold', 'modalEditUser']
+
+    for label, vp, mob in (("phone", {"width": 390, "height": 844}, True),
+                           ("phone on its side", {"width": 844, "height": 390}, True),
+                           ("short laptop", {"width": 1280, "height": 600}, False),
+                           ("desktop", {"width": 1280, "height": 800}, False)):
+        ctx = browser.new_context(viewport=vp, is_mobile=mob, has_touch=mob)
+        pg = ctx.new_page()
+        attach_listeners(pg, audit)
+        try:
+            login(pg, "admin", "Admin@123")
+            pg.wait_for_timeout(1200)
+            pg.evaluate("window.adminFormDirty = false")
+            goto_tab(pg, "admin")
+            pg.wait_for_timeout(900)
+            problems = []
+            sheets_ok = True
+            for i in IDS:
+                pg.evaluate(SHOW, i)
+                pg.wait_for_timeout(420)
+                m = pg.evaluate(MEASURE, i)
+                if not (m["fits"] and not m["hScroll"] and m["lock"] and m["footOk"] and m["closeOk"]):
+                    problems.append("%s %s" % (i, m))
+                if mob and vp["width"] < 640 and not m["center"] and i != 'expenseModal' and abs(m["bottom"] - m["vh"]) > 2:
+                    sheets_ok = False
+                    problems.append("%s not a bottom sheet %s" % (i, m))
+                pg.evaluate(HIDE, i)
+                pg.wait_for_timeout(100)
+            audit.record("D every dialog fits the %s screen, keeps its buttons in view and locks the page" % label,
+                         not problems, "; ".join(problems)[:400])
+            audit.record("D the page scrolls again once a dialog closes (%s)" % label,
+                         not pg.evaluate("() => document.body.classList.contains('dlg-open')"), "page scroll stayed locked")
+
+            if label in ("phone", "desktop"):
+                uid = pg.evaluate("() => (window.adminDirectoryData.users.find(u => u.username === 'palash') || {}).userId")
+                pg.evaluate("""(id) => { const b = document.createElement('button'); b.id = 'dlgOpener'; b.textContent = 'x';
+                    document.body.appendChild(b); b.focus(); openEditUserModal(id); }""", uid)
+                pg.wait_for_timeout(500)
+                inside = pg.evaluate("() => document.getElementById('modalEditUser').contains(document.activeElement)")
+                if label == "desktop":
+                    audit.record("D opening a dialog moves focus into it", inside, "focus stayed behind the dialog")
+                for _ in range(40):
+                    pg.keyboard.press("Tab")
+                audit.record("D Tab stays inside an open dialog (%s)" % label,
+                             pg.evaluate("() => document.getElementById('modalEditUser').contains(document.activeElement)"),
+                             "focus escaped to the page behind")
+                pg.keyboard.press("Escape")
+                pg.wait_for_timeout(400)
+                closed = pg.evaluate("() => document.getElementById('modalEditUser').classList.contains('hidden')")
+                audit.record("D Escape closes the dialog on top (%s)" % label, closed, "dialog still open after Escape")
+                audit.record("D focus returns to what opened the dialog (%s)" % label,
+                             pg.evaluate("() => document.activeElement.id") == "dlgOpener", "focus was lost")
+
+                pg.evaluate("() => document.getElementById('conflictModal').classList.remove('hidden')")
+                pg.wait_for_timeout(300)
+                pg.keyboard.press("Escape")
+                pg.wait_for_timeout(200)
+                audit.record("D a dialog that needs a decision is not dismissed by Escape (%s)" % label,
+                             pg.evaluate("() => !document.getElementById('conflictModal').classList.contains('hidden')"),
+                             "the conflict dialog was dismissed")
+                pg.evaluate("() => document.getElementById('conflictModal').classList.add('hidden')")
+            if mob and vp["width"] < 640:
+                audit.record("D form dialogs are bottom sheets on a phone", sheets_ok, "a form dialog is floating mid-screen")
+        finally:
+            ctx.close()
+
+
+def audit_product_skin(browser, audit):
+    """A New UI design restyles every tab, not just the dashboard; the classic
+    UI carries none of it."""
+    print("\n[U] new UI across the product")
+    TABS = ["dashboard", "expenses", "bills", "reports", "staff", "personal", "admin"]
+    PROBE = """() => { const cs = (s) => { const e = document.querySelector(s); return e ? getComputedStyle(e) : null; };
+        const th = cs('.tab-view:not(.hidden) table thead th');
+        const card = cs('.tab-view:not(.hidden) .glass-card');
+        const side = cs('#desktopSidebar');
+        return { ui: document.documentElement.dataset.ui,
+                 thLight: th ? th.backgroundColor : null, cardRadius: card ? card.borderTopLeftRadius : null,
+                 overflow: Math.round(document.documentElement.scrollWidth - document.documentElement.clientWidth) }; }"""
+    actx = browser.new_context(viewport={"width": 1280, "height": 900})
+    apg = actx.new_page(); attach_listeners(apg, audit); login(apg, "admin", "Admin@123"); apg.wait_for_timeout(1200)
+    pid = apg.evaluate("""async () => { const r = await fetch('/api/auth?action=admin_overview', {headers: getAuthHeaders()});
+        const j = await r.json(); return ((j.users || []).find(u => u.username === 'palash') || {}).userId; }""")
+    def assign(ui):
+        apg.evaluate("""async ([id, ui]) => { await fetch('/api/auth', {method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify({action: 'edit_user', userId: id, dashboardUi: ui})}); }""", [pid, ui])
+    try:
+        for label, vp, mob in (("laptop", {"width": 1360, "height": 860}, False), ("phone", {"width": 390, "height": 844}, True)):
+            for design, expect in (({}, "classic"), ({"design": "timeline"}, "new")):
+                assign(design)
+                ctx = browser.new_context(viewport=vp, is_mobile=mob, has_touch=mob); pg = ctx.new_page()
+                attach_listeners(pg, audit)
+                try:
+                    login(pg, "palash", "Palash@123"); pg.wait_for_timeout(1500)
+                    bad = []; radii = set(); ui_ok = True
+                    for t in TABS[:-1]:
+                        goto_tab(pg, t); pg.wait_for_timeout(500)
+                        m = pg.evaluate(PROBE)
+                        ui_ok = ui_ok and (m["ui"] == expect)
+                        if m["overflow"] > 1: bad.append("%s overflows by %dpx" % (t, m["overflow"]))
+                        if m["cardRadius"]: radii.add(m["cardRadius"])
+                    audit.record("U %s UI sets data-ui=%s on every tab (%s)" % (expect, expect, label), ui_ok, "data-ui differed on some tab")
+                    audit.record("U %s UI has no horizontal overflow on any tab (%s)" % (expect, label), not bad, "; ".join(bad))
+                    if expect == "new":
+                        goto_tab(pg, "expenses"); pg.wait_for_timeout(500)
+                        m = pg.evaluate(PROBE)
+                        audit.record("U new UI gives tables a light header on Expenses (%s)" % label,
+                                     (m["thLight"] is None) or m["thLight"] != "rgb(15, 23, 42)", "header is %s" % m["thLight"])
+                        audit.record("U new UI cards share one radius across tabs (%s)" % label, len(radii) <= 2, "radii %s" % sorted(radii))
+                    else:
+                        goto_tab(pg, "expenses"); pg.wait_for_timeout(500)
+                        m = pg.evaluate(PROBE)
+                        audit.record("U classic UI keeps its dark table header (%s)" % label,
+                                     (m["thLight"] is None) or m["thLight"] != "rgb(241, 245, 249)", "header is %s" % m["thLight"])
+                finally:
+                    ctx.close()
+    finally:
+        try: assign({})
+        finally: actx.close()
+
 
 def audit_logout(page, audit, api):
     """Section E: signing out must actually end the session. A token left in
@@ -3382,6 +3772,13 @@ def main():
             audit_permission_editor(browser, audit)
         except Exception as e:
             audit.record("H permission editor", False, f"audit error: {type(e).__name__}: {e}")
+
+        try:
+            audit_dashboard_redesign(browser, audit)
+            audit_dialogs(browser, audit)
+            audit_product_skin(browser, audit)
+        except Exception as e:
+            audit.record("R dashboard redesign", False, f"audit error: {type(e).__name__}: {e}")
 
         try:
             audit_notifications(browser, audit)

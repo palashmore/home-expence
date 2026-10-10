@@ -71,6 +71,14 @@ Lucide has no equivalent for.
 `data-submit` attributes and `ui_actions.js` holds the behaviour, so the page
 works under a strict Content-Security-Policy.
 
+**Dashboard design.** Two designs share the dashboard tab. *Default dashboard*
+is the original and is what everyone starts with; *New UI dashboard* is built
+by `dashboard_ui.js` into `#dashNew`. Choose it under Master Settings →
+Appearance: on this device for anybody, or as the household default for an
+owner (`masterConfig.dashboardUi`, validated server-side). The new design only
+presents figures the existing render pass already computed, makes no requests
+of its own, and stores per-device choices under `ghar_dash_ui:{userId}:{householdId}`.
+
 ---
 
 ## Running locally

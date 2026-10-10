@@ -38,6 +38,38 @@ const DASHBOARD_MODES = ['household', 'personal', 'combined'];
 function validateConfigPayload(body) {
     const errors = [];
 
+    // Dashboard UI preferences: a small closed shape. Unknown keys and values
+    // are refused rather than stored, so the field cannot become a dumping
+    // ground. An empty object clears the household default.
+    if (body.dashboardUi !== undefined) {
+        const ui = body.dashboardUi;
+        const SEC = ['kpi', 'insights', 'chart-category', 'chart-family', 'chart-trend', 'chart-payment',
+            'bills', 'reimbursement', 'staff', 'top', 'recent'];
+        const bad = (msg) => errors.push({ field: 'dashboardUi', message: msg });
+        if (ui === null || typeof ui !== 'object' || Array.isArray(ui)) {
+            bad('Dashboard UI preferences must be an object.');
+        } else {
+            const allowed = ['design', 'layout', 'kpiDensity', 'mobileDensity', 'heroBudget', 'defaultTheme', 'sections'];
+            Object.keys(ui).forEach(k => { if (!allowed.includes(k)) bad('Unknown dashboard UI setting: ' + k + '.'); });
+            if (ui.design !== undefined && !['classic', 'new'].includes(ui.design)) bad('Design must be classic or new.');
+            if (ui.layout !== undefined && !['default', 'compact', 'focus'].includes(ui.layout)) bad('Layout must be default, compact or focus.');
+            if (ui.kpiDensity !== undefined && !['comfortable', 'compact'].includes(ui.kpiDensity)) bad('KPI density must be comfortable or compact.');
+            if (ui.mobileDensity !== undefined && !['comfortable', 'compact'].includes(ui.mobileDensity)) bad('Mobile density must be comfortable or compact.');
+            if (ui.heroBudget !== undefined && !['remaining', 'spent', 'hidden'].includes(ui.heroBudget)) bad('Hero budget must be remaining, spent or hidden.');
+            if (ui.defaultTheme !== undefined && !(typeof ui.defaultTheme === 'string' && /^[a-z0-9_-]{0,24}$/i.test(ui.defaultTheme))) bad('Default theme is not valid.');
+            if (ui.sections !== undefined) {
+                if (!ui.sections || typeof ui.sections !== 'object' || Array.isArray(ui.sections)) {
+                    bad('Sections must be an object of true/false values.');
+                } else {
+                    Object.keys(ui.sections).forEach(k => {
+                        if (!SEC.includes(k)) bad('Unknown dashboard section: ' + k + '.');
+                        else if (typeof ui.sections[k] !== 'boolean') bad('Section ' + k + ' must be true or false.');
+                    });
+                }
+            }
+        }
+    }
+
     if (body.dashboardMode !== undefined && !DASHBOARD_MODES.includes(body.dashboardMode)) {
         errors.push({
             field: 'dashboardMode',

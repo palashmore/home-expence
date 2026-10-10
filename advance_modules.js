@@ -3195,6 +3195,9 @@
     renderDashboardAnomalyBanner(filtered);
     renderSplitwiseMatrix(filtered);
     renderBillsRadar(filtered);
+    // Presentation layer: copies computed figures, adds insights and phone
+    // cards, applies the layout preferences. No requests of its own.
+    if (window.renderDashboardUi) window.renderDashboardUi(filtered);
   };
 
   // ========================================================

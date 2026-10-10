@@ -345,6 +345,39 @@ async function login(username, password) {
     assert(/visibilityState === 'visible'/.test(swN) && /visible \? Promise\.resolve\(\)/.test(swN),
         'a push does not raise a system notification on top of the visible in-app banner');
 
+    console.log('\n--- O: dashboard UI preferences ---');
+    const fsO = require('fs');
+    const dui = fsO.readFileSync(require.resolve('./dashboard_ui.js'), 'utf8');
+    const cfgO = (await call('GET', '/api/config', palash.token)).json.data;
+    const savedUi = await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { layout: 'compact', sections: { recent: false } } });
+    assert(savedUi.status === 200, `an owner can save a household dashboard default (got ${savedUi.status})`);
+    const seenUi = (await call('GET', '/api/config', pallavi.token)).json.data;
+    assert(seenUi.dashboardUi && seenUi.dashboardUi.layout === 'compact' && seenUi.dashboardUi.sections.recent === false,
+        'another member of the household reads it back');
+    if (sanjay) {
+        const otherUi = (await call('GET', '/api/config', sanjay.token)).json.data;
+        assert(otherUi.dashboardUi === undefined, 'another household is unaffected');
+    }
+    assert((await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { hack: 1 } })).status === 422, 'an unknown preference key is refused');
+    assert((await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { layout: 'wild' } })).status === 422, 'an invalid layout is refused');
+    assert((await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { heroBudget: 'hidden' } })).status === 200, 'the budget display mode can be set');
+    assert((await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { design: 'new' } })).status === 200, 'the dashboard design can be set to new');
+    assert((await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { design: 'neon' } })).status === 422, 'an unknown dashboard design is refused');
+    assert((await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { heroBudget: 'bogus' } })).status === 422, 'an unknown budget display mode is refused');
+    assert((await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: { sections: { recent: 'no' } } })).status === 422, 'a non-boolean section flag is refused');
+    assert((await call('POST', '/api/config', pallavi.token, { ...cfgO, dashboardUi: { layout: 'focus' } })).status === 403, 'a member cannot change the household default');
+    await call('POST', '/api/config', palash.token, { ...cfgO, dashboardUi: {} });
+    const clearedUi = (await call('GET', '/api/config', pallavi.token)).json.data;
+    assert(Object.keys(clearedUi.dashboardUi || {}).length === 0, 'an empty object clears the household default');
+    assert(clearedUi.monthlyBudgetLimit === cfgO.monthlyBudgetLimit && (clearedUi.categories || []).length === (cfgO.categories || []).length,
+        'saving a preference leaves the budget and categories untouched');
+    assert(!/fetch\(|XMLHttpRequest|sendBeacon/.test(dui),
+        'the dashboard UI layer makes no network requests of its own');
+    assert(!/localStorage\.setItem\((?!deviceKey)/.test(dui),
+        'it writes only its own, user-and-household-namespaced storage key');
+    assert(/ghar_dash_ui:/.test(dui) && /u\.userId/.test(dui) && /u\.householdId/.test(dui),
+        'the device preference key includes both the user and the household');
+
     console.log('\n--- I: logout ends protected access ---');
     const tmp = await login('pallavi', 'Pallavi@123');
     await call('POST', '/api/auth', tmp.token, { action: 'logout' });

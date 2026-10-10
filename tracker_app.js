@@ -1122,6 +1122,7 @@ const SETTINGS_SECTIONS = [
     { key: 'account',   label: 'Account',   icon: 'i-id-card' },
     { key: 'household', label: 'Household', icon: 'i-house' },
     { key: 'finance',   label: 'Finance',   icon: 'i-indian-rupee' },
+    { key: 'appearance', label: 'Appearance', icon: 'i-palette' },
     { key: 'bills',     label: 'Bills',     icon: 'i-receipt-text' },
     { key: 'staff',     label: 'Staff',     icon: 'i-users' },
     { key: 'data',      label: 'Data',      icon: 'i-database' },
@@ -1307,6 +1308,7 @@ function switchTab(tabId) {
             // it would carry no hidden class and appear under every group.
             syncAdminTenantCard();
             renderAccountCard();
+            if (window.renderDashboardUiSettings) window.renderDashboardUiSettings();
             initSettingsSections();
         } catch (e) { /* a settings screen that is not rendered yet */ }
     }
@@ -3325,9 +3327,20 @@ function renderMobileHero(totalSpent, totalIncome, netCashFlow, modeLabel) {
         if (el) el.textContent = text;
     };
 
+    // Appearance setting: lead with what is left, lead with what was spent, or
+    // leave the budget out of the card altogether.
+    const heroMode = (window.DashboardUi && window.DashboardUi.effective().heroBudget) || 'remaining';
+    const showBudget = heroMode !== 'hidden';
+    const bar0 = document.getElementById("mHeroBar");
+    if (bar0 && bar0.parentElement) bar0.parentElement.classList.toggle("hidden", !showBudget);
+    const noteEl = document.getElementById("mHeroBarNote");
+    if (noteEl) noteEl.classList.toggle("hidden", !showBudget);
+    const budgetStat = document.getElementById("mHeroBudget");
+    if (budgetStat && budgetStat.parentElement) budgetStat.parentElement.classList.toggle("hidden", !showBudget);
+
     // With no budget configured there is nothing to be "remaining" from, so the
     // card leads with the spend instead of showing a negative of the whole total.
-    if (budget > 0) {
+    if (budget > 0 && heroMode === 'remaining') {
         setText("mHeroPrimaryLabel", remaining >= 0 ? "Remaining Budget" : "Over Budget By");
         host.textContent = formatINR(Math.abs(remaining));
         host.classList.toggle("is-over", remaining < 0);
@@ -3336,7 +3349,7 @@ function renderMobileHero(totalSpent, totalIncome, netCashFlow, modeLabel) {
         setText("mHeroPrimaryLabel", `Total Spent · ${modeLabel || 'Household'}`);
         host.textContent = formatINR(spent);
         host.classList.remove("is-over");
-        setText("mHeroBarNote", "No budget set in Master Settings");
+        setText("mHeroBarNote", budget > 0 ? `${rawPct}% of budget used` : "No budget set in Master Settings");
     }
 
     const bar = document.getElementById("mHeroBar");
@@ -4158,6 +4171,14 @@ function showToast(type, title, message = "") {
     // or a form. Wider screens keep the top-right corner. Positioning lives in
     // one place so it is not re-decided per toast.
     container.className = "toast-stack pointer-events-none";
+    // On a phone the header can be pushed down by the install banner, so a fixed
+    // offset would land the toast ON the header. Measure where it ends.
+    try {
+        const hdr = document.querySelector('header');
+        container.style.top = (window.innerWidth < 640 && hdr)
+            ? Math.max(8, Math.round(hdr.getBoundingClientRect().bottom) + 8) + 'px'
+            : '';
+    } catch (e) {}
 
     // The same message twice in a moment is one message. Bursts of identical
     // saves used to pile up into a wall of cards.

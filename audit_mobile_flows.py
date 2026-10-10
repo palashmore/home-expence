@@ -1405,6 +1405,9 @@ def audit_dashboard_mode(page, audit, api):
     )
 
     def mode_state():
+        # These checks are about mode gating, not about whether a phone fold is
+        # open: open them so a closed fold cannot read as "section hidden".
+        page.evaluate("() => document.querySelectorAll('details.dash-phone-fold').forEach(d => d.open = true)")
         return page.evaluate(
             """() => {
                 const vis = (id) => {
@@ -1860,6 +1863,7 @@ def audit_design_system(page, audit, api):
                     if (r.width < 18 || r.height < 18) continue;
                     const s = getComputedStyle(el);
                     if (s.visibility === 'hidden' || s.display === 'none') continue;
+                    { const det = el.closest('details'); if (det && !det.open && !el.closest('summary')) continue; }
                     const bg = s.backgroundColor;
                     const alpha = (bg.match(/-?[\d.]+/g) || [])[3];
                     if (alpha !== undefined && Number(alpha) < 0.5) continue;
@@ -1968,6 +1972,10 @@ ACCESSIBLE_NAME_JS = r"""
     };
     const visible = (el) => {
         if (el.offsetParent === null && getComputedStyle(el).position !== 'fixed') return false;
+        // Inside a closed <details> the content is not rendered or exposed, so it
+        // is neither visible nor in need of a name until the section is opened.
+        const det = el.closest('details');
+        if (det && !det.open && !el.closest('summary')) return false;
         const r = el.getBoundingClientRect();
         return r.width > 0 && r.height > 0;
     };
@@ -2664,6 +2672,226 @@ def audit_notifications(browser, audit):
                     c.close()
                 except Exception:
                     pass
+
+def audit_dashboard_redesign(browser, audit):
+    """Two dashboard designs share one tab. The existing design is the default
+    and must be untouched; the New design is chosen in Appearance and must show
+    the same figures. Presentation only: no figure may differ between them."""
+    print("\n[R] dashboard design: classic default + new design")
+
+    def device(user, pw, w, h, mobile):
+        ctx = browser.new_context(viewport={"width": w, "height": h}, is_mobile=mobile, has_touch=mobile)
+        pg = ctx.new_page()
+        attach_listeners(pg, audit)
+        login(pg, user, pw)
+        pg.wait_for_timeout(1500)
+        return ctx, pg
+
+    PICK_MONTH = """() => { const m = document.getElementById('filterMonth');
+        const o = Array.from(m.options).find(x => /september/i.test(x.textContent));
+        if (o) { m.value = o.value; m.dispatchEvent(new Event('change', {bubbles: true})); } }"""
+    FIGURES = ("() => ['statTotalSpent','statTotalIncome','statNetCashFlow','statAvgPerDay','statBudgetUsed',"
+               "'statBudgetRemaining'].map(id => (document.getElementById(id)||{textContent:''}).textContent.trim())")
+    NEW_FIGURES = ("() => ['dn_statTotalSpent','dn_statTotalIncome','dn_statNetCashFlow','dn_statAvgPerDay','dn_statBudgetUsed',"
+                   "'dn_statBudgetRemaining'].map(id => (document.getElementById(id)||{textContent:''}).textContent.trim())")
+    VIS = "(el) => !!el && el.offsetParent !== null && getComputedStyle(el).visibility !== 'hidden' && el.getBoundingClientRect().height > 0"
+
+    def open_appearance(pg):
+        pg.evaluate("window.adminFormDirty = false")
+        goto_tab(pg, "admin")
+        pg.wait_for_timeout(700)
+        pg.evaluate("() => window.showSettingsSection('view-admin', 'appearance')")
+        pg.wait_for_timeout(400)
+
+    def save_device(pg, **vals):
+        open_appearance(pg)
+        for sel, val in vals.items():
+            pg.select_option("#" + sel, val)
+        pg.evaluate("() => document.getElementById('dashUiSaveDevice').click()")
+        pg.wait_for_timeout(700)
+
+    def state(pg):
+        return pg.evaluate("""(VIS) => { const vis = eval('(' + VIS + ')');
+            const q = (s) => document.querySelector(s);
+            return {
+                design: document.documentElement.dataset.dashDesign,
+                newShown: vis(q('#dashNew')),
+                classicShown: vis(q('#statTotalSpent')) || vis(q('#mHeroPrimaryVal')),
+                overflow: Math.round(document.documentElement.scrollWidth - document.documentElement.clientWidth)
+            }; }""", VIS)
+
+    # ---------------------------------------------------------------- desktop
+    ctx, pg = device("palash", "Palash@123", 1440, 900, False)
+    try:
+        goto_tab(pg, "dashboard")
+        pg.evaluate(PICK_MONTH)
+        pg.wait_for_timeout(2000)
+        st = state(pg)
+        audit.record("R default dashboard is the existing (classic) design",
+                     st["design"] in ("classic", None) and st["classicShown"] and not st["newShown"], "state %s" % (st,))
+        audit.record("R classic dashboard carries none of the new pieces",
+                     pg.evaluate("() => !document.querySelector('.dash-phone-fold, #dashInsights, #dashSecondary, #dashChartPayment')"),
+                     "new elements found inside the classic dashboard")
+        audit.record("R classic dashboard keeps its quick-select chips",
+                     pg.evaluate("() => { const r = Array.from(document.querySelectorAll('span')).find(s => /Quick Select/i.test(s.textContent)); return !!r && r.offsetParent !== null; }"),
+                     "quick-select row missing on classic dashboard")
+        classic = pg.evaluate(FIGURES)
+
+        save_device(pg, dashUiDesign="new")
+        goto_tab(pg, "dashboard")
+        pg.wait_for_timeout(1500)
+        st = state(pg)
+        audit.record("R choosing New UI shows the new dashboard and hides the classic one",
+                     st["design"] == "new" and st["newShown"] and not st["classicShown"], "state %s" % (st,))
+        newfig = pg.evaluate(NEW_FIGURES)
+        audit.record("R new design shows identical figures to the classic design",
+                     newfig == classic and all(classic), "classic %s vs new %s" % (classic, newfig))
+        d = pg.evaluate("""(VIS) => { const vis = eval('(' + VIS + ')');
+            const all = (s) => Array.from(document.querySelectorAll(s));
+            return { kpis: all('#dnKpis .dn-kpi').filter(vis).length, ins: all('#dnInsights .dn-ins').filter(vis).length,
+                     folds: all('#dashNew .dn-fold > summary .ic').filter(vis).length,
+                     hero: vis(document.getElementById('dnHeroFig')), ring: vis(document.getElementById('dnRingWrap')),
+                     cat: document.querySelectorAll('#dnCategory .dn-bar').length,
+                     trend: document.querySelectorAll('#dnTrend .dn-trend-col').length,
+                     more: vis(document.getElementById('dnMoreFigures')),
+                     small: all('#dashNew button').filter(vis).filter(b => b.getBoundingClientRect().height < 40).length }; }""", VIS)
+        audit.record("R new design shows the key figures, insights, hero and charts on laptop",
+                     d["kpis"] >= 6 and d["ins"] == 6 and d["hero"] and d["cat"] >= 1 and d["trend"] == 12, "state %s" % (d,))
+        audit.record("R new design has no phone-only controls on laptop", not d["more"] and d["folds"] == 0, "state %s" % (d,))
+        audit.record("R new design buttons are comfortable to click", d["small"] == 0, "%d buttons under 40px" % d["small"])
+        audit.record("R no horizontal overflow on laptop (new design)", st["overflow"] <= 1, "%dpx wider" % st["overflow"])
+
+        # a transaction opens its detail view
+        pg.evaluate("() => { const b = document.querySelector('#dnRecent .dn-tx'); if (b) b.click(); }")
+        pg.wait_for_timeout(500)
+        opened = pg.evaluate("() => !!document.querySelector('#transactionDetailModal:not(.hidden), dialog[open]')")
+        audit.record("R tapping a recent transaction opens its details", opened, "no detail view opened")
+        pg.keyboard.press("Escape")
+        pg.wait_for_timeout(300)
+
+        # switching back restores the classic dashboard
+        save_device(pg, dashUiDesign="classic")
+        goto_tab(pg, "dashboard")
+        pg.wait_for_timeout(1200)
+        st = state(pg)
+        audit.record("R choosing Default dashboard brings the classic design back",
+                     st["design"] == "classic" and st["classicShown"] and not st["newShown"], "state %s" % (st,))
+        audit.record("R switching design does not change any figure", pg.evaluate(FIGURES) == classic,
+                     "figures changed from %s to %s" % (classic, pg.evaluate(FIGURES)))
+    finally:
+        ctx.close()
+
+    # ------------------------------------------------------------------ phone
+    ctx, pg = device("palash", "Palash@123", 390, 844, True)
+    try:
+        goto_tab(pg, "dashboard")
+        pg.evaluate(PICK_MONTH)
+        pg.wait_for_timeout(1500)
+        st = state(pg)
+        audit.record("R phone default is the existing design", st["design"] in ("classic", None) and st["classicShown"] and not st["newShown"], "state %s" % (st,))
+        save_device(pg, dashUiDesign="new")
+        goto_tab(pg, "dashboard")
+        pg.wait_for_timeout(1500)
+        st = state(pg)
+        audit.record("R phone shows the new dashboard", st["design"] == "new" and st["newShown"] and not st["classicShown"], "state %s" % (st,))
+        audit.record("R no horizontal overflow on phone (new design)", st["overflow"] <= 1, "%dpx wider" % st["overflow"])
+        ph = pg.evaluate("""(VIS) => { const vis = eval('(' + VIS + ')');
+            const all = (s) => Array.from(document.querySelectorAll(s));
+            const more = document.getElementById('dnMoreFigures');
+            return {
+                visibleKpis: all('#dnKpis .dn-kpi').filter(vis).length,
+                more: vis(more),
+                folds: all('#dashNew details[data-dn-fold]').map(d => ({open: d.open, h: Math.round(d.querySelector('summary').getBoundingClientRect().height), shown: vis(d)})),
+                tx: all('#dnRecent .dn-tx').map(b => Math.round(b.getBoundingClientRect().height)),
+                tables: all('#dashNew table').filter(vis).length,
+                wide: all('#dashNew *').filter(e => e.getBoundingClientRect().right > window.innerWidth + 1).length,
+                small: all('#dashNew button').filter(vis).filter(b => b.getBoundingClientRect().height < 44).length
+            }; }""", VIS)
+        audit.record("R phone shows four figures first with a More figures button", ph["visibleKpis"] == 4 and ph["more"], "state %s" % (ph,))
+        pg.evaluate("() => document.getElementById('dnMoreFigures').click()")
+        pg.wait_for_timeout(300)
+        more_n = pg.evaluate("(VIS) => { const vis = eval('(' + VIS + ')'); return Array.from(document.querySelectorAll('#dnKpis .dn-kpi')).filter(vis).length; }", VIS)
+        audit.record("R More figures reveals the rest", more_n >= 6, "only %d figures visible after expanding" % more_n)
+        audit.record("R secondary cards are folded behind 44px headers on phone",
+                     len(ph["folds"]) >= 3 and all((not f["open"]) and f["h"] >= 44 for f in ph["folds"] if f["shown"]), "folds %s" % (ph["folds"],))
+        pg.evaluate("() => document.querySelector('#dashNew details[data-dn-fold] > summary').click()")
+        pg.wait_for_timeout(300)
+        audit.record("R opening a fold shows its content",
+                     pg.evaluate("() => { const d = document.querySelector('#dashNew details[data-dn-fold][open]'); return !!d && d.querySelector(':scope > div').getBoundingClientRect().height > 0; }"),
+                     "fold content still hidden")
+        audit.record("R phone transaction rows are at least 44px tall", ph["tx"] and all(h >= 44 for h in ph["tx"]), "heights %s" % (ph["tx"],))
+        audit.record("R no desktop table appears on phone", ph["tables"] == 0, "%d tables" % ph["tables"])
+        audit.record("R nothing in the new dashboard sticks out past the phone screen", ph["wide"] == 0, "%d elements extend past the screen" % ph["wide"])
+        audit.record("R phone buttons are at least 44px tall", ph["small"] == 0, "%d buttons under 44px" % ph["small"])
+
+        # hide budget on the hero
+        save_device(pg, dashUiHeroBudget="hidden")
+        goto_tab(pg, "dashboard")
+        pg.wait_for_timeout(1000)
+        hb = pg.evaluate("""(VIS) => { const vis = eval('(' + VIS + ')');
+            return { ring: vis(document.getElementById('dnRingWrap')), stat: vis(document.getElementById('dnHeroBudgetStat')),
+                     label: document.getElementById('dnHeroLabel').textContent }; }""", VIS)
+        audit.record("R Hide budget removes the ring and budget figure from the home card",
+                     (not hb["ring"] and not hb["stat"] and "spent" in hb["label"].lower()),
+                     "state %s" % (hb,))
+        save_device(pg, dashUiHeroBudget="remaining")
+
+        # layout / section choices
+        save_device(pg, dashUiLayout="focus")
+        pg.evaluate("() => { const cb = document.querySelector('#dashUiSections input[value=\"insights\"]'); if (cb) cb.click(); }")
+        pg.evaluate("() => document.getElementById('dashUiSaveDevice').click()")
+        pg.wait_for_timeout(600)
+        goto_tab(pg, "dashboard")
+        pg.wait_for_timeout(1000)
+        a = pg.evaluate("""(VIS) => { const vis = eval('(' + VIS + ')'); const v = (id) => vis(document.getElementById(id));
+            return { layout: document.documentElement.dataset.dashLayout, kpi: v('dnKpis'), top: v('dnTop'),
+                     recent: v('dnRecent'), insights: v('dnInsights') }; }""", VIS)
+        audit.record("R Financial Focus drops long lists and keeps figures", a["layout"] == "focus" and a["kpi"] and not a["top"], "state %s" % (a,))
+        audit.record("R an individual section can be switched off", not a["insights"], "insights still showing")
+
+        reload_app(pg)
+        goto_tab(pg, "dashboard")
+        pg.wait_for_timeout(1200)
+        kept = pg.evaluate("() => [document.documentElement.dataset.dashDesign, document.documentElement.dataset.dashLayout]")
+        audit.record("R design and layout survive a reload", kept == ["new", "focus"], "after reload: %s" % (kept,))
+
+        # a different user on the same browser does not inherit it
+        pg.evaluate("() => window.signOut && window.signOut()")
+        pg.wait_for_timeout(1200)
+        login(pg, "pallavi", "Pallavi@123")
+        pg.wait_for_timeout(1500)
+        other = pg.evaluate("() => [document.documentElement.dataset.dashDesign, document.documentElement.dataset.dashLayout]")
+        audit.record("R another user on the same device starts from the default design", other[0] != "new" and other[1] != "focus", "pallavi sees %s" % (other,))
+
+        # reset
+        pg.evaluate("() => window.signOut && window.signOut()")
+        pg.wait_for_timeout(1200)
+        login(pg, "palash", "Palash@123")
+        pg.wait_for_timeout(1200)
+        open_appearance(pg)
+        pg.evaluate("() => document.getElementById('dashUiReset').click()")
+        pg.wait_for_timeout(500)
+        audit.record("R Reset returns to the default design",
+                     pg.evaluate("() => document.documentElement.dataset.dashDesign") == "classic", "design not reset")
+        audit.record("R only an owner is offered the household default",
+                     pg.evaluate("() => { const b = document.getElementById('dashUiSaveHousehold'); return !!b && !b.classList.contains('hidden'); }"),
+                     "owner cannot see the household default button")
+    finally:
+        ctx.close()
+
+    # member must not be offered the household default
+    ctx, pg = device("pallavi", "Pallavi@123", 390, 844, True)
+    try:
+        pg.evaluate("window.adminFormDirty = false")
+        goto_tab(pg, "admin")
+        pg.wait_for_timeout(800)
+        pg.evaluate("() => window.renderDashboardUiSettings && window.renderDashboardUiSettings()")
+        audit.record("R a member is not offered the household default",
+                     pg.evaluate("() => { const b = document.getElementById('dashUiSaveHousehold'); return !b || b.classList.contains('hidden'); }"),
+                     "member can see the household default button")
+    finally:
+        ctx.close()
+
 
 def audit_logout(page, audit, api):
     """Section E: signing out must actually end the session. A token left in
@@ -3382,6 +3610,11 @@ def main():
             audit_permission_editor(browser, audit)
         except Exception as e:
             audit.record("H permission editor", False, f"audit error: {type(e).__name__}: {e}")
+
+        try:
+            audit_dashboard_redesign(browser, audit)
+        except Exception as e:
+            audit.record("R dashboard redesign", False, f"audit error: {type(e).__name__}: {e}")
 
         try:
             audit_notifications(browser, audit)

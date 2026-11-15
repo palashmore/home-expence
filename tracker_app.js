@@ -1605,6 +1605,7 @@ function updateUserProfileUI() {
 
     // Restrict Section 0: Household & User Access Management STRICTLY to System Admin
     syncAdminTenantCard();
+    renderDeviceAccountsList();
 }
 window.updateUserProfileUI = updateUserProfileUI;
 
@@ -1644,6 +1645,169 @@ function closeUserProfileModal() {
     if (modal) modal.classList.add("hidden");
 }
 window.closeUserProfileModal = closeUserProfileModal;
+
+// ================= 2.1 SEAMLESS DEVICE ACCOUNT FAST-SWITCHER =================
+function saveDeviceAccount(user, token) {
+    if (!user || !user.userId || !token) return;
+    try {
+        let accounts = JSON.parse(localStorage.getItem("household_device_accounts") || "[]");
+        if (!Array.isArray(accounts)) accounts = [];
+        accounts = accounts.filter(a => a && a.userId !== user.userId);
+        accounts.unshift({
+            userId: user.userId,
+            username: user.username,
+            name: user.name,
+            householdId: user.householdId,
+            householdName: user.householdName || user.householdId,
+            role: user.role,
+            token: token,
+            lastActive: Date.now()
+        });
+        localStorage.setItem("household_device_accounts", JSON.stringify(accounts.slice(0, 8)));
+    } catch (e) {}
+}
+window.saveDeviceAccount = saveDeviceAccount;
+
+function getDeviceAccounts() {
+    try {
+        const raw = localStorage.getItem("household_device_accounts");
+        const list = JSON.parse(raw || "[]");
+        return Array.isArray(list) ? list : [];
+    } catch (e) {
+        return [];
+    }
+}
+window.getDeviceAccounts = getDeviceAccounts;
+
+function removeDeviceAccount(userId, event) {
+    if (event && event.stopPropagation) event.stopPropagation();
+    try {
+        let accounts = getDeviceAccounts();
+        accounts = accounts.filter(a => a.userId !== userId);
+        localStorage.setItem("household_device_accounts", JSON.stringify(accounts));
+        renderDeviceAccountsList();
+        if (typeof triggerHaptic === 'function') triggerHaptic('light');
+        if (typeof showToast === 'function') showToast('info', 'Account Removed', 'Profile removed from this device.');
+    } catch (e) {}
+}
+window.removeDeviceAccount = removeDeviceAccount;
+
+function renderDeviceAccountsList() {
+    const listEl = document.getElementById("deviceAccountsList");
+    if (!listEl) return;
+    const accounts = getDeviceAccounts();
+    const activeUserId = currentSessionUser ? currentSessionUser.userId : null;
+
+    if (!accounts.length) {
+        listEl.innerHTML = `<div class="p-2.5 rounded-xl bg-slate-800/40 text-center text-xs text-slate-400 font-medium">No other profiles saved on this device.</div>`;
+        return;
+    }
+
+    listEl.innerHTML = accounts.map(acc => {
+        const isActive = acc.userId === activeUserId;
+        const initial = (acc.name || acc.username || '?').trim()[0].toUpperCase();
+        return `
+            <div class="flex items-center justify-between p-2.5 rounded-xl transition ${isActive ? 'bg-indigo-950/70 border border-indigo-500/50' : 'bg-slate-800/70 hover:bg-slate-800 border border-slate-700/60 cursor-pointer'}"
+                 ${!isActive ? `onclick="switchDeviceAccount('${escapeHtml(acc.userId)}')"` : ''}>
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-8 h-8 rounded-xl ${isActive ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-slate-200'} flex items-center justify-center text-xs font-bold shrink-0">
+                        ${initial}
+                    </div>
+                    <div class="min-w-0 text-left">
+                        <div class="text-xs font-bold text-white truncate flex items-center gap-1.5">
+                            <span>${escapeHtml(acc.name || acc.username)}</span>
+                            ${isActive ? '<span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">Active</span>' : ''}
+                        </div>
+                        <div class="text-[11px] text-slate-400 font-medium truncate">
+                            ${escapeHtml(acc.householdName || acc.householdId)} · @${escapeHtml(acc.username)}
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1 shrink-0 ml-2">
+                    ${!isActive ? `
+                        <button type="button" onclick="removeDeviceAccount('${escapeHtml(acc.userId)}', event)" class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition" title="Remove from device">
+                            <svg class="ic text-xs" aria-hidden="true"><use href="#i-x"></use></svg>
+                        </button>
+                    ` : `
+                        <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50 mr-1"></div>
+                    `}
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+window.renderDeviceAccountsList = renderDeviceAccountsList;
+
+async function switchDeviceAccount(targetUserId) {
+    if (!targetUserId) return;
+    if (typeof triggerHaptic === 'function') triggerHaptic('medium');
+    const accounts = getDeviceAccounts();
+    const target = accounts.find(a => a.userId === targetUserId);
+
+    if (!target || !target.token) {
+        if (typeof showToast === 'function') showToast('warning', 'Session Missing', 'Please sign in with password.');
+        closeUserProfileModal();
+        openLoginModal();
+        const uInp = document.getElementById("loginUsername");
+        if (uInp && target) uInp.value = target.username;
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/auth', {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${target.token}` }
+        });
+        const result = await res.json();
+        if (result.success && result.user) {
+            authToken = target.token;
+            currentSessionUser = result.user;
+            window.currentSessionUser = currentSessionUser;
+            localStorage.setItem("household_auth_token", authToken);
+            localStorage.setItem("household_session_user", JSON.stringify(currentSessionUser));
+            saveDeviceAccount(currentSessionUser, authToken);
+
+            // Cleanly reset in-memory records to guarantee zero cross-household bleed
+            expenses = [];
+            window.expenses = [];
+            window.expensesData = [];
+
+            closeUserProfileModal();
+            updateUserProfileUI();
+            applyNavPermissions();
+            await loadData();
+            if (window.loadMasterConfig) await window.loadMasterConfig();
+            if (window.renderAdminView) window.renderAdminView();
+            const isSysAdmin = currentSessionUser && (currentSessionUser.role === 'ADMIN' || currentSessionUser.role === 'SYSTEM_ADMIN');
+            if (isSysAdmin && window.loadAdminConsoleData) window.loadAdminConsoleData();
+            if (window.syncPushSubscriptionSilently) window.syncPushSubscriptionSilently();
+
+            if (typeof triggerHaptic === 'function') triggerHaptic('success');
+            if (typeof showToast === 'function') {
+                showToast('success', `Switched to ${result.user.name}`, `Active: ${result.user.householdName}`);
+            }
+        } else {
+            if (typeof showToast === 'function') showToast('warning', 'Session Expired', 'Please enter password to reconnect this account.');
+            closeUserProfileModal();
+            openLoginModal();
+            const uInp = document.getElementById("loginUsername");
+            if (uInp) uInp.value = target.username;
+        }
+    } catch (err) {
+        if (typeof showToast === 'function') showToast('error', 'Switch Error', 'Network error switching profile.');
+    }
+}
+window.switchDeviceAccount = switchDeviceAccount;
+
+function openAddAccountFromSwitcher() {
+    closeUserProfileModal();
+    openLoginModal();
+    const uInp = document.getElementById("loginUsername");
+    const pInp = document.getElementById("loginPassword");
+    if (uInp) uInp.value = "";
+    if (pInp) pInp.value = "";
+}
+window.openAddAccountFromSwitcher = openAddAccountFromSwitcher;
 
 function togglePasswordVisibility(inputId, btn) {
     const input = document.getElementById(inputId);
@@ -1689,6 +1853,7 @@ async function signIn(username, password) {
             window.currentSessionUser = currentSessionUser;
             localStorage.setItem("household_auth_token", authToken);
             localStorage.setItem("household_session_user", JSON.stringify(currentSessionUser));
+            saveDeviceAccount(currentSessionUser, authToken);
 
             // Cleanly reset in-memory records to guarantee zero cross-household bleed
             expenses = [];
@@ -1747,7 +1912,8 @@ function signOut() {
         const keep = new Set([
             'homeexpenses_offline_queue',
             'household_app_theme',
-            'homeexpenses_expense_view'
+            'homeexpenses_expense_view',
+            'household_device_accounts'
         ]);
         Object.keys(localStorage)
             .filter(k => !keep.has(k) &&
@@ -1789,6 +1955,7 @@ async function initAuthSession() {
                 currentSessionUser = result.user;
                 window.currentSessionUser = currentSessionUser;
                 localStorage.setItem("household_session_user", JSON.stringify(currentSessionUser));
+                saveDeviceAccount(currentSessionUser, storedToken);
                 updateUserProfileUI();
                 await loadData();
                 if (window.loadMasterConfig) await window.loadMasterConfig();
@@ -3834,58 +4001,246 @@ function renderExpenseTable(filteredData) {
             }
 
             return groupHeader + `
-                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/90 hover:shadow-md transition space-y-3">
-                    <!-- Top Bar: Category & Date -->
-                    <div class="flex items-start justify-between gap-2">
-                        <div class="flex items-center gap-2.5 min-w-0">
-                            <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 text-base">
-                                ${catIcon}
-                            </div>
-                            <div class="min-w-0">
-                                <h4 class="text-xs font-black text-slate-900 truncate">${escapeHtml(item.category)}</h4>
-                                <p class="text-[11px] font-semibold text-slate-400">${formatDisplayDate(item.date)}</p>
-                            </div>
+                <div class="swipeable-tx-card relative overflow-hidden rounded-2xl mb-3 select-none touch-pan-y" data-id="${escapeHtml(item.id)}">
+                    <!-- Background Swipe Reveal Actions -->
+                    <div class="swipe-bg absolute inset-0 flex items-center justify-between px-4 rounded-2xl pointer-events-none transition-colors duration-150">
+                        <div class="swipe-left-label flex items-center gap-1.5 text-xs font-black text-white bg-indigo-600 px-3 py-1.5 rounded-xl opacity-0 transform -translate-x-2 transition-all duration-150 shadow-sm">
+                            <svg class="ic text-xs" aria-hidden="true"><use href="#i-pen"></use></svg> <span>Edit</span>
                         </div>
-                        <div class="text-right shrink-0">
-                            <span class="text-base font-black ${isIncome ? 'text-emerald-600' : 'text-slate-900'}">${isIncome ? '+' : ''}${formatINR(item.amount)}</span>
+                        <div class="swipe-right-label flex items-center gap-1.5 text-xs font-black text-white bg-rose-600 px-3 py-1.5 rounded-xl opacity-0 transform translate-x-2 transition-all duration-150 shadow-sm">
+                            <span>Delete</span> <svg class="ic text-xs" aria-hidden="true"><use href="#i-trash-2"></use></svg>
                         </div>
                     </div>
-
-                    <!-- Details Bar: Notes & Vendor -->
-                    ${(notes || recipient) ? `
-                        <div class="bg-slate-50/80 rounded-xl p-2.5 text-xs text-slate-600 space-y-1 border border-slate-100">
-                            ${notes ? `<p class="line-clamp-2"><span class="font-bold text-slate-700">Note:</span> ${escapeHtml(notes)}</p>` : ''}
-                            ${recipient ? `<p><span class="font-bold text-slate-700">To:</span> ${escapeHtml(recipient)}</p>` : ''}
-                        </div>
-                    ` : ''}
-
-                    <!-- Chips & Meta Row -->
-                    <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 text-xs">
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">
-                                <svg class="ic text-[9px] mr-1 text-indigo-400" aria-hidden="true"><use href="#i-user"></use></svg> ${escapeHtml(item.paidBy || 'Not Specified')}
-                            </span>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600">
-                                ${escapeHtml(item.paymentMethod || 'UPI')}
-                            </span>
+                    <!-- Foreground Transaction Card -->
+                    <div class="swipe-front relative z-10 bg-white rounded-2xl p-4 shadow-sm border border-slate-200/90 transition-transform duration-150 ease-out space-y-3">
+                        <!-- Top Bar: Category & Date -->
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 text-base">
+                                    ${catIcon}
+                                </div>
+                                <div class="min-w-0">
+                                    <h4 class="text-xs font-black text-slate-900 truncate">${escapeHtml(item.category)}</h4>
+                                    <p class="text-[11px] font-semibold text-slate-400">${formatDisplayDate(item.date)}</p>
+                                </div>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <span class="text-base font-black ${isIncome ? 'text-emerald-600' : 'text-slate-900'}">${isIncome ? '+' : ''}${formatINR(item.amount)}</span>
+                            </div>
                         </div>
 
-                        <!-- Action Buttons (Touch targets >= 44px) -->
-                        <div class="flex items-center gap-1">
-                            <button type="button" onclick="openTransactionDetailModal(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition" title="View details" aria-label="View transaction details">
-                                <svg class="ic text-sm" aria-hidden="true"><use href="#i-eye"></use></svg>
-                            </button>
-                            <button type="button" onclick="editExpense(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition" title="Edit" aria-label="Edit this expense">
-                                <svg class="ic text-sm" aria-hidden="true"><use href="#i-pen"></use></svg>
-                            </button>
-                            <button type="button" onclick="confirmDeleteExpense(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition" title="Delete" aria-label="Delete this expense">
-                                <svg class="ic text-sm" aria-hidden="true"><use href="#i-trash-2"></use></svg>
-                            </button>
+                        <!-- Details Bar: Notes & Vendor -->
+                        ${(notes || recipient) ? `
+                            <div class="bg-slate-50/80 rounded-xl p-2.5 text-xs text-slate-600 space-y-1 border border-slate-100">
+                                ${notes ? `<p class="line-clamp-2"><span class="font-bold text-slate-700">Note:</span> ${escapeHtml(notes)}</p>` : ''}
+                                ${recipient ? `<p><span class="font-bold text-slate-700">To:</span> ${escapeHtml(recipient)}</p>` : ''}
+                            </div>
+                        ` : ''}
+
+                        <!-- Chips & Meta Row -->
+                        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 text-xs">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                    <svg class="ic text-[9px] mr-1 text-indigo-400" aria-hidden="true"><use href="#i-user"></use></svg> ${escapeHtml(item.paidBy || 'Not Specified')}
+                                </span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600">
+                                    ${escapeHtml(item.paymentMethod || 'UPI')}
+                                </span>
+                            </div>
+
+                            <!-- Action Buttons (Touch targets >= 44px) -->
+                            <div class="flex items-center gap-1">
+                                <button type="button" onclick="openTransactionDetailModal(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition" title="View details" aria-label="View transaction details">
+                                    <svg class="ic text-sm" aria-hidden="true"><use href="#i-eye"></use></svg>
+                                </button>
+                                <button type="button" onclick="editExpense(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition" title="Edit" aria-label="Edit this expense">
+                                    <svg class="ic text-sm" aria-hidden="true"><use href="#i-pen"></use></svg>
+                                </button>
+                                <button type="button" onclick="confirmDeleteExpense(${escapeHtml(JSON.stringify(item.id))})" class="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition" title="Delete" aria-label="Delete this expense">
+                                    <svg class="ic text-sm" aria-hidden="true"><use href="#i-trash-2"></use></svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
         }).join("");
+        initSwipeableCards();
+    }
+}
+
+// 5.3 Swipe-to-Action for Mobile Transaction Cards
+function initSwipeableCards() {
+    const cards = document.querySelectorAll('.swipeable-tx-card');
+    cards.forEach(card => {
+        const id = card.getAttribute('data-id');
+        const front = card.querySelector('.swipe-front');
+        const leftLabel = card.querySelector('.swipe-left-label');
+        const rightLabel = card.querySelector('.swipe-right-label');
+        if (!front || !id) return;
+
+        let startX = 0;
+        let startY = 0;
+        let currentX = 0;
+        let isSwiping = false;
+
+        card.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            currentX = 0;
+            isSwiping = false;
+            front.style.transition = 'none';
+        }, { passive: true });
+
+        card.addEventListener('touchmove', (e) => {
+            if (e.touches.length !== 1) return;
+            const diffX = e.touches[0].clientX - startX;
+            const diffY = e.touches[0].clientY - startY;
+
+            if (!isSwiping) {
+                if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 8) return;
+                if (Math.abs(diffX) > 8) isSwiping = true;
+            }
+
+            if (!isSwiping) return;
+
+            const boundedX = Math.sign(diffX) * Math.min(Math.abs(diffX), 120);
+            currentX = boundedX;
+            front.style.transform = `translateX(${boundedX}px)`;
+
+            if (boundedX > 35) {
+                if (leftLabel) leftLabel.style.opacity = '1';
+                if (rightLabel) rightLabel.style.opacity = '0';
+            } else if (boundedX < -35) {
+                if (rightLabel) rightLabel.style.opacity = '1';
+                if (leftLabel) leftLabel.style.opacity = '0';
+            } else {
+                if (leftLabel) leftLabel.style.opacity = '0';
+                if (rightLabel) rightLabel.style.opacity = '0';
+            }
+        }, { passive: true });
+
+        card.addEventListener('touchend', () => {
+            front.style.transition = 'transform 0.2s ease-out';
+            front.style.transform = 'translateX(0px)';
+            if (leftLabel) leftLabel.style.opacity = '0';
+            if (rightLabel) rightLabel.style.opacity = '0';
+
+            if (currentX > 70) {
+                if (typeof triggerHaptic === 'function') triggerHaptic('medium');
+                if (typeof editExpense === 'function') editExpense(id);
+            } else if (currentX < -70) {
+                if (typeof triggerHaptic === 'function') triggerHaptic('delete');
+                if (typeof confirmDeleteExpense === 'function') confirmDeleteExpense(id);
+            }
+            currentX = 0;
+            isSwiping = false;
+        }, { passive: true });
+    });
+}
+window.initSwipeableCards = initSwipeableCards;
+
+// 6.1 Automated Monthly Complete Data Archive Download
+async function downloadCompleteMonthlyBackup() {
+    if (typeof triggerHaptic === 'function') triggerHaptic('medium');
+    const hId = (currentSessionUser && currentSessionUser.householdId) || 'H001';
+    const hName = (currentSessionUser && currentSessionUser.householdName) || hId;
+    const now = new Date();
+    const stamp = `${now.getFullYear()}_${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    try {
+        const res = await fetch(`/api/backup?householdId=${encodeURIComponent(hId)}`, {
+            headers: { 'Authorization': `Bearer ${authToken || localStorage.getItem('household_auth_token') || ''}` }
+        });
+        const bundle = await res.json();
+        const dataToSave = bundle.data || bundle;
+
+        // Download JSON Vault
+        const jsonStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToSave, null, 2));
+        const jsonLink = document.createElement('a');
+        jsonLink.setAttribute("href", jsonStr);
+        jsonLink.setAttribute("download", `GharKhata_${hName.replace(/[^a-zA-Z0-9_-]/g, '_')}_Vault_${stamp}.json`);
+        document.body.appendChild(jsonLink);
+        jsonLink.click();
+        jsonLink.remove();
+
+        // Download Excel CSV Ledger
+        const exps = Array.isArray(dataToSave.expenses) ? dataToSave.expenses : (Array.isArray(expenses) ? expenses : []);
+        if (exps.length > 0) {
+            const csvRows = [
+                ['Transaction ID', 'Date', 'Category', 'Amount (INR)', 'Paid By', 'Paid To / Vendor', 'Payment Method', 'Split Between', 'Notes', 'Created At']
+            ];
+            exps.forEach(e => {
+                csvRows.push([
+                    `"${e.id || ''}"`,
+                    `"${e.date || ''}"`,
+                    `"${(e.category || '').replace(/"/g, '""')}"`,
+                    Number(e.amount || 0).toFixed(2),
+                    `"${(e.paidBy || '').replace(/"/g, '""')}"`,
+                    `"${(e.paidTo || e.vendor || '').replace(/"/g, '""')}"`,
+                    `"${(e.paymentMethod || '').replace(/"/g, '""')}"`,
+                    `"${(e.splitBetween || '').replace(/"/g, '""')}"`,
+                    `"${(e.notes || e.description || '').replace(/"/g, '""')}"`,
+                    `"${e.createdAt || ''}"`
+                ]);
+            });
+            const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(csvRows.map(r => r.join(',')).join('\n'));
+            const csvLink = document.createElement('a');
+            csvLink.setAttribute("href", csvContent);
+            csvLink.setAttribute("download", `GharKhata_${hName.replace(/[^a-zA-Z0-9_-]/g, '_')}_Ledger_${stamp}.csv`);
+            document.body.appendChild(csvLink);
+            setTimeout(() => {
+                csvLink.click();
+                csvLink.remove();
+            }, 300);
+        }
+
+        if (typeof triggerHaptic === 'function') triggerHaptic('success');
+        if (typeof showToast === 'function') {
+            showToast('success', 'Monthly Archive Downloaded', `Saved JSON Vault and Excel CSV ledger for ${hName}.`);
+        }
+    } catch (err) {
+        if (typeof showToast === 'function') showToast('error', 'Download Failed', err.message || 'Error generating monthly archive.');
+    }
+}
+window.downloadCompleteMonthlyBackup = downloadCompleteMonthlyBackup;
+
+// 6.2 Filterable Year-to-Date (YTD) Summary View for Reports
+function setReportsPeriod(period) {
+    if (typeof triggerHaptic === 'function') triggerHaptic('tap');
+    if (typeof quickFilterPeriod === 'function') {
+        quickFilterPeriod(period);
+    }
+
+    const btnMonth = document.getElementById("repPeriodMonth");
+    const btnLast = document.getElementById("repPeriodLastMonth");
+    const btnYtd = document.getElementById("repPeriodYtd");
+
+    const activeCls = ["bg-white", "text-indigo-900", "shadow-sm", "border", "border-slate-200", "font-bold"];
+    const inactiveCls = ["text-slate-600", "font-semibold"];
+
+    const updateBtn = (btn, isActive) => {
+        if (!btn) return;
+        if (isActive) {
+            btn.classList.add(...activeCls);
+            btn.classList.remove(...inactiveCls);
+        } else {
+            btn.classList.remove(...activeCls);
+            btn.classList.add(...inactiveCls);
+        }
+    };
+
+    updateBtn(btnMonth, period === 'this-month');
+    updateBtn(btnLast, period === 'last-month');
+    updateBtn(btnYtd, period === 'this-year');
+
+    if (typeof showToast === 'function') {
+        const label = period === 'this-year' ? 'Full Year (YTD)' : (period === 'last-month' ? 'Last Month' : 'Current Billing Cycle');
+        showToast('info', 'Report Period Filter', `Viewing analytics for ${label}.`);
+    }
+}
+window.setReportsPeriod = setReportsPeriod;
     }
 }
 
@@ -5893,6 +6248,7 @@ async function switchActiveHousehold(targetHId) {
             currentSessionUser = result.user;
             localStorage.setItem("household_auth_token", authToken);
             localStorage.setItem("household_session_user", JSON.stringify(currentSessionUser));
+            saveDeviceAccount(currentSessionUser, authToken);
 
             // Reset expenses array to guarantee clean isolation
             expenses = [];

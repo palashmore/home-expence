@@ -3487,3 +3487,17 @@ html[data-theme="dark"][data-ui="new"] .kpi-card { box-shadow: none; }
 
 /* The shell (header) keeps its own chrome in the new UI. */
 html[data-ui="new"] header select, html[data-ui="new"] header input { background: transparent; border: 0; color: inherit; box-shadow: none; }
+
+/* ---- Mobile Swipeable Transaction Cards ---- */
+.swipeable-tx-card {
+    touch-action: pan-y;
+    position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.swipeable-tx-card .swipe-bg {
+    background: #f1f5f9;
+}
+.swipeable-tx-card .swipe-front {
+    will-change: transform;
+}

@@ -1398,6 +1398,18 @@
                         Detailed analysis across the period selected in the filter bar.
                     </p>
                 </div>
+                <!-- 6.2 Filterable Year-to-Date (YTD) & Cycle Period Toggle -->
+                <div class="flex items-center gap-1 bg-slate-100/90 p-1 rounded-2xl border border-slate-200 shrink-0" role="group" aria-label="Reports Period Filter">
+                    <button type="button" id="repPeriodMonth" data-click="a169" class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-white text-indigo-900 shadow-sm border border-slate-200">
+                        <svg class="ic text-indigo-600" aria-hidden="true"><use href="#i-calendar"></use></svg> Current Cycle
+                    </button>
+                    <button type="button" id="repPeriodLastMonth" data-click="a170" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+                        <svg class="ic text-slate-400" aria-hidden="true"><use href="#i-history"></use></svg> Last Month
+                    </button>
+                    <button type="button" id="repPeriodYtd" data-click="a171" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+                        <svg class="ic text-slate-400" aria-hidden="true"><use href="#i-trending-up"></use></svg> Full Year (YTD)
+                    </button>
+                </div>
             </div>
 
 
@@ -2145,6 +2157,23 @@
                     </div>
                 </div>
 
+                <!-- 6.1 Automated Monthly Complete Data Archive Banner -->
+                <div class="p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-base shrink-0 border border-indigo-400/20">
+                            <svg class="ic" aria-hidden="true"><use href="#i-archive"></use></svg>
+                        </div>
+                        <div>
+                            <h4 class="text-xs sm:text-sm font-bold text-white">Monthly Complete Data Archive (Excel CSV + JSON Vault)</h4>
+                            <p class="text-[11px] text-slate-300 font-medium">1-click download of all household financial ledgers, domestic staff payroll, categories, and settings packaged for offline peace of mind.</p>
+                        </div>
+                    </div>
+                    <button type="button" data-click="a172" class="px-3.5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center justify-center space-x-2 shrink-0 active:scale-98">
+                        <svg class="ic text-xs" aria-hidden="true"><use href="#i-file-down"></use></svg>
+                        <span>Download Complete Archive</span>
+                    </button>
+                </div>
+
                 <!-- Snapshot Vault Table -->
                 <div class="space-y-3">
                     <div class="flex justify-between items-center">
@@ -2738,7 +2767,7 @@
                             <div class="flex items-center gap-2">
                                 <div class="relative flex-1">
                                     <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-                                    <input type="number" step="any" min="0" inputmode="decimal" id="adminMonthlyBudgetLimit" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:border-indigo-500">
+                                    <input type="number" step="any" min="0" inputmode="decimal" pattern="[0-9.]*" id="adminMonthlyBudgetLimit" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:border-indigo-500">
                                 <p id="adminMonthlyBudgetLimitError" class="field-error"></p>
                                 </div>
                                 <button type="button" data-click="a093" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 shrink-0" title="Save Budget Limit" aria-label="Save Budget Limit">
@@ -3057,7 +3086,7 @@
                         <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="inputAmount">Amount (₹)</label>
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 font-bold pointer-events-none" aria-hidden="true">₹</span>
-                            <input type="number" step="0.01" min="0.01" inputmode="decimal" id="inputAmount" placeholder="0.00" required
+                            <input type="number" step="0.01" min="0.01" inputmode="decimal" pattern="[0-9.]*" id="inputAmount" placeholder="0.00" required
                                    class="w-full pl-8 pr-3 py-3 bg-slate-50 border border-slate-300 rounded-xl text-xl font-black text-slate-900 focus:border-indigo-500 focus:bg-white transition">
                         </div>
                     </div>
@@ -3404,7 +3433,7 @@
                         </div>
                         <div class="relative">
                             <span class="absolute left-3 top-2 text-slate-400 font-bold text-sm">₹</span>
-                            <input type="number" step="0.01" min="0.01" inputmode="decimal" id="settleUpAmountInput" data-input="a130" class="w-full pl-7 pr-3 py-2 bg-slate-50 border-2 border-emerald-400 rounded-xl text-base font-bold text-slate-900 focus:border-emerald-600 focus:bg-white transition" placeholder="Enter amount">
+                            <input type="number" step="0.01" min="0.01" inputmode="decimal" pattern="[0-9.]*" id="settleUpAmountInput" data-input="a130" class="w-full pl-7 pr-3 py-2 bg-slate-50 border-2 border-emerald-400 rounded-xl text-base font-bold text-slate-900 focus:border-emerald-600 focus:bg-white transition" placeholder="Enter amount">
                         </div>
                         <!-- Quick Installment Chips -->
                         <div class="flex items-center gap-1.5 mt-2 flex-wrap" id="settleQuickChips"></div>
@@ -3505,7 +3534,7 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="adminNewStaffSalary">Base Salary (₹)</label>
-                        <input type="number" min="0" step="any" inputmode="decimal" id="adminNewStaffSalary" placeholder="e.g. 5000" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:border-indigo-500">
+                        <input type="number" min="0" step="any" inputmode="decimal" pattern="[0-9.]*" id="adminNewStaffSalary" placeholder="e.g. 5000" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="adminNewStaffLeaves">Allowed Paid Leaves</label>
@@ -3568,7 +3597,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="adminNewBillAmount">Approx Amount (₹)</label>
-                        <input type="number" min="0" step="any" inputmode="decimal" id="adminNewBillAmount" placeholder="e.g. 1500" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:border-indigo-500">
+                        <input type="number" min="0" step="any" inputmode="decimal" pattern="[0-9.]*" id="adminNewBillAmount" placeholder="e.g. 1500" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:border-indigo-500">
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
@@ -3811,10 +3840,25 @@
                     </div>
                 </div>
 
-                <div class="space-y-2 pt-1">
-                    <button type="button" data-click="a156" class="w-full py-3 bg-gradient-to-r from-rose-600 to-rose-600 hover:from-rose-700 hover:to-rose-700 text-white rounded-xl font-medium text-xs shadow-lg shadow-rose-600/30 active:scale-98 transition flex items-center justify-center gap-2">
+                <!-- 2.1 Fast Account / Profile Switcher -->
+                <div class="pt-3 border-t border-slate-800 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <svg class="ic text-indigo-400" aria-hidden="true"><use href="#i-users"></use></svg> Switch Account / Profile
+                        </span>
+                        <button type="button" data-click="a173" class="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1">
+                            <svg class="ic text-xs" aria-hidden="true"><use href="#i-plus"></use></svg> Add Account
+                        </button>
+                    </div>
+                    <div id="deviceAccountsList" class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        <!-- Rendered by renderDeviceAccountsList() -->
+                    </div>
+                </div>
+
+                <div class="space-y-2 pt-2 border-t border-slate-800">
+                    <button type="button" data-click="a156" class="w-full py-2.5 bg-slate-800 hover:bg-rose-900/40 text-rose-300 border border-rose-500/30 rounded-xl font-medium text-xs active:scale-98 transition flex items-center justify-center gap-2">
                         <svg class="ic" aria-hidden="true"><use href="#i-log-out"></use></svg>
-                        <span>Sign Out of Account</span>
+                        <span>Sign Out of Active Account</span>
                     </button>
                 </div>
             </div>
@@ -3848,7 +3892,7 @@
                     <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="createHouseholdBudget">Monthly Budget Limit (₹)</label>
                     <div class="relative">
                         <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-                        <input type="number" step="any" min="0" inputmode="decimal" id="createHouseholdBudget" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                        <input type="number" step="any" min="0" inputmode="decimal" pattern="[0-9.]*" id="createHouseholdBudget" value="50000" class="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:border-indigo-500 focus:bg-white transition">
                     </div>
                 </div>
 
@@ -3970,7 +4014,7 @@
                     <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" for="editHouseholdBudget">Monthly Budget Limit (₹)</label>
                     <div class="relative">
                         <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-                        <input type="number" step="any" min="0" inputmode="decimal" id="editHouseholdBudget" class="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:border-indigo-500 focus:bg-white transition">
+                        <input type="number" step="any" min="0" inputmode="decimal" pattern="[0-9.]*" id="editHouseholdBudget" class="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:border-indigo-500 focus:bg-white transition">
                     </div>
                 </div>
 

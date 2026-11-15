@@ -181,6 +181,11 @@
         a166: function (event) { setAllUserPermissions(true); },
         a167: function (event) { setAllUserPermissions(false); },
         a168: function (event) { resetUserPermissionsToRole(); },
+        a169: function (event) { setReportsPeriod('this-month'); },
+        a170: function (event) { setReportsPeriod('last-month'); },
+        a171: function (event) { setReportsPeriod('this-year'); },
+        a172: function (event) { downloadCompleteMonthlyBackup(); },
+        a173: function (event) { openAddAccountFromSwitcher(); },
     };
 
     // A click lands on the icon inside a button, not on the button, so the

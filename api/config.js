@@ -88,6 +88,14 @@ module.exports = async function handler(req, res) {
                 return res.status(400).json({ success: false, error: "Missing configuration payload." });
             }
 
+            // Only household owners or system admins can change the household default dashboard design
+            if (body.dashboardUi !== undefined && session.role === 'MEMBER') {
+                return res.status(403).json({
+                    success: false,
+                    error: "Forbidden: Household members cannot modify the household default dashboard design."
+                });
+            }
+
             const current = await storage.getHouseholdConfig(householdId, true);
 
             // Action: Dedicated atomic category creation

@@ -1,5 +1,1675 @@
 [
   {
+    "id": "evt_H001_mwi0bam7_5yf9ve",
+    "eventId": "evt_H001_mwi0bam7_5yf9ve",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757563006",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:46:03.012Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0b508_be2eo1",
+    "eventId": "evt_H001_mwi0b508_be2eo1",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "TestCat_1794757555001 • ₹150 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757555333-7xro-1794757555736",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 150,
+    "timestamp": "2026-11-15T15:45:55.738Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0b4rm_6yrp5t",
+    "eventId": "evt_H001_mwi0b4rm_6yrp5t",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹150",
+    "body": "TestCat_1794757555001 • Paid by Palash • \"Test Expense\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757555333-7xro-1794757555426",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 150,
+    "timestamp": "2026-11-15T15:45:55.429Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0b4iq_byk0tg",
+    "eventId": "evt_H001_mwi0b4iq_byk0tg",
+    "householdId": "H001",
+    "title": "🏷️ Palash added category: TestCat_1794757555001",
+    "body": "New spending category available in Master Settings",
+    "url": "/#tab-settings",
+    "tag": "cat-new-1794757555106",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:45:55.110Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0b3zm_nqfc7s",
+    "eventId": "evt_H001_mwi0b3zm_nqfc7s",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757554418",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:45:54.421Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a6d2_uyxa9c",
+    "eventId": "evt_H001_mwi0a6d2_uyxa9c",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757510838",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:45:10.846Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a62x_3hqh9i",
+    "eventId": "evt_H001_mwi0a62x_3hqh9i",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757510473",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:45:10.478Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a5u4_0qxqdn",
+    "eventId": "evt_H001_mwi0a5u4_0qxqdn",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757510156",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:45:10.160Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a5lk_c9q8w2",
+    "eventId": "evt_H001_mwi0a5lk_c9q8w2",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757509848",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:45:09.851Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a5e7_7ahs5x",
+    "eventId": "evt_H001_mwi0a5e7_7ahs5x",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757509583",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:45:09.586Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a50j_f1gsbh",
+    "eventId": "evt_H001_mwi0a50j_f1gsbh",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757509091",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:45:09.095Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a4qh_r1e95f",
+    "eventId": "evt_H001_mwi0a4qh_r1e95f",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757508729",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:45:08.732Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a4cq_qlm1ya",
+    "eventId": "evt_H001_mwi0a4cq_qlm1ya",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "Grocery & Vegetables • ₹641.5 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757507765-f9gz-1794757508234",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 641.5,
+    "timestamp": "2026-11-15T15:45:08.237Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a43b_njr0vd",
+    "eventId": "evt_H001_mwi0a43b_njr0vd",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹641.5",
+    "body": "Grocery & Vegetables • Paid by Palash • \"ReadProbe0a3zb\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757507765-f9gz-1794757507895",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 641.5,
+    "timestamp": "2026-11-15T15:45:07.898Z",
+    "readBy": [
+      "U001",
+      "U002"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a3t1_l9uxbn",
+    "eventId": "evt_H001_mwi0a3t1_l9uxbn",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "Grocery & Vegetables • ₹321.5 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757507097-wxam-1794757507524",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 321.5,
+    "timestamp": "2026-11-15T15:45:07.528Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a3l9_05byxz",
+    "eventId": "evt_H001_mwi0a3l9_05byxz",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹321.5",
+    "body": "Grocery & Vegetables • Paid by Palash • \"NotifProbe0a3f9\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757507097-wxam-1794757507245",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 321.5,
+    "timestamp": "2026-11-15T15:45:07.250Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a2k9_rtjqqd",
+    "eventId": "evt_H001_mwi0a2k9_rtjqqd",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757505913",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:45:05.916Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a2as_bs490l",
+    "eventId": "evt_H001_mwi0a2as_bs490l",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "ProbeCat0a0ri • ₹1,234 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757504368-wkzh-1794757505572",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 1234,
+    "timestamp": "2026-11-15T15:45:05.577Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a1y1_x8dqg7",
+    "eventId": "evt_H001_mwi0a1y1_x8dqg7",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "ProbeCat0a0ri • ₹999 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757504030-dov5-1794757505113",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 999,
+    "timestamp": "2026-11-15T15:45:05.116Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a1oa_hhblpg",
+    "eventId": "evt_H001_mwi0a1oa_hhblpg",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹1,234",
+    "body": "ProbeCat0a0ri • Paid by Palash • \"probe\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757504368-wkzh-1794757504762",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 1234,
+    "timestamp": "2026-11-15T15:45:04.766Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a1h2_sxg62w",
+    "eventId": "evt_H001_mwi0a1h2_sxg62w",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹1,001",
+    "body": "ProbeCat0a0ri • Paid by Palash • \"probe\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757504368-wkzh-1794757504502",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 1001,
+    "timestamp": "2026-11-15T15:45:04.503Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a18g_3kc0ht",
+    "eventId": "evt_H001_mwi0a18g_3kc0ht",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹999",
+    "body": "ProbeCat0a0ri • Paid by Palash • \"probe\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757504030-dov5-1794757504192",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 999,
+    "timestamp": "2026-11-15T15:45:04.197Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a0vb_r6fytb",
+    "eventId": "evt_H001_mwi0a0vb_r6fytb",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757503718",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:45:03.722Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a0oc_b0h38p",
+    "eventId": "evt_H001_mwi0a0oc_b0h38p",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757503468",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:45:03.472Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0a0fl_3drx59",
+    "eventId": "evt_H001_mwi0a0fl_3drx59",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757503153",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:45:03.158Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09zki_jpv81z",
+    "eventId": "evt_H001_mwi09zki_jpv81z",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757502033",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:45:02.038Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09d1y_d7557l",
+    "eventId": "evt_H001_mwi09d1y_d7557l",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757472854",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:32.857Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09czu_4ii2ii",
+    "eventId": "evt_H001_mwi09czu_4ii2ii",
+    "householdId": "H001",
+    "title": "⚙️ Pallavi updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757472778",
+    "actor": "Pallavi",
+    "actorUserId": "U002",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:32.780Z",
+    "readBy": [
+      "U002"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09cv0_a1sio6",
+    "eventId": "evt_H001_mwi09cv0_a1sio6",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757472604",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:32.665Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09cny_x1lhee",
+    "eventId": "evt_H001_mwi09cny_x1lhee",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757472350",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:32.352Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09cln_3fx81w",
+    "eventId": "evt_H001_mwi09cln_3fx81w",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757472267",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:32.269Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09cjm_e5k7sq",
+    "eventId": "evt_H001_mwi09cjm_e5k7sq",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757472194",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:32.197Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09ch6_667qkv",
+    "eventId": "evt_H001_mwi09ch6_667qkv",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757472106",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:32.109Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09cd1_jtyawy",
+    "eventId": "evt_H001_mwi09cd1_jtyawy",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757471957",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:31.962Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09ca8_yt2mcu",
+    "eventId": "evt_H001_mwi09ca8_yt2mcu",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "Grocery & Vegetables • ₹641.5 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757471593-0yfe-1794757471856",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 641.5,
+    "timestamp": "2026-11-15T15:44:31.858Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09c4z_eyueyp",
+    "eventId": "evt_H001_mwi09c4z_eyueyp",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹641.5",
+    "body": "Grocery & Vegetables • Paid by Palash • \"ReadProbe09c2o\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757471593-0yfe-1794757471667",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 641.5,
+    "timestamp": "2026-11-15T15:44:31.670Z",
+    "readBy": [
+      "U001",
+      "U002"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09c10_hh0ocr",
+    "eventId": "evt_H001_mwi09c10_hh0ocr",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "Grocery & Vegetables • ₹321.5 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757471354-w7gu-1794757471524",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 321.5,
+    "timestamp": "2026-11-15T15:44:31.526Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09bxx_8lbhrt",
+    "eventId": "evt_H001_mwi09bxx_8lbhrt",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹321.5",
+    "body": "Grocery & Vegetables • Paid by Palash • \"NotifProbe09bv2\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757471354-w7gu-1794757471413",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 321.5,
+    "timestamp": "2026-11-15T15:44:31.418Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09baz_hh11oe",
+    "eventId": "evt_H001_mwi09baz_hh11oe",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757470587",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:30.590Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09b8d_fezp6s",
+    "eventId": "evt_H001_mwi09b8d_fezp6s",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "ProbeCat09akv • ₹1,234 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757469954-8mcz-1794757470493",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 1234,
+    "timestamp": "2026-11-15T15:44:30.496Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09b35_i4y2rm",
+    "eventId": "evt_H001_mwi09b35_i4y2rm",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "ProbeCat09akv • ₹999 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757469840-0532-1794757470305",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 999,
+    "timestamp": "2026-11-15T15:44:30.309Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09azg_6tgvpq",
+    "eventId": "evt_H001_mwi09azg_6tgvpq",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹1,234",
+    "body": "ProbeCat09akv • Paid by Palash • \"probe\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757469954-8mcz-1794757470172",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 1234,
+    "timestamp": "2026-11-15T15:44:30.174Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09avg_k28dl8",
+    "eventId": "evt_H001_mwi09avg_k28dl8",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹1,001",
+    "body": "ProbeCat09akv • Paid by Palash • \"probe\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757469954-8mcz-1794757470028",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 1001,
+    "timestamp": "2026-11-15T15:44:30.031Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09asc_rtlgxf",
+    "eventId": "evt_H001_mwi09asc_rtlgxf",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹999",
+    "body": "ProbeCat09akv • Paid by Palash • \"probe\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757469840-0532-1794757469916",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 999,
+    "timestamp": "2026-11-15T15:44:29.918Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09anb_zvip39",
+    "eventId": "evt_H001_mwi09anb_zvip39",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757469735",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:29.737Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09ako_5lv0oo",
+    "eventId": "evt_H001_mwi09ako_5lv0oo",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757469640",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:29.642Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09agm_kzs346",
+    "eventId": "evt_H001_mwi09agm_kzs346",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757469494",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:29.496Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09abt_lrjrmr",
+    "eventId": "evt_H001_mwi09abt_lrjrmr",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757469321",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:29.323Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi094mn_eqghjv",
+    "eventId": "evt_H001_mwi094mn_eqghjv",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757461935",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:21.938Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi094ke_bctmq7",
+    "eventId": "evt_H001_mwi094ke_bctmq7",
+    "householdId": "H001",
+    "title": "⚙️ Pallavi updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757461854",
+    "actor": "Pallavi",
+    "actorUserId": "U002",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:21.858Z",
+    "readBy": [
+      "U002"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi094dg_sv10i9",
+    "eventId": "evt_H001_mwi094dg_sv10i9",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757461604",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:21.607Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi094at_0sumdx",
+    "eventId": "evt_H001_mwi094at_0sumdx",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757461509",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:21.513Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0948j_7z2xne",
+    "eventId": "evt_H001_mwi0948j_7z2xne",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757461427",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:21.430Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0945z_gtdlq8",
+    "eventId": "evt_H001_mwi0945z_gtdlq8",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757461335",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:21.338Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0943p_bwtyxc",
+    "eventId": "evt_H001_mwi0943p_bwtyxc",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757461253",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:21.255Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0940d_nc35of",
+    "eventId": "evt_H001_mwi0940d_nc35of",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757461133",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:21.135Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi093vp_fiosz6",
+    "eventId": "evt_H001_mwi093vp_fiosz6",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "Grocery & Vegetables • ₹641.5 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757460724-mfdp-1794757460965",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 641.5,
+    "timestamp": "2026-11-15T15:44:20.967Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi093qv_ar4rw3",
+    "eventId": "evt_H001_mwi093qv_ar4rw3",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹641.5",
+    "body": "Grocery & Vegetables • Paid by Palash • \"ReadProbe093of\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757460724-mfdp-1794757460791",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 641.5,
+    "timestamp": "2026-11-15T15:44:20.796Z",
+    "readBy": [
+      "U001",
+      "U002"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi093mh_ire64d",
+    "eventId": "evt_H001_mwi093mh_ire64d",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "Grocery & Vegetables • ₹321.5 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757460465-eva5-1794757460633",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 321.5,
+    "timestamp": "2026-11-15T15:44:20.635Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi093jh_ms3hpa",
+    "eventId": "evt_H001_mwi093jh_ms3hpa",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹321.5",
+    "body": "Grocery & Vegetables • Paid by Palash • \"NotifProbe093gj\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757460465-eva5-1794757460525",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 321.5,
+    "timestamp": "2026-11-15T15:44:20.528Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi092x0_f4zipy",
+    "eventId": "evt_H001_mwi092x0_f4zipy",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757459716",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:19.718Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi092uo_hfh9gk",
+    "eventId": "evt_H001_mwi092uo_hfh9gk",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "ProbeCat092ad • ₹1,234 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757459195-6iiq-1794757459632",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 1234,
+    "timestamp": "2026-11-15T15:44:19.634Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi092s0_wr76pz",
+    "eventId": "evt_H001_mwi092s0_wr76pz",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "ProbeCat092ad • ₹999 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757459082-u3f7-1794757459536",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 999,
+    "timestamp": "2026-11-15T15:44:19.538Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi092nk_fk08uw",
+    "eventId": "evt_H001_mwi092nk_fk08uw",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹1,234",
+    "body": "ProbeCat092ad • Paid by Palash • \"probe\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757459195-6iiq-1794757459376",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 1234,
+    "timestamp": "2026-11-15T15:44:19.377Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi092k5_hwbsoi",
+    "eventId": "evt_H001_mwi092k5_hwbsoi",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹1,001",
+    "body": "ProbeCat092ad • Paid by Palash • \"probe\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757459195-6iiq-1794757459253",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 1001,
+    "timestamp": "2026-11-15T15:44:19.255Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi092hd_xf3yhe",
+    "eventId": "evt_H001_mwi092hd_xf3yhe",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹999",
+    "body": "ProbeCat092ad • Paid by Palash • \"probe\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757459082-u3f7-1794757459153",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 999,
+    "timestamp": "2026-11-15T15:44:19.155Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi092cw_ro06wm",
+    "eventId": "evt_H001_mwi092cw_ro06wm",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757458992",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:18.994Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi092a7_kcj0k9",
+    "eventId": "evt_H001_mwi092a7_kcj0k9",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757458895",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:18.898Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi0925v_q16b18",
+    "eventId": "evt_H001_mwi0925v_q16b18",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757458739",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:18.741Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi09215_qgrhfp",
+    "eventId": "evt_H001_mwi09215_qgrhfp",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757458569",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:44:18.571Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06y59_2i9onu",
+    "eventId": "evt_H001_mwi06y59_2i9onu",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757360221",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:40.224Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06y3e_uq6kwq",
+    "eventId": "evt_H001_mwi06y3e_uq6kwq",
+    "householdId": "H001",
+    "title": "⚙️ Pallavi updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757360154",
+    "actor": "Pallavi",
+    "actorUserId": "U002",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:40.156Z",
+    "readBy": [
+      "U002"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06xz8_iszjzq",
+    "eventId": "evt_H001_mwi06xz8_iszjzq",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757360004",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:40.007Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06xxe_42sr2t",
+    "eventId": "evt_H001_mwi06xxe_42sr2t",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757359938",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:39.940Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06xvl_39533o",
+    "eventId": "evt_H001_mwi06xvl_39533o",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757359873",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:39.875Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06xts_4mydrk",
+    "eventId": "evt_H001_mwi06xts_4mydrk",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757359808",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:39.811Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06xrv_1dtyqr",
+    "eventId": "evt_H001_mwi06xrv_1dtyqr",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757359739",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:39.742Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06xo3_weve95",
+    "eventId": "evt_H001_mwi06xo3_weve95",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757359603",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:39.606Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06xll_1r0b54",
+    "eventId": "evt_H001_mwi06xll_1r0b54",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "Grocery & Vegetables • ₹641.5 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757359303-g7cf-1794757359513",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 641.5,
+    "timestamp": "2026-11-15T15:42:39.515Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06xhi_wk2i9l",
+    "eventId": "evt_H001_mwi06xhi_wk2i9l",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹641.5",
+    "body": "Grocery & Vegetables • Paid by Palash • \"ReadProbe06xf8\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757359303-g7cf-1794757359366",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 641.5,
+    "timestamp": "2026-11-15T15:42:39.368Z",
+    "readBy": [
+      "U001",
+      "U002"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06xdr_ipk8ig",
+    "eventId": "evt_H001_mwi06xdr_ipk8ig",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "Grocery & Vegetables • ₹321.5 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757359054-whf7-1794757359231",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 321.5,
+    "timestamp": "2026-11-15T15:42:39.233Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06xao_uudumh",
+    "eventId": "evt_H001_mwi06xao_uudumh",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹321.5",
+    "body": "Grocery & Vegetables • Paid by Palash • \"NotifProbe06x7n\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757359054-whf7-1794757359119",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 321.5,
+    "timestamp": "2026-11-15T15:42:39.122Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06wm8_2sbzhf",
+    "eventId": "evt_H001_mwi06wm8_2sbzhf",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757358240",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:38.243Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06wjr_zpkbis",
+    "eventId": "evt_H001_mwi06wjr_zpkbis",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "ProbeCat06vxg • ₹1,234 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757357685-e23w-1794757358151",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 1234,
+    "timestamp": "2026-11-15T15:42:38.154Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06wfs_ahp3e9",
+    "eventId": "evt_H001_mwi06wfs_ahp3e9",
+    "householdId": "H001",
+    "title": "🗑️ Palash deleted an expense",
+    "body": "ProbeCat06vxg • ₹999 removed from ledger",
+    "url": "/#tab-expenses",
+    "tag": "expense-delete-exp-1794757357486-t873-1794757358008",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_DELETE",
+    "amount": 999,
+    "timestamp": "2026-11-15T15:42:38.010Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06wbs_zshl55",
+    "eventId": "evt_H001_mwi06wbs_zshl55",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹1,234",
+    "body": "ProbeCat06vxg • Paid by Palash • \"probe\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757357685-e23w-1794757357864",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 1234,
+    "timestamp": "2026-11-15T15:42:37.866Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06w8l_at4uvk",
+    "eventId": "evt_H001_mwi06w8l_at4uvk",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹1,001",
+    "body": "ProbeCat06vxg • Paid by Palash • \"probe\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757357685-e23w-1794757357749",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 1001,
+    "timestamp": "2026-11-15T15:42:37.751Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06w4y_vvge5n",
+    "eventId": "evt_H001_mwi06w4y_vvge5n",
+    "householdId": "H001",
+    "title": "💰 Palash added expense: ₹999",
+    "body": "ProbeCat06vxg • Paid by Palash • \"probe\"",
+    "url": "/#tab-expenses",
+    "tag": "expense-new-exp-1794757357486-t873-1794757357618",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "EXPENSE_CREATE",
+    "amount": 999,
+    "timestamp": "2026-11-15T15:42:37.621Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06vyx_7mx6p2",
+    "eventId": "evt_H001_mwi06vyx_7mx6p2",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757357401",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:37.403Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06vx9_8c5hjl",
+    "eventId": "evt_H001_mwi06vx9_8c5hjl",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757357341",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:37.344Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06vth_qk1bg6",
+    "eventId": "evt_H001_mwi06vth_qk1bg6",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757357205",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:37.207Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06vns_qddhmb",
+    "eventId": "evt_H001_mwi06vns_qddhmb",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757357000",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:37.003Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06g8z_23keem",
+    "eventId": "evt_H001_mwi06g8z_23keem",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757337027",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:17.030Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi06g5g_kio6m8",
+    "eventId": "evt_H001_mwi06g5g_kio6m8",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757336900",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:42:16.902Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi05yi3_b30jxl",
+    "eventId": "evt_H001_mwi05yi3_b30jxl",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757314027",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:41:54.030Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwi05yco_dsu23l",
+    "eventId": "evt_H001_mwi05yco_dsu23l",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794757313832",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:41:53.835Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwhzb4c7_ygq979",
+    "eventId": "evt_H001_mwhzb4c7_ygq979",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794755875255",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:17:55.257Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
+    "id": "evt_H001_mwhzb4a0_6w8hng",
+    "eventId": "evt_H001_mwhzb4a0_6w8hng",
+    "householdId": "H001",
+    "title": "⚙️ Palash updated household settings",
+    "body": "Master household rules, budget limits, or categories modified",
+    "url": "/#tab-settings",
+    "tag": "config-update-1794755875176",
+    "actor": "Palash",
+    "actorUserId": "U001",
+    "type": "CONFIG_UPDATE",
+    "amount": null,
+    "timestamp": "2026-11-15T15:17:55.182Z",
+    "readBy": [
+      "U001"
+    ]
+  },
+  {
     "id": "notif_1790710145658_0zr08",
     "householdId": "H001",
     "title": "⚙️ Palash updated household settings",
@@ -23,370 +1693,6 @@
     "type": "CONFIG_UPDATE",
     "amount": null,
     "timestamp": "2026-09-29T19:29:05.450Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790710075227_e4btl",
-    "householdId": "H001",
-    "title": "⚙️ Palash updated household settings",
-    "body": "Master household rules, budget limits, or categories modified",
-    "url": "/#tab-settings",
-    "tag": "config-update-1790710075226",
-    "actor": "Palash",
-    "type": "CONFIG_UPDATE",
-    "amount": null,
-    "timestamp": "2026-09-29T19:27:55.227Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790710074974_oxdgm",
-    "householdId": "H001",
-    "title": "⚙️ Palash updated household settings",
-    "body": "Master household rules, budget limits, or categories modified",
-    "url": "/#tab-settings",
-    "tag": "config-update-1790710074973",
-    "actor": "Palash",
-    "type": "CONFIG_UPDATE",
-    "amount": null,
-    "timestamp": "2026-09-29T19:27:54.974Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790710029134_ay0lx",
-    "householdId": "H001",
-    "title": "🗑️ Palash deleted an expense",
-    "body": "Grocery & Vegetables • ₹400 removed from ledger",
-    "url": "/#tab-expenses",
-    "tag": "expense-delete-exp-1790710028996-zbg8-1790710029133",
-    "actor": "Palash",
-    "type": "EXPENSE_DELETE",
-    "amount": 400,
-    "timestamp": "2026-09-29T19:27:09.134Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790710029080_7b66w",
-    "householdId": "H001",
-    "title": "💰 Palash added expense: ₹400",
-    "body": "Grocery & Vegetables • Paid by Palash • \"Test expense verification\"",
-    "url": "/#tab-expenses",
-    "tag": "expense-new-exp-1790710028996-zbg8-1790710029079",
-    "actor": "Palash",
-    "type": "EXPENSE_CREATE",
-    "amount": 400,
-    "timestamp": "2026-09-29T19:27:09.080Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790710028894_2fpiy",
-    "householdId": "H001",
-    "title": "⚙️ Palash updated household settings",
-    "body": "Master household rules, budget limits, or categories modified",
-    "url": "/#tab-settings",
-    "tag": "config-update-1790710028894",
-    "actor": "Palash",
-    "type": "CONFIG_UPDATE",
-    "amount": null,
-    "timestamp": "2026-09-29T19:27:08.894Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790710028850_nqkwp",
-    "householdId": "H001",
-    "title": "⚙️ Palash updated household settings",
-    "body": "Master household rules, budget limits, or categories modified",
-    "url": "/#tab-settings",
-    "tag": "config-update-1790710028850",
-    "actor": "Palash",
-    "type": "CONFIG_UPDATE",
-    "amount": null,
-    "timestamp": "2026-09-29T19:27:08.850Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790710028715_wtyuf",
-    "householdId": "H001",
-    "title": "🏷️ Palash added category: Recharge",
-    "body": "New spending category available in Master Settings",
-    "url": "/#tab-settings",
-    "tag": "cat-new-1790710028715",
-    "actor": "Palash",
-    "type": "CONFIG_UPDATE",
-    "amount": null,
-    "timestamp": "2026-09-29T19:27:08.715Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790710003320_7uh5v",
-    "householdId": "H001",
-    "title": "⚙️ Palash updated household settings",
-    "body": "Master household rules, budget limits, or categories modified",
-    "url": "/#tab-settings",
-    "tag": "config-update-1790710003319",
-    "actor": "Palash",
-    "type": "CONFIG_UPDATE",
-    "amount": null,
-    "timestamp": "2026-09-29T19:26:43.320Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790710003178_gs4sb",
-    "householdId": "H001",
-    "title": "⚙️ Palash updated household settings",
-    "body": "Master household rules, budget limits, or categories modified",
-    "url": "/#tab-settings",
-    "tag": "config-update-1790710003176",
-    "actor": "Palash",
-    "type": "CONFIG_UPDATE",
-    "amount": null,
-    "timestamp": "2026-09-29T19:26:43.178Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790709081896_klv6f",
-    "householdId": "H001",
-    "title": "🏷️ Palash added category: Recharge",
-    "body": "New spending category available in Master Settings",
-    "url": "/#tab-settings",
-    "tag": "cat-new-1790709081896",
-    "actor": "Palash",
-    "type": "CONFIG_UPDATE",
-    "amount": null,
-    "timestamp": "2026-09-29T19:11:21.896Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790708029478_ssmr1",
-    "householdId": "H001",
-    "title": "⚙️ Palash updated household settings",
-    "body": "Master household rules, budget limits, or categories modified",
-    "url": "/#tab-settings",
-    "tag": "config-update-1790708029477",
-    "actor": "Palash",
-    "type": "CONFIG_UPDATE",
-    "amount": null,
-    "timestamp": "2026-09-29T18:53:49.478Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790708029438_fvixv",
-    "householdId": "H001",
-    "title": "⚙️ Palash updated household settings",
-    "body": "Master household rules, budget limits, or categories modified",
-    "url": "/#tab-settings",
-    "tag": "config-update-1790708029437",
-    "actor": "Palash",
-    "type": "CONFIG_UPDATE",
-    "amount": null,
-    "timestamp": "2026-09-29T18:53:49.438Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790699678453_n3s9g",
-    "householdId": "H001",
-    "title": "💰 Palash added expense: ₹475.25",
-    "body": "Grocery & Vegetables • Paid by Palash",
-    "url": "/#tab-expenses",
-    "tag": "notif-1790699678453",
-    "actor": "Palash",
-    "type": "EXPENSE_CREATE",
-    "amount": 475.25,
-    "timestamp": "2026-09-29T16:34:38.453Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790687475675_l38dr",
-    "householdId": "H001",
-    "title": "⚡ Test Live Alert",
-    "body": "Testing heads-up notification banner",
-    "url": "/#tab-expenses",
-    "tag": "test-1790687475674",
-    "actor": "System Test",
-    "type": "TEST_PUSH",
-    "amount": null,
-    "timestamp": "2026-09-29T13:11:15.675Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790685663246_0becq",
-    "householdId": "H001",
-    "title": "🗑️ Palash deleted an expense",
-    "body": "Grocery & Vegetables • ₹520 removed from ledger",
-    "url": "/#tab-expenses",
-    "tag": "expense-delete-exp-1790685663209-77k4",
-    "actor": "Palash",
-    "type": "EXPENSE_DELETE",
-    "amount": 520,
-    "timestamp": "2026-09-29T12:41:03.246Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790685663228_q18it",
-    "householdId": "H001",
-    "title": "✏️ Palash updated an expense",
-    "body": "Grocery & Vegetables • ₹520 • \"Updated note for zero-cache live sync\"",
-    "url": "/#tab-expenses",
-    "tag": "expense-update-exp-1790685663209-77k4",
-    "actor": "Palash",
-    "type": "EXPENSE_UPDATE",
-    "amount": 520,
-    "timestamp": "2026-09-29T12:41:03.228Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790685663214_v5r0c",
-    "householdId": "H001",
-    "title": "💰 Palash added expense: ₹475.25",
-    "body": "Grocery & Vegetables • Paid by Palash • \"Real-time multi-user zero-cache verification transaction\"",
-    "url": "/#tab-expenses",
-    "tag": "expense-new-exp-1790685663209-77k4",
-    "actor": "Palash",
-    "type": "EXPENSE_CREATE",
-    "amount": 475.25,
-    "timestamp": "2026-09-29T12:41:03.214Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790685114482_bet47",
-    "householdId": "H001",
-    "title": "🗑️ Palash deleted an expense",
-    "body": "Grocery & Vegetables • ₹520 removed from ledger",
-    "url": "/#tab-expenses",
-    "tag": "expense-delete-exp-1790685114416-kiq3",
-    "actor": "Palash",
-    "type": "EXPENSE_DELETE",
-    "amount": 520,
-    "timestamp": "2026-09-29T12:31:54.482Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790685114467_vdhrg",
-    "householdId": "H001",
-    "title": "✏️ Palash updated an expense",
-    "body": "Grocery & Vegetables • ₹520 • \"Updated note for zero-cache live sync\"",
-    "url": "/#tab-expenses",
-    "tag": "expense-update-exp-1790685114416-kiq3",
-    "actor": "Palash",
-    "type": "EXPENSE_UPDATE",
-    "amount": 520,
-    "timestamp": "2026-09-29T12:31:54.467Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790685114446_2q2w0",
-    "householdId": "H001",
-    "title": "💰 Palash added expense: ₹475.25",
-    "body": "Grocery & Vegetables • Paid by Palash • \"Real-time multi-user zero-cache verification transaction\"",
-    "url": "/#tab-expenses",
-    "tag": "expense-new-exp-1790685114416-kiq3",
-    "actor": "Palash",
-    "type": "EXPENSE_CREATE",
-    "amount": 475.25,
-    "timestamp": "2026-09-29T12:31:54.446Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790683179222_jtax2",
-    "householdId": "H001",
-    "title": "⚙️ Palash updated household settings",
-    "body": "Master household rules, budget limits, or categories modified",
-    "url": "/#tab-settings",
-    "tag": "config-update-1790683179221",
-    "actor": "Palash",
-    "type": "CONFIG_UPDATE",
-    "amount": null,
-    "timestamp": "2026-09-29T11:59:39.222Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790683179200_g34lc",
-    "householdId": "H001",
-    "title": "🗑️ Palash deleted an expense",
-    "body": "Automated Test Category 1790683179164 • ₹350.5 removed from ledger",
-    "url": "/#tab-expenses",
-    "tag": "expense-delete-exp-1790683179181-r85z",
-    "actor": "Palash",
-    "type": "EXPENSE_DELETE",
-    "amount": 350.5,
-    "timestamp": "2026-09-29T11:59:39.200Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790683179189_9kng9",
-    "householdId": "H001",
-    "title": "💰 Palash added expense: ₹350.5",
-    "body": "Automated Test Category 1790683179164 • Paid by Palash • \"Automated test note verifying save action works end-to-end\"",
-    "url": "/#tab-expenses",
-    "tag": "expense-new-exp-1790683179181-r85z",
-    "actor": "Palash",
-    "type": "EXPENSE_CREATE",
-    "amount": 350.5,
-    "timestamp": "2026-09-29T11:59:39.189Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790683179169_fx9e9",
-    "householdId": "H001",
-    "title": "🏷️ Palash added category: Automated Test Category 1790683179164",
-    "body": "New spending category available in Master Settings",
-    "url": "/#tab-settings",
-    "tag": "cat-new-1790683179168",
-    "actor": "Palash",
-    "type": "CONFIG_UPDATE",
-    "amount": null,
-    "timestamp": "2026-09-29T11:59:39.169Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790683094767_vw131",
-    "householdId": "H001",
-    "title": "⚙️ Palash updated household settings",
-    "body": "Master household rules, budget limits, or categories modified",
-    "url": "/#tab-settings",
-    "tag": "config-update-1790683094767",
-    "actor": "Palash",
-    "type": "CONFIG_UPDATE",
-    "amount": null,
-    "timestamp": "2026-09-29T11:58:14.767Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790683094761_daz0i",
-    "householdId": "H001",
-    "title": "🗑️ Palash deleted an expense",
-    "body": "Automated Test Category 1790683094711 • ₹350.5 removed from ledger",
-    "url": "/#tab-expenses",
-    "tag": "expense-delete-exp-1790683094732-dwq0",
-    "actor": "Palash",
-    "type": "EXPENSE_DELETE",
-    "amount": 350.5,
-    "timestamp": "2026-09-29T11:58:14.761Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790683094751_6cywu",
-    "householdId": "H001",
-    "title": "💰 Palash added expense: ₹350.5",
-    "body": "Automated Test Category 1790683094711 • Paid by Palash • \"Automated test note verifying save action works end-to-end\"",
-    "url": "/#tab-expenses",
-    "tag": "expense-new-exp-1790683094732-dwq0",
-    "actor": "Palash",
-    "type": "EXPENSE_CREATE",
-    "amount": 350.5,
-    "timestamp": "2026-09-29T11:58:14.751Z",
-    "readBy": []
-  },
-  {
-    "id": "notif_1790683094719_znnmv",
-    "householdId": "H001",
-    "title": "🏷️ Palash added category: Automated Test Category 1790683094711",
-    "body": "New spending category available in Master Settings",
-    "url": "/#tab-settings",
-    "tag": "cat-new-1790683094718",
-    "actor": "Palash",
-    "type": "CONFIG_UPDATE",
-    "amount": null,
-    "timestamp": "2026-09-29T11:58:14.719Z",
     "readBy": []
   }
 ]

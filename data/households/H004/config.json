@@ -1,0 +1,66 @@
+{
+  "paymentMethods": [
+    "Cash",
+    "UPI",
+    "Cheque"
+  ],
+  "staff": [],
+  "recurringBills": [],
+  "splitRules": [
+    "Personal Expenses",
+    "Professional Expenses"
+  ],
+  "categories": [
+    {
+      "name": "Food",
+      "icon": "🍲",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Petrol",
+      "icon": "⛽",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Travel",
+      "icon": "✈️️",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Stay",
+      "icon": "🏨",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Family",
+      "icon": "👪",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Medicine",
+      "icon": "💊",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Official",
+      "icon": "🤼‍♂️",
+      "type": "expense",
+      "defaultPaidTo": "Trophy"
+    }
+  ],
+  "monthlyBudgetLimit": 20000,
+  "householdId": "H004",
+  "updatedAt": "2026-10-12T17:27:53.779Z",
+  "householdCycle": {
+    "type": "calendar",
+    "cycleStartDay": 5,
+    "cycleEndDay": 5,
+    "description": "Standard Calendar Month (1st to month end)"
+  }
+}

@@ -8,11 +8,12 @@
           "1": "P",
           "2": "P",
           "3": "P",
-          "4": "P"
+          "4": "P",
+          "27": "L"
         },
-        "bonus": 300,
+        "bonus": 0,
         "notes": "Advance Suite Test Run",
-        "updatedAt": "2026-09-27T06:38:03.884Z"
+        "updatedAt": "2026-09-27T12:24:14.536Z"
       }
     }
   },
@@ -22,13 +23,15 @@
     "months": {
       "2026-09": {
         "days": {
-          "1": "P",
-          "2": "P",
-          "3": "P"
+          "11": "HD",
+          "12": "L",
+          "13": "L",
+          "17": "P",
+          "20": "P"
         },
         "bonus": 0,
-        "notes": "Test save",
-        "updatedAt": "2026-09-29T08:59:36.362Z"
+        "notes": "Standard cooking schedule",
+        "updatedAt": "2026-09-27T13:58:33.441Z"
       }
     }
   }

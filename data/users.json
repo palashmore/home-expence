@@ -21,7 +21,7 @@
     "role": "OWNER",
     "status": "active",
     "createdAt": "2024-12-17T00:00:00.000Z",
-    "updatedAt": "2026-09-28T18:31:24.193Z"
+    "updatedAt": "2026-11-15T15:45:11.462Z"
   },
   {
     "userId": "U002",
@@ -33,7 +33,23 @@
     "role": "MEMBER",
     "status": "active",
     "createdAt": "2024-12-17T00:00:00.000Z",
-    "updatedAt": "2026-09-28T18:31:24.219Z"
+    "updatedAt": "2026-10-07T05:47:46.040Z",
+    "permissions": [
+      "dashboard.view",
+      "expense.view",
+      "expense.create",
+      "expense.edit",
+      "expense.delete",
+      "bill.view",
+      "bill.manage",
+      "personal.view",
+      "settlement.view",
+      "staff.view",
+      "attendance.manage",
+      "payroll.view",
+      "household.view",
+      "settings.manage"
+    ]
   },
   {
     "userId": "U003",
@@ -46,5 +62,133 @@
     "status": "active",
     "createdAt": "2026-09-28T18:31:24.246Z",
     "updatedAt": "2026-09-28T20:05:31.167Z"
+  },
+  {
+    "userId": "U004",
+    "username": "ashwini",
+    "email": "ashwini@homeexpenses.local",
+    "name": "Ashwini",
+    "passwordHash": "26a27e3a1f9f46603abd8735c482c249:a088e0f29d2c24c0c1001a22620e08344b1057ddc6bf16ee5afb159dcf87910fd5141d8690205edbc9ee4452f4047fc6482db8bc68857814e01019fb8ab5c4e6",
+    "householdId": "H003",
+    "role": "OWNER",
+    "status": "active",
+    "createdAt": "2026-10-01T11:02:53.186Z",
+    "updatedAt": "2026-10-01T11:02:53.187Z"
+  },
+  {
+    "userId": "U005",
+    "username": "arya",
+    "email": "vaibhavi@homeexpenses.local",
+    "name": "Arya",
+    "passwordHash": "0d03b51075fb2f59c27f11b2e7613806:1086bec80eb204d96d7c68af128df36ba5bee75439cbdcc3065411571ee6772c550ea07909c5eab1aac57250e7ac8da0ea313c1dda8dfac82afad2e61b08b249",
+    "householdId": "H004",
+    "role": "OWNER",
+    "status": "active",
+    "createdAt": "2026-10-01T11:03:18.140Z",
+    "updatedAt": "2026-10-11T13:09:17.197Z",
+    "passwordChangedAt": 1791724070534,
+    "permissions": [
+      "dashboard.view",
+      "expense.view",
+      "expense.create",
+      "expense.edit",
+      "expense.delete",
+      "personal.view",
+      "settings.manage"
+    ],
+    "dashboardUi": {
+      "design": "classic",
+      "layout": "default",
+      "kpiDensity": "comfortable",
+      "mobileDensity": "comfortable",
+      "heroBudget": "remaining",
+      "defaultTheme": "",
+      "sections": {
+        "kpi": true,
+        "insights": true,
+        "chart-category": true,
+        "chart-family": false,
+        "chart-trend": true,
+        "chart-payment": true,
+        "bills": true,
+        "reimbursement": false,
+        "staff": false,
+        "top": true,
+        "recent": true,
+        "timeline": true
+      }
+    }
+  },
+  {
+    "userId": "U006",
+    "username": "palashm",
+    "email": "palashm@homeexpenses.local",
+    "name": "Palash Personal",
+    "passwordHash": "fc75bd7661352c84c9ed230a3ee00444:be79456f984a52426bb5f5b864afb22b197e8c9b19aebcf5a53e5c62226b9f1d7a873100b498405e95e1efafc2a083163b0523aa586323e8ba154c831997157b",
+    "householdId": "H005",
+    "role": "OWNER",
+    "status": "active",
+    "createdAt": "2026-10-02T08:41:20.652Z",
+    "updatedAt": "2026-10-11T07:19:33.885Z",
+    "permissions": [
+      "dashboard.view",
+      "expense.view",
+      "expense.create",
+      "expense.edit",
+      "expense.delete",
+      "bill.view",
+      "bill.manage",
+      "personal.view",
+      "settings.view",
+      "settings.manage"
+    ],
+    "dashboardUi": {
+      "design": "new",
+      "layout": "compact",
+      "kpiDensity": "comfortable",
+      "mobileDensity": "comfortable",
+      "heroBudget": "spent",
+      "defaultTheme": "emerald",
+      "sections": {
+        "kpi": true,
+        "insights": true,
+        "chart-category": true,
+        "chart-family": false,
+        "chart-trend": true,
+        "chart-payment": true,
+        "bills": true,
+        "reimbursement": false,
+        "staff": true,
+        "top": true,
+        "recent": true,
+        "timeline": true
+      }
+    }
+  },
+  {
+    "userId": "U007",
+    "username": "ankita",
+    "email": "ankita@homeexpenses.local",
+    "name": "Ankita",
+    "passwordHash": "4da82979b30455d2b2d32b7ca34f2bb6:510668e6cc0b1b14c059158840f0f3c13b5fa9e66c3135f4b538ff7848c4eab54d2e6e560833e2108e9e45bfdedf5328eaafa815e7b9bd1549ac7993c60b9657",
+    "householdId": "H006",
+    "role": "OWNER",
+    "status": "active",
+    "createdAt": "2026-10-05T06:46:29.727Z",
+    "updatedAt": "2026-10-07T08:36:02.874Z",
+    "permissions": [
+      "dashboard.view",
+      "expense.view",
+      "expense.create",
+      "expense.edit",
+      "expense.delete",
+      "bill.view",
+      "bill.manage",
+      "personal.view",
+      "staff.view",
+      "attendance.manage",
+      "payroll.view",
+      "settings.manage"
+    ]
   }
 ]

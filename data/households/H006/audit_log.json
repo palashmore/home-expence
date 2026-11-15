@@ -1,0 +1,44 @@
+[
+  {
+    "id": "audit-1791362162875-kjq99",
+    "householdId": "H006",
+    "timestamp": "2026-10-07T08:36:02.875Z",
+    "action": {
+      "id": "AUD-1791362162874-EDIT-U",
+      "action": "UPDATE_USER",
+      "actor": "admin",
+      "details": "Updated user 'Ankita' (@ankita, OWNER)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1791362065602-86ev7",
+    "householdId": "H006",
+    "timestamp": "2026-10-07T08:34:25.602Z",
+    "action": {
+      "id": "AUD-1791362065602-EDIT-U",
+      "action": "UPDATE_USER",
+      "actor": "admin",
+      "details": "Updated user 'Ankita' (@ankita, OWNER)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1791307702920-narfy",
+    "householdId": "H006",
+    "timestamp": "2026-10-06T17:28:22.920Z",
+    "action": {
+      "id": "AUD-1791307702920-EDIT-U",
+      "action": "UPDATE_USER",
+      "actor": "admin",
+      "details": "Updated user 'Ankita' (@ankita, OWNER)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  }
+]

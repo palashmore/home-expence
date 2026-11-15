@@ -1,0 +1,1599 @@
+[
+  {
+    "id": "audit-1791893320389-f3fjl",
+    "householdId": "H005",
+    "timestamp": "2026-10-13T12:08:40.389Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791893318943-5n7p",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 246,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-13"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 246,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-13"
+    }
+  },
+  {
+    "id": "audit-1791703173885-xzjyl",
+    "householdId": "H005",
+    "timestamp": "2026-10-11T07:19:33.885Z",
+    "action": {
+      "id": "AUD-1791703173885-EDIT-U",
+      "action": "UPDATE_USER",
+      "actor": "admin",
+      "details": "Updated user 'Palash Personal' (@palashm, OWNER)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1791703011073-rzrmd",
+    "householdId": "H005",
+    "timestamp": "2026-10-11T07:16:51.073Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791703009434-utel",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 680,
+        "category": "Shopping Clothes",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-11"
+      }
+    },
+    "snapshot": {
+      "category": "Shopping Clothes",
+      "amount": 680,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-11"
+    }
+  },
+  {
+    "id": "audit-1791702945982-iyllc",
+    "householdId": "H005",
+    "timestamp": "2026-10-11T07:15:45.982Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791702944128-d8mr",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 100,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-10"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 100,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-10"
+    }
+  },
+  {
+    "id": "audit-1791702707521-e6csq",
+    "householdId": "H005",
+    "timestamp": "2026-10-11T07:11:47.521Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791702705939-yt0f",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 110,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-08"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 110,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-08"
+    }
+  },
+  {
+    "id": "audit-1791702683503-1rdf3",
+    "householdId": "H005",
+    "timestamp": "2026-10-11T07:11:23.503Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791702681795-bhos",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 250,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-08"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 250,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-08"
+    }
+  },
+  {
+    "id": "audit-1791702605522-dh12u",
+    "householdId": "H005",
+    "timestamp": "2026-10-11T07:10:05.522Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791702604199-tcg7",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 30,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-11"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 30,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-11"
+    }
+  },
+  {
+    "id": "audit-1791299530787-lz5ex",
+    "householdId": "H005",
+    "timestamp": "2026-10-06T15:12:10.787Z",
+    "action": {
+      "id": "AUD-1791299530787-EDIT-U",
+      "action": "UPDATE_USER",
+      "actor": "admin",
+      "details": "Updated user 'Palash Personal' (@palashm, OWNER)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1791299076186-8z0jg",
+    "householdId": "H005",
+    "timestamp": "2026-10-06T15:04:36.186Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense",
+        "House Hold Expenses"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card",
+        "Cash"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "dashboardMode": "personal",
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-06T15:04:34.782Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1791259704884-f2kp7",
+    "householdId": "H005",
+    "timestamp": "2026-10-06T04:08:24.884Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791259702831-0mbb",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 176,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-05"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 176,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-05"
+    }
+  },
+  {
+    "id": "audit-1791259676405-zqyps",
+    "householdId": "H005",
+    "timestamp": "2026-10-06T04:07:56.405Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791259674865-faw8",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 1000,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-05"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 1000,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-05"
+    }
+  },
+  {
+    "id": "audit-1791181875152-dspy2",
+    "householdId": "H005",
+    "timestamp": "2026-10-05T06:31:15.152Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense",
+        "House Hold Expenses"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card",
+        "Cash"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "dashboardMode": "personal",
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-05T06:31:13.850Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1791181731465-85fsr",
+    "householdId": "H005",
+    "timestamp": "2026-10-05T06:28:51.465Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense",
+        "House Hold Expenses"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card",
+        "Cash"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "dashboardMode": "personal",
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-05T06:28:50.179Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1791181696524-cmerx",
+    "householdId": "H005",
+    "timestamp": "2026-10-05T06:28:16.524Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense",
+        "House Hold Expenses"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card",
+        "Cash"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "dashboardMode": "household",
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-05T06:28:14.655Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1791175911680-ijz95",
+    "householdId": "H005",
+    "timestamp": "2026-10-05T04:51:51.680Z",
+    "action": "UPDATE_EXPENSE",
+    "recordId": "exp-1791109995476-8z4m",
+    "actor": "Palash Personal",
+    "diff": {
+      "category": {
+        "old": "Recharge",
+        "new": "Food"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 215,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-04"
+    }
+  },
+  {
+    "id": "audit-1791175897337-gltqz",
+    "householdId": "H005",
+    "timestamp": "2026-10-05T04:51:37.337Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791175895875-7hco",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 193,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-04"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 193,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-04"
+    }
+  },
+  {
+    "id": "audit-1791110018723-hqex5",
+    "householdId": "H005",
+    "timestamp": "2026-10-04T10:33:38.723Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791110017487-v3ah",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 300,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-04"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 300,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-04"
+    }
+  },
+  {
+    "id": "audit-1791109996660-gb5qv",
+    "householdId": "H005",
+    "timestamp": "2026-10-04T10:33:16.660Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791109995476-8z4m",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 215,
+        "category": "Recharge",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-04"
+      }
+    },
+    "snapshot": {
+      "category": "Recharge",
+      "amount": 215,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-04"
+    }
+  },
+  {
+    "id": "audit-1791005882657-4kgz4",
+    "householdId": "H005",
+    "timestamp": "2026-10-03T05:38:02.657Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791005881428-uxiw",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 85,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-03"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 85,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-03"
+    }
+  },
+  {
+    "id": "audit-1791005022503-3v5i5",
+    "householdId": "H005",
+    "timestamp": "2026-10-03T05:23:42.503Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791005021151-o3m5",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 80,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-03"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 80,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-03"
+    }
+  },
+  {
+    "id": "audit-1790963436126-6ig31",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T17:50:36.126Z",
+    "action": {
+      "id": "AUD-1790963436125-EDIT-U",
+      "action": "UPDATE_USER",
+      "actor": "palashm",
+      "details": "Updated user 'Palash Personal' (@palashm, OWNER)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1790962268039-eto8s",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T17:31:08.039Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense",
+        "House Hold Expenses"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card",
+        "Cash"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "dashboardMode": "personal",
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T17:31:06.797Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1790954034133-s8w2z",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T15:13:54.133Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense",
+        "House Hold Expenses"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card",
+        "Cash"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "dashboardMode": "combined",
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T15:13:51.348Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1790954031202-plzdt",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T15:13:51.202Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense",
+        "House Hold Expenses"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card",
+        "Cash"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "dashboardMode": "household",
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T15:13:49.921Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1790954008469-nv1si",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T15:13:28.469Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1790954006886-p1i1",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 120,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-02"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 120,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-02"
+    }
+  },
+  {
+    "id": "audit-1790953971840-01wou",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T15:12:51.840Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1790953970367-fckv",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 177,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-02"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 177,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-02"
+    }
+  },
+  {
+    "id": "audit-1790941986093-kaxlu",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T11:53:06.093Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense",
+        "House Hold Expenses"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card",
+        "Cash"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T11:53:04.245Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      },
+      "dashboardMode": "personal"
+    }
+  },
+  {
+    "id": "audit-1790941981765-pv8pu",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T11:53:01.765Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense",
+        "House Hold Expenses"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card",
+        "Cash"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T11:53:00.369Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      },
+      "dashboardMode": "personal"
+    }
+  },
+  {
+    "id": "audit-1790941980417-76yha",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T11:53:00.417Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense",
+        "House Hold Expenses"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card",
+        "Cash"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T11:52:59.042Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      },
+      "dashboardMode": "personal"
+    }
+  },
+  {
+    "id": "audit-1790938222926-efrd4",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:50:22.926Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense",
+        "House Hold Expenses"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card",
+        "Cash"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T10:50:21.663Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1790938216005-t60w7",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:50:16.005Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense",
+        "House Hold Expenses"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card",
+        "Cash"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T10:50:14.681Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1790938208951-b26og",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:50:08.951Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense",
+        "House Hold Expenses"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T10:50:07.491Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1790938184308-c2bgi",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:49:44.308Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T10:49:43.041Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1790938180910-78p5z",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:49:40.910Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Personal Expense"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T10:49:39.589Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1790938171959-ukpbz",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:49:31.959Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "splitRules": [
+        "Household Expense",
+        "Personal Expense"
+      ],
+      "paymentMethods": [
+        "UPI",
+        "Credit card"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 10000,
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T10:49:30.720Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1790938151029-toodx",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:49:11.030Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1790938149778-cy0d",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 220,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-01"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 220,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-01"
+    }
+  },
+  {
+    "id": "audit-1790938122003-j3gze",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:48:42.003Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1790938120565-brvw",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 200,
+        "category": "Food",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-01"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 200,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-01"
+    }
+  },
+  {
+    "id": "audit-1790938075950-bhdtk",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:47:55.950Z",
+    "action": "UPDATE_EXPENSE",
+    "recordId": "exp-1790938034777-2dpb",
+    "actor": "Palash Personal",
+    "diff": {},
+    "snapshot": {
+      "category": "Petrol",
+      "amount": 1000,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-01"
+    }
+  },
+  {
+    "id": "audit-1790938036216-t3n45",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:47:16.216Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1790938034777-2dpb",
+    "actor": "Palash Personal",
+    "diff": {
+      "created": {
+        "amount": 1000,
+        "category": "Petrol",
+        "paidBy": "Palash Personal",
+        "date": "2026-10-01"
+      }
+    },
+    "snapshot": {
+      "category": "Petrol",
+      "amount": 1000,
+      "paidBy": "Palash Personal",
+      "date": "2026-10-01"
+    }
+  },
+  {
+    "id": "audit-1790937878641-mmpzi",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:44:38.641Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food",
+          "icon": "🥪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "splitRules": [
+        "Household Expense",
+        "Personal Expense"
+      ],
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T10:44:37.451Z",
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Credit card"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      },
+      "monthlyBudgetLimit": 10000
+    }
+  },
+  {
+    "id": "audit-1790937858527-xp6dq",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:44:18.527Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Food Delivery",
+          "icon": "🚚",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "splitRules": [
+        "Household Expense",
+        "Personal Expense"
+      ],
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T10:44:16.943Z",
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Credit card"
+      ]
+    }
+  },
+  {
+    "id": "audit-1790937831070-ossf9",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:43:51.070Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "categories": [
+        {
+          "name": "Recharge",
+          "icon": "🐾",
+          "type": "expense",
+          "defaultPaidTo": "Mobile Recharge"
+        }
+      ],
+      "splitRules": [
+        "Household Expense",
+        "Personal Expense"
+      ],
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T10:43:49.742Z",
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Credit card"
+      ]
+    }
+  },
+  {
+    "id": "audit-1790937784933-olf7o",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:43:04.933Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "categories": [],
+      "splitRules": [
+        "Household Expense",
+        "Personal Expense"
+      ],
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T10:43:03.572Z"
+    }
+  },
+  {
+    "id": "audit-1790937767032-d9vpt",
+    "householdId": "H005",
+    "timestamp": "2026-10-02T10:42:47.032Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Palash Personal",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "categories": [],
+      "splitRules": [
+        "Household Expense",
+        "Equal (50/50)",
+        "Personal Expense"
+      ],
+      "householdId": "H005",
+      "updatedAt": "2026-10-02T10:42:45.596Z"
+    }
+  }
+]

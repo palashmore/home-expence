@@ -89,6 +89,12 @@
       "icon": "💰",
       "type": "expense",
       "defaultPaidTo": ""
+    },
+    {
+      "name": "Petrol",
+      "icon": "⛽",
+      "type": "expense",
+      "defaultPaidTo": "Petrol"
     }
   ],
   "recurringBills": [
@@ -96,17 +102,19 @@
       "id": "bill-1",
       "name": "MSCB Electricity Bill",
       "category": "Electricity Bill",
-      "dueDay": 10,
+      "dueDay": 20,
       "approxAmount": 2200,
-      "icon": "⚡"
+      "icon": "⚡",
+      "budgetedAmount": 2200
     },
     {
       "id": "bill-2",
       "name": "Society Flat Maintenance",
       "category": "Flat Maintenance",
       "dueDay": 5,
-      "approxAmount": 3500,
-      "icon": "🏢"
+      "approxAmount": 1500,
+      "icon": "🏢",
+      "budgetedAmount": 1500
     },
     {
       "id": "bill-3",
@@ -114,7 +122,8 @@
       "category": "Grocery & Vegetables",
       "dueDay": 15,
       "approxAmount": 999,
-      "icon": "📶"
+      "icon": "📶",
+      "budgetedAmount": 999
     },
     {
       "id": "bill-4",
@@ -122,7 +131,8 @@
       "category": "Dish Bill (DTH)",
       "dueDay": 20,
       "approxAmount": 450,
-      "icon": "📺"
+      "icon": "📺",
+      "budgetedAmount": 450
     },
     {
       "id": "bill-5",
@@ -130,7 +140,8 @@
       "category": "Maid - Madhuri",
       "dueDay": 21,
       "approxAmount": 800,
-      "icon": "🧹"
+      "icon": "🧹",
+      "budgetedAmount": 800
     },
     {
       "id": "bill-6",
@@ -138,7 +149,8 @@
       "category": "Chef - Nilima Nikose",
       "dueDay": 30,
       "approxAmount": 4500,
-      "icon": "👩‍🍳"
+      "icon": "👩‍🍳",
+      "budgetedAmount": 4500
     }
   ],
   "familyMembers": [
@@ -164,6 +176,8 @@
     "Personal Expense (Palash)",
     "Equal (50/50)"
   ],
-  "updatedAt": "2026-09-29T19:29:05.597Z",
-  "householdId": "H001"
+  "updatedAt": "2026-11-15T15:46:02.926Z",
+  "householdId": "H001",
+  "dashboardMode": "household",
+  "dashboardUi": {}
 }

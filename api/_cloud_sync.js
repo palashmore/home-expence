@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const paths = require('./_paths');
 
-const GIST_ID = process.env.GIST_ID || 'e42cd546045cc0773af7798b25ed4065';
+const GIST_ID = process.env.GIST_ID || '26bc57e718bf5ca6c40f254967dd5b50';
 
 function getAuthToken() {
   return process.env.GITHUB_TOKEN || process.env.GIST_TOKEN || null;
@@ -87,14 +87,34 @@ async function readJson(filename, fallbackData = null) {
 
   // 1. Try Gist first (for cross-device synchronization)
   const gistFiles = await fetchFromGist();
-  if (gistFiles && gistFiles[filename] && gistFiles[filename].content) {
-    try {
-      const parsed = JSON.parse(gistFiles[filename].content);
-      cache.data[filename] = parsed;
-      cache.lastFetched[filename] = now;
-      writeToLocalFiles(filename, parsed);
-      return parsed;
-    } catch (e) {}
+  if (gistFiles && gistFiles[filename]) {
+    const fileObj = gistFiles[filename];
+    let content = fileObj.content;
+    // When a file in Gist exceeds GitHub's size threshold, GitHub truncates content and sets truncated: true.
+    // In that case, fetch the complete un-truncated file from raw_url.
+    if ((fileObj.truncated || !content) && fileObj.raw_url) {
+      try {
+        const rawRes = await fetch(fileObj.raw_url, {
+          headers: { 'User-Agent': 'HomeExpenses-CloudSync' }
+        });
+        if (rawRes.ok) {
+          content = await rawRes.text();
+        }
+      } catch (err) {
+        console.warn(`[CloudSync] Error fetching raw_url for ${filename}:`, err.message);
+      }
+    }
+    if (content) {
+      try {
+        const parsed = JSON.parse(content);
+        cache.data[filename] = parsed;
+        cache.lastFetched[filename] = now;
+        writeToLocalFiles(filename, parsed);
+        return parsed;
+      } catch (e) {
+        console.warn(`[CloudSync] Failed to parse ${filename}:`, e.message);
+      }
+    }
   }
 
   // 2. Try Local /tmp

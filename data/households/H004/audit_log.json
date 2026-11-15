@@ -1,0 +1,1145 @@
+[
+  {
+    "id": "audit-1791826244138-q9wqo",
+    "householdId": "H004",
+    "timestamp": "2026-10-12T17:30:44.138Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791826242581-uifw",
+    "actor": "Arya",
+    "diff": {
+      "created": {
+        "amount": 4000,
+        "category": "Official",
+        "paidBy": "Arya",
+        "date": "2026-10-12"
+      }
+    },
+    "snapshot": {
+      "category": "Official",
+      "amount": 4000,
+      "paidBy": "Arya",
+      "date": "2026-10-12"
+    }
+  },
+  {
+    "id": "audit-1791826097476-xds6d",
+    "householdId": "H004",
+    "timestamp": "2026-10-12T17:28:17.476Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791826096031-tf0a",
+    "actor": "Arya",
+    "diff": {
+      "created": {
+        "amount": 5250,
+        "category": "Official",
+        "paidBy": "Arya",
+        "date": "2026-10-12"
+      }
+    },
+    "snapshot": {
+      "category": "Official",
+      "amount": 5250,
+      "paidBy": "Arya",
+      "date": "2026-10-12"
+    }
+  },
+  {
+    "id": "audit-1791826078038-v7lu0",
+    "householdId": "H004",
+    "timestamp": "2026-10-12T17:27:58.038Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Cheque"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "splitRules": [
+        "Personal Expenses",
+        "Professional Expenses"
+      ],
+      "categories": [
+        {
+          "name": "Food",
+          "icon": "🍲",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Travel",
+          "icon": "✈️️",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Stay",
+          "icon": "🏨",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Family",
+          "icon": "👪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Medicine",
+          "icon": "💊",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Official",
+          "icon": "🤼‍♂️",
+          "type": "expense",
+          "defaultPaidTo": "Trophy"
+        }
+      ],
+      "monthlyBudgetLimit": 20000,
+      "householdId": "H004",
+      "updatedAt": "2026-10-12T17:27:53.779Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1791826073692-rt8cp",
+    "householdId": "H004",
+    "timestamp": "2026-10-12T17:27:53.692Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Cheque"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "splitRules": [
+        "Personal Expenses",
+        "Professional Expenses"
+      ],
+      "categories": [
+        {
+          "name": "Food",
+          "icon": "🍲",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Travel",
+          "icon": "✈️️",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Stay",
+          "icon": "🏨",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Family",
+          "icon": "👪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Medicine",
+          "icon": "💊",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Official",
+          "icon": "🤼‍♂️",
+          "type": "expense",
+          "defaultPaidTo": "Trophy"
+        }
+      ],
+      "monthlyBudgetLimit": 20000,
+      "householdId": "H004",
+      "updatedAt": "2026-10-12T17:27:52.049Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1791826072402-8nzsz",
+    "householdId": "H004",
+    "timestamp": "2026-10-12T17:27:52.402Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Cheque"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "splitRules": [
+        "Personal Expenses",
+        "Professional Expenses"
+      ],
+      "categories": [
+        {
+          "name": "Food",
+          "icon": "🍲",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Travel",
+          "icon": "✈️️",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Stay",
+          "icon": "🏨",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Family",
+          "icon": "👪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Medicine",
+          "icon": "💊",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Official",
+          "icon": "🤼‍♂️",
+          "type": "expense",
+          "defaultPaidTo": "Trophy"
+        }
+      ],
+      "monthlyBudgetLimit": 20000,
+      "householdId": "H004",
+      "updatedAt": "2026-10-12T17:27:50.818Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1791794105431-86m32",
+    "householdId": "H004",
+    "timestamp": "2026-10-12T08:35:05.431Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791794104093-c5rg",
+    "actor": "Arya",
+    "diff": {
+      "created": {
+        "amount": 2500,
+        "category": "Medicine",
+        "paidBy": "Arya",
+        "date": "2026-10-12"
+      }
+    },
+    "snapshot": {
+      "category": "Medicine",
+      "amount": 2500,
+      "paidBy": "Arya",
+      "date": "2026-10-12"
+    }
+  },
+  {
+    "id": "audit-1791794070334-716cv",
+    "householdId": "H004",
+    "timestamp": "2026-10-12T08:34:30.334Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Cheque"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "splitRules": [
+        "Personal Expenses",
+        "Professional Expenses"
+      ],
+      "categories": [
+        {
+          "name": "Food",
+          "icon": "🍲",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Travel",
+          "icon": "✈️️",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Stay",
+          "icon": "🏨",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Family",
+          "icon": "👪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Medicine",
+          "icon": "💊",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 20000,
+      "householdId": "H004",
+      "updatedAt": "2026-10-12T08:34:27.180Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1791794067513-jfde6",
+    "householdId": "H004",
+    "timestamp": "2026-10-12T08:34:27.513Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Cheque"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "splitRules": [
+        "Personal Expenses",
+        "Professional Expenses"
+      ],
+      "categories": [
+        {
+          "name": "Food",
+          "icon": "🍲",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Travel",
+          "icon": "✈️️",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Stay",
+          "icon": "🏨",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Family",
+          "icon": "👪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Medicine",
+          "icon": "💊",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 20000,
+      "householdId": "H004",
+      "updatedAt": "2026-10-12T08:34:25.520Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1791794066005-51o7s",
+    "householdId": "H004",
+    "timestamp": "2026-10-12T08:34:26.005Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Cheque"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "splitRules": [
+        "Personal Expenses",
+        "Professional Expenses"
+      ],
+      "categories": [
+        {
+          "name": "Food",
+          "icon": "🍲",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Travel",
+          "icon": "✈️️",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Stay",
+          "icon": "🏨",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Family",
+          "icon": "👪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Medicine",
+          "icon": "💊",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 20000,
+      "householdId": "H004",
+      "updatedAt": "2026-10-12T08:34:24.551Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1791787665856-76gnk",
+    "householdId": "H004",
+    "timestamp": "2026-10-12T06:47:45.856Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791787664328-krrg",
+    "actor": "Arya",
+    "diff": {
+      "created": {
+        "amount": 600,
+        "category": "Family",
+        "paidBy": "Arya",
+        "date": "2026-10-12"
+      }
+    },
+    "snapshot": {
+      "category": "Family",
+      "amount": 600,
+      "paidBy": "Arya",
+      "date": "2026-10-12"
+    }
+  },
+  {
+    "id": "audit-1791787626926-z4hpu",
+    "householdId": "H004",
+    "timestamp": "2026-10-12T06:47:06.926Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Cheque"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "splitRules": [
+        "Personal Expenses",
+        "Professional Expenses"
+      ],
+      "categories": [
+        {
+          "name": "Food",
+          "icon": "🍲",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Travel",
+          "icon": "✈️️",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Stay",
+          "icon": "🏨",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Family",
+          "icon": "👪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 20000,
+      "householdId": "H004",
+      "updatedAt": "2026-10-12T06:47:01.963Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1791787625625-i76uc",
+    "householdId": "H004",
+    "timestamp": "2026-10-12T06:47:05.625Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Cheque"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "splitRules": [
+        "Personal Expenses",
+        "Professional Expenses"
+      ],
+      "categories": [
+        {
+          "name": "Food",
+          "icon": "🍲",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Travel",
+          "icon": "✈️️",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Stay",
+          "icon": "🏨",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Family",
+          "icon": "👪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 20000,
+      "householdId": "H004",
+      "updatedAt": "2026-10-12T06:47:01.142Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1791787622006-8t140",
+    "householdId": "H004",
+    "timestamp": "2026-10-12T06:47:02.006Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Cheque"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "splitRules": [
+        "Personal Expenses",
+        "Professional Expenses"
+      ],
+      "categories": [
+        {
+          "name": "Food",
+          "icon": "🍲",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Travel",
+          "icon": "✈️️",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Stay",
+          "icon": "🏨",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Family",
+          "icon": "👪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 20000,
+      "householdId": "H004",
+      "updatedAt": "2026-10-12T06:47:00.079Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1791787620528-cgtr4",
+    "householdId": "H004",
+    "timestamp": "2026-10-12T06:47:00.528Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Cheque"
+      ],
+      "staff": [],
+      "recurringBills": [],
+      "splitRules": [
+        "Personal Expenses",
+        "Professional Expenses"
+      ],
+      "categories": [
+        {
+          "name": "Food",
+          "icon": "🍲",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Travel",
+          "icon": "✈️️",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Stay",
+          "icon": "🏨",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Family",
+          "icon": "👪",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "monthlyBudgetLimit": 20000,
+      "householdId": "H004",
+      "updatedAt": "2026-10-12T06:46:59.157Z",
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      }
+    }
+  },
+  {
+    "id": "audit-1791724947456-r94d1",
+    "householdId": "H004",
+    "timestamp": "2026-10-11T13:22:27.456Z",
+    "action": "CREATE_EXPENSE",
+    "recordId": "exp-1791724945974-lr14",
+    "actor": "Arya",
+    "diff": {
+      "created": {
+        "amount": 90,
+        "category": "Food",
+        "paidBy": "Arya",
+        "date": "2026-10-10"
+      }
+    },
+    "snapshot": {
+      "category": "Food",
+      "amount": 90,
+      "paidBy": "Arya",
+      "date": "2026-10-10"
+    }
+  },
+  {
+    "id": "audit-1791724890888-hs0pk",
+    "householdId": "H004",
+    "timestamp": "2026-10-11T13:21:30.888Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Cheque"
+      ],
+      "categories": [
+        {
+          "name": "Food",
+          "icon": "🍲",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Travel",
+          "icon": "✈️️",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Stay",
+          "icon": "🏨",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "householdId": "H004",
+      "updatedAt": "2026-10-11T13:21:29.507Z",
+      "monthlyBudgetLimit": 20000,
+      "staff": [],
+      "recurringBills": [],
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      },
+      "splitRules": [
+        "Personal Expenses",
+        "Professional Expenses"
+      ]
+    }
+  },
+  {
+    "id": "audit-1791724864865-o3pi8",
+    "householdId": "H004",
+    "timestamp": "2026-10-11T13:21:04.865Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Cheque"
+      ],
+      "categories": [
+        {
+          "name": "Food",
+          "icon": "🍲",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Travel",
+          "icon": "✈️️",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Stay",
+          "icon": "🏨",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "householdId": "H004",
+      "updatedAt": "2026-10-11T13:21:03.343Z",
+      "monthlyBudgetLimit": 20000,
+      "staff": [],
+      "recurringBills": [],
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      },
+      "splitRules": [
+        "Personal Expenses",
+        "Professional Expenses"
+      ]
+    }
+  },
+  {
+    "id": "audit-1791724771083-jvj7n",
+    "householdId": "H004",
+    "timestamp": "2026-10-11T13:19:31.084Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Cheque"
+      ],
+      "categories": [
+        {
+          "name": "Food",
+          "icon": "🍲",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Travel",
+          "icon": "✈️️",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Stay",
+          "icon": "🏨",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "householdId": "H004",
+      "updatedAt": "2026-10-11T13:19:29.516Z",
+      "monthlyBudgetLimit": 20000,
+      "staff": [],
+      "recurringBills": [],
+      "householdCycle": {
+        "type": "calendar",
+        "cycleStartDay": 5,
+        "cycleEndDay": 5,
+        "description": "Standard Calendar Month (1st to month end)"
+      },
+      "splitRules": [
+        "Household Expense",
+        "Equal (50/50)"
+      ]
+    }
+  },
+  {
+    "id": "audit-1791724728160-y1vya",
+    "householdId": "H004",
+    "timestamp": "2026-10-11T13:18:48.160Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI",
+        "Cheque"
+      ],
+      "categories": [
+        {
+          "name": "Food",
+          "icon": "🍲",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Petrol",
+          "icon": "⛽",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Travel",
+          "icon": "✈️️",
+          "type": "expense",
+          "defaultPaidTo": ""
+        },
+        {
+          "name": "Stay",
+          "icon": "🏨",
+          "type": "expense",
+          "defaultPaidTo": ""
+        }
+      ],
+      "householdId": "H004",
+      "updatedAt": "2026-10-11T13:18:46.727Z"
+    }
+  },
+  {
+    "id": "audit-1791724582213-n4oja",
+    "householdId": "H004",
+    "timestamp": "2026-10-11T13:16:22.213Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI"
+      ],
+      "categories": [],
+      "householdId": "H004",
+      "updatedAt": "2026-10-11T13:16:19.318Z"
+    }
+  },
+  {
+    "id": "audit-1791724579111-8taal",
+    "householdId": "H004",
+    "timestamp": "2026-10-11T13:16:19.111Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "paymentMethods": [
+        "Cash",
+        "UPI"
+      ],
+      "categories": [],
+      "householdId": "H004",
+      "updatedAt": "2026-10-11T13:16:18.400Z"
+    }
+  },
+  {
+    "id": "audit-1791724569415-fk1ru",
+    "householdId": "H004",
+    "timestamp": "2026-10-11T13:16:09.415Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "categories": [],
+      "paymentMethods": [
+        "Cash"
+      ],
+      "householdId": "H004",
+      "updatedAt": "2026-10-11T13:16:07.272Z"
+    }
+  },
+  {
+    "id": "audit-1791724566658-zfo4d",
+    "householdId": "H004",
+    "timestamp": "2026-10-11T13:16:06.658Z",
+    "action": "UPDATE_CONFIG",
+    "recordId": "config",
+    "actor": "Arya",
+    "diff": {
+      "updated": true
+    },
+    "snapshot": {
+      "categories": [],
+      "paymentMethods": [
+        "Cash"
+      ],
+      "householdId": "H004",
+      "updatedAt": "2026-10-11T13:16:05.017Z"
+    }
+  },
+  {
+    "id": "audit-1791724070535-abnm3",
+    "householdId": "H004",
+    "timestamp": "2026-10-11T13:07:50.535Z",
+    "action": {
+      "id": "AUD-1791724070535-EDIT-U",
+      "action": "UPDATE_USER",
+      "actor": "admin",
+      "details": "Updated user 'Arya' (@arya, OWNER)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  },
+  {
+    "id": "audit-1791724035857-6lyht",
+    "householdId": "H004",
+    "timestamp": "2026-10-11T13:07:15.857Z",
+    "action": {
+      "id": "AUD-1791724035857-EDIT-H",
+      "action": "UPDATE_HOUSEHOLD",
+      "actor": "admin",
+      "details": "Updated household 'Arya Personal' (H004)"
+    },
+    "actor": "System",
+    "diff": {},
+    "snapshot": {}
+  }
+]

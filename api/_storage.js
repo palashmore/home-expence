@@ -214,10 +214,12 @@ async function hydrateDirectoryFromCloud() {
         const restore = (list, targetFile, metaKey) => {
             if (!Array.isArray(list) || list.length === 0) return;   // never wipe
             const localAt = Date.parse(meta[metaKey] || '') || 0;
-            if (cloudAt <= localAt) return;                          // local is newer
+            const currentLocal = readJsonFile(targetFile, []);
+            const localMissing = Array.isArray(currentLocal) && list.length > currentLocal.length;
+            if (cloudAt <= localAt && !localMissing) return;          // local is newer and complete
             writeJsonFile(targetFile, list);
             const next = readDirectoryMeta();
-            next[metaKey] = new Date(cloudAt).toISOString();
+            next[metaKey] = new Date(Math.max(cloudAt, localAt)).toISOString();
             writeJsonFile(DIRECTORY_META_FILE, next);
         };
 

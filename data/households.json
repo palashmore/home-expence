@@ -21,5 +21,52 @@
     ],
     "createdAt": "2026-09-28T18:31:24.246Z",
     "updatedAt": "2026-09-28T20:16:22.335Z"
+  },
+  {
+    "householdId": "H003",
+    "householdName": "ASHWINI HOME",
+    "status": "active",
+    "ownerUserId": "U000",
+    "memberUserIds": [
+      "U000",
+      "U004"
+    ],
+    "createdAt": "2026-10-01T11:02:08.422Z",
+    "updatedAt": "2026-10-01T11:02:53.189Z"
+  },
+  {
+    "householdId": "H004",
+    "householdName": "Arya Personal",
+    "status": "active",
+    "ownerUserId": "U000",
+    "memberUserIds": [
+      "U000",
+      "U005"
+    ],
+    "createdAt": "2026-10-01T11:02:17.985Z",
+    "updatedAt": "2026-10-11T13:07:15.856Z"
+  },
+  {
+    "householdId": "H005",
+    "householdName": "Palash Personal",
+    "status": "active",
+    "ownerUserId": "U000",
+    "memberUserIds": [
+      "U000"
+    ],
+    "createdAt": "2026-10-02T08:40:12.457Z",
+    "updatedAt": "2026-10-02T08:40:12.457Z"
+  },
+  {
+    "householdId": "H006",
+    "householdName": "Ankita Household",
+    "status": "active",
+    "ownerUserId": "U000",
+    "memberUserIds": [
+      "U000",
+      "U007"
+    ],
+    "createdAt": "2026-10-05T06:46:03.464Z",
+    "updatedAt": "2026-10-05T06:46:29.728Z"
   }
 ]

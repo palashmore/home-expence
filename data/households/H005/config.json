@@ -1,0 +1,61 @@
+{
+  "splitRules": [
+    "Personal Expense",
+    "House Hold Expenses"
+  ],
+  "paymentMethods": [
+    "UPI",
+    "Credit card",
+    "Cash"
+  ],
+  "staff": [],
+  "recurringBills": [],
+  "dashboardMode": "personal",
+  "categories": [
+    {
+      "name": "Recharge",
+      "icon": "🐾",
+      "type": "expense",
+      "defaultPaidTo": "Mobile Recharge"
+    },
+    {
+      "name": "Petrol",
+      "icon": "⛽",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Food Delivery",
+      "icon": "🚚",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Food",
+      "icon": "🥪",
+      "type": "expense",
+      "defaultPaidTo": ""
+    },
+    {
+      "name": "Transfer",
+      "icon": "💰",
+      "type": "expense",
+      "defaultPaidTo": "Transfer To"
+    },
+    {
+      "name": "Shopping Clothes",
+      "icon": "🛍️",
+      "type": "expense",
+      "defaultPaidTo": ""
+    }
+  ],
+  "monthlyBudgetLimit": 10000,
+  "householdId": "H005",
+  "updatedAt": "2026-10-11T07:16:35.194Z",
+  "householdCycle": {
+    "type": "calendar",
+    "cycleStartDay": 5,
+    "cycleEndDay": 5,
+    "description": "Standard Calendar Month (1st to month end)"
+  }
+}

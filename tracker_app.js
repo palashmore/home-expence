@@ -4241,8 +4241,6 @@ function setReportsPeriod(period) {
     }
 }
 window.setReportsPeriod = setReportsPeriod;
-    }
-}
 
 // ================= STAFF PAYROLL RENDERING (CONFIG DRIVEN) =================
 // Accent colours cycle, so any number of staff members renders sensibly -

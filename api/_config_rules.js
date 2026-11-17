@@ -94,17 +94,21 @@ function validateConfigPayload(body) {
 
     if (Array.isArray(body.categories)) {
         body.categories.forEach((cat, i) => {
-            if (!cat || cat.monthlyBudget === undefined || cat.monthlyBudget === null) return;
-            const n = parseAmount(cat.monthlyBudget);
+            if (!cat) return;
+            const rawCap = cat.monthlyBudget !== undefined && cat.monthlyBudget !== null
+                ? cat.monthlyBudget
+                : (cat.monthlyBudgetCap !== undefined && cat.monthlyBudgetCap !== null ? cat.monthlyBudgetCap : undefined);
+            if (rawCap === undefined) return;
+            const n = parseAmount(rawCap);
             if (n === null) {
                 errors.push({
                     field: `categories[${i}].monthlyBudget`,
-                    message: `Budget for '${cat.name || 'category'}' must be a number.`
+                    message: `Budget cap for '${cat.name || 'category'}' must be a number.`
                 });
             } else if (n < 0) {
                 errors.push({
                     field: `categories[${i}].monthlyBudget`,
-                    message: `Budget for '${cat.name || 'category'}' cannot be negative.`
+                    message: `Budget cap for '${cat.name || 'category'}' cannot be negative.`
                 });
             }
         });

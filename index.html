@@ -1553,6 +1553,31 @@
     
             </section>
 
+            <!-- ===== Month-over-Month Category Comparison ===== -->
+            <section class="space-y-3" aria-labelledby="rep-mom-h">
+                <div class="flex items-baseline justify-between gap-3">
+                    <div>
+                        <h3 id="rep-mom-h" class="text-lg font-semibold text-slate-900 flex items-center">
+                            <svg class="ic text-indigo-600 mr-2" aria-hidden="true"><use href="#i-chart-column"></use></svg>
+                            <span>Month-over-Month Category Comparison</span>
+                        </h3>
+                        <p class="text-xs font-medium text-slate-500">Side-by-side spending comparison between the current month and previous month.</p>
+                    </div>
+                    <span id="momComparisonSubtitle" class="text-xs font-bold px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200/60 shrink-0">Current vs Last Month</span>
+                </div>
+                <div class="glass-card p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                    <div class="relative h-72">
+                        <canvas id="momComparisonChart"></canvas>
+                    </div>
+                    <div id="momComparisonEmptyMsg" class="hidden text-xs text-slate-400 font-medium text-center py-8">
+                        No expense data available for month-over-month comparison.
+                    </div>
+                    <div id="momComparisonSummary" class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <!-- Populated dynamically: Current Month Spend, Prev Month Spend, Overall Delta -->
+                    </div>
+                </div>
+            </section>
+
             <!-- ===== Payment Methods ===== -->
             <section class="space-y-3" aria-labelledby="rep-pay-h">
                 <div class="flex items-baseline justify-between gap-3">

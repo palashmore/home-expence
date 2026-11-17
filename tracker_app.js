@@ -125,11 +125,34 @@ function categoryBudgetFor(categoryName) {
         : [];
     const target = String(categoryName || '').trim().toLowerCase();
     const hit = cats.find(c => c && String(c.name || '').trim().toLowerCase() === target);
-    if (!hit || hit.monthlyBudget === undefined || hit.monthlyBudget === null) return null;
-    const n = Number(hit.monthlyBudget);
+    if (!hit) return null;
+    const raw = hit.monthlyBudgetCap !== undefined && hit.monthlyBudgetCap !== null
+        ? hit.monthlyBudgetCap
+        : hit.monthlyBudget;
+    if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+    const n = Number(String(raw).replace(/,/g, ''));
     return Number.isFinite(n) && n >= 0 ? n : null;
 }
 window.categoryBudgetFor = categoryBudgetFor;
+
+function getCategoryCurrentSpend(catName) {
+    if (!catName || !Array.isArray(expenses)) return 0;
+    const cur = getCurrentPeriod();
+    const curMonth = cur.monthName;
+    const curYear = cur.yearStr;
+    const target = String(catName).toLowerCase().trim();
+    return expenses.reduce((sum, e) => {
+        if (!e || e.isDeleted || !e.date || e.category === 'Accepted Payments (Income)' || isPersonalExpense(e)) return sum;
+        if (String(e.category || '').toLowerCase().trim() !== target) return sum;
+        const d = new Date(e.date);
+        if (isNaN(d.getTime())) return sum;
+        if (MONTHS[d.getMonth()] === curMonth && d.getFullYear().toString() === curYear) {
+            return sum + (Number(e.amount) || 0);
+        }
+        return sum;
+    }, 0);
+}
+window.getCategoryCurrentSpend = getCategoryCurrentSpend;
 
 function getConfiguredBills() {
     const list = (window.masterConfig && Array.isArray(window.masterConfig.recurringBills))
@@ -2508,6 +2531,8 @@ function renderAllViews() {
     renderStaffView(filtered);
     renderBillsView(filtered);
     renderMonthlyMatrix();
+    renderMoMComparisonChart();
+    checkCategoryBudgetAlerts(filtered);
     if (window.renderPersonalExpensesDashboard) {
         window.renderPersonalExpensesDashboard();
     }
@@ -2833,6 +2858,7 @@ function renderDashboard(filtered) {
     renderPaidByChart(visualData);
     renderMonthlyTrendChart(expenses);
     renderPaymentMethodChart(visualData);
+    renderMoMComparisonChart();
 
     // 7. Spending Matrix
     renderHouseholdSpendingMatrix(visualData);
@@ -3371,6 +3397,273 @@ function renderPaymentMethodChart(filteredData) {
         }
     });
 }
+
+// 5. Month-over-Month Category Comparison Chart
+let momComparisonChartInstance = null;
+
+function renderMoMComparisonChart() {
+    const canvas = document.getElementById("momComparisonChart");
+    if (!canvas) return;
+
+    const subtitleEl = document.getElementById("momComparisonSubtitle");
+    const emptyMsgEl = document.getElementById("momComparisonEmptyMsg");
+    const summaryEl = document.getElementById("momComparisonSummary");
+
+    const allExpenses = (expenses || []).filter(e => e && !e.isDeleted && e.category !== "Accepted Payments (Income)" && !isPersonalExpense(e));
+
+    const cur = getCurrentPeriod();
+    let refMonth = cur.monthName;
+    let refYear = cur.year;
+
+    if (dashboardFilters && dashboardFilters.month && dashboardFilters.month !== 'all') {
+        refMonth = dashboardFilters.month;
+    }
+    if (dashboardFilters && dashboardFilters.year && dashboardFilters.year !== 'all') {
+        const parsedY = parseInt(dashboardFilters.year, 10);
+        if (!isNaN(parsedY)) refYear = parsedY;
+    }
+
+    const curMonthIdx = MONTHS.indexOf(refMonth);
+    const validCurMonthIdx = curMonthIdx !== -1 ? curMonthIdx : cur.monthIndex;
+
+    let prevMonthIdx = validCurMonthIdx - 1;
+    let prevYear = refYear;
+    if (prevMonthIdx < 0) {
+        prevMonthIdx = 11;
+        prevYear = refYear - 1;
+    }
+    const prevMonth = MONTHS[prevMonthIdx];
+
+    if (subtitleEl) {
+        subtitleEl.textContent = `${refMonth.slice(0, 3)} ${refYear} vs ${prevMonth.slice(0, 3)} ${prevYear}`;
+    }
+
+    const curCatTotals = {};
+    const prevCatTotals = {};
+    let totalCur = 0;
+    let totalPrev = 0;
+
+    allExpenses.forEach(e => {
+        if (!e.date) return;
+        const d = new Date(e.date);
+        if (isNaN(d.getTime())) return;
+        const m = MONTHS[d.getMonth()];
+        const y = d.getFullYear();
+        const amt = Number(e.amount) || 0;
+        const cat = e.category || 'Other';
+
+        if (m === refMonth && y === refYear) {
+            curCatTotals[cat] = (curCatTotals[cat] || 0) + amt;
+            totalCur += amt;
+        } else if (m === prevMonth && y === prevYear) {
+            prevCatTotals[cat] = (prevCatTotals[cat] || 0) + amt;
+            totalPrev += amt;
+        }
+    });
+
+    const allCatsSet = new Set([...Object.keys(curCatTotals), ...Object.keys(prevCatTotals)]);
+    const categories = Array.from(allCatsSet);
+
+    if (categories.length === 0) {
+        if (momComparisonChartInstance) {
+            momComparisonChartInstance.destroy();
+            momComparisonChartInstance = null;
+        }
+        if (emptyMsgEl) emptyMsgEl.classList.remove('hidden');
+        if (canvas) canvas.classList.add('hidden');
+        if (summaryEl) summaryEl.innerHTML = '';
+        return;
+    }
+
+    if (emptyMsgEl) emptyMsgEl.classList.add('hidden');
+    if (canvas) canvas.classList.remove('hidden');
+
+    categories.sort((a, b) => {
+        const aSpend = (curCatTotals[a] || 0) + (prevCatTotals[a] || 0);
+        const bSpend = (curCatTotals[b] || 0) + (prevCatTotals[b] || 0);
+        return bSpend - aSpend;
+    });
+
+    const topCats = categories.slice(0, 10);
+    if (categories.length > 10) {
+        const remaining = categories.slice(10);
+        let remCur = 0;
+        let remPrev = 0;
+        remaining.forEach(c => {
+            remCur += curCatTotals[c] || 0;
+            remPrev += prevCatTotals[c] || 0;
+        });
+        if (remCur > 0 || remPrev > 0) {
+            topCats.push('Other Categories');
+            curCatTotals['Other Categories'] = remCur;
+            prevCatTotals['Other Categories'] = remPrev;
+        }
+    }
+
+    const labels = topCats;
+    const curData = topCats.map(c => Math.round(curCatTotals[c] || 0));
+    const prevData = topCats.map(c => Math.round(prevCatTotals[c] || 0));
+
+    if (summaryEl) {
+        const delta = totalCur - totalPrev;
+        const deltaPct = totalPrev > 0 ? Math.round((delta / totalPrev) * 100) : (totalCur > 0 ? 100 : 0);
+        const deltaColor = delta > 0 ? 'text-rose-600 bg-rose-50 border-rose-200' : 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        const deltaSign = delta > 0 ? '+' : '';
+
+        summaryEl.innerHTML = `
+            <div class="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl">
+                <span class="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block">${refMonth.slice(0, 3)} ${refYear} Spend</span>
+                <span class="text-sm font-extrabold text-indigo-950">${formatINR(totalCur)}</span>
+            </div>
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">${prevMonth.slice(0, 3)} ${prevYear} Spend</span>
+                <span class="text-sm font-extrabold text-slate-800">${formatINR(totalPrev)}</span>
+            </div>
+            <div class="p-3 ${deltaColor} border rounded-xl">
+                <span class="text-[10px] font-bold uppercase tracking-wider block">Difference</span>
+                <span class="text-sm font-extrabold">${deltaSign}${formatINR(delta)} (${deltaSign}${deltaPct}%)</span>
+            </div>
+        `;
+    }
+
+    if (momComparisonChartInstance) {
+        momComparisonChartInstance.destroy();
+    }
+
+    const curLabel = `${refMonth.slice(0, 3)} ${refYear}`;
+    const prevLabel = `${prevMonth.slice(0, 3)} ${prevYear}`;
+
+    momComparisonChartInstance = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: curLabel,
+                    data: curData,
+                    backgroundColor: '#4f46e5',
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    maxBarThickness: 32
+                },
+                {
+                    label: prevLabel,
+                    data: prevData,
+                    backgroundColor: '#94a3b8',
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    maxBarThickness: 32
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        boxWidth: 12,
+                        boxHeight: 12,
+                        usePointStyle: true,
+                        pointStyle: 'rectRounded',
+                        font: { size: 11, weight: '600' },
+                        color: '#475569'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const val = context.parsed.y || 0;
+                            return ` ${context.dataset.label}: ${formatINR(val)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        font: { size: 10, weight: '600' },
+                        color: '#64748b',
+                        maxRotation: 45,
+                        minRotation: 0,
+                        callback: function(val, index) {
+                            const lbl = this.getLabelForValue(index);
+                            return lbl.length > 14 ? lbl.slice(0, 12) + '...' : lbl;
+                        }
+                    }
+                },
+                y: {
+                    grid: { color: 'rgba(226, 232, 240, 0.6)' },
+                    ticks: {
+                        font: { size: 10, weight: '500' },
+                        color: '#94a3b8',
+                        callback: function(value) {
+                            return '₹' + (value >= 1000 ? (value / 1000).toFixed(0) + 'k' : value);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+window.renderMoMComparisonChart = renderMoMComparisonChart;
+
+// Check and display alerts when spending reaches 80% or 100% of category budget caps
+function checkCategoryBudgetAlerts(filteredData) {
+    if (!window.masterConfig || !Array.isArray(window.masterConfig.categories)) return;
+    const cats = window.masterConfig.categories;
+    const cur = getCurrentPeriod();
+    const cycleKey = `${cur.monthName}_${cur.yearStr}`;
+    
+    // Group spend by category for current period
+    const catSpent = {};
+    (filteredData || []).forEach(e => {
+        if (!e || e.isDeleted || e.category === 'Accepted Payments (Income)' || isPersonalExpense(e)) return;
+        const cName = e.category || 'Uncategorized';
+        catSpent[cName] = (catSpent[cName] || 0) + (Number(e.amount) || 0);
+    });
+
+    cats.forEach(c => {
+        if (!c || c.type !== 'expense') return;
+        const raw = c.monthlyBudgetCap !== undefined && c.monthlyBudgetCap !== null
+            ? c.monthlyBudgetCap
+            : c.monthlyBudget;
+        const cap = Number(raw) || 0;
+        if (cap <= 0) return;
+        const spent = catSpent[c.name] || 0;
+        const pct = Math.round((spent / cap) * 100);
+        
+        if (pct >= 80) {
+            const alertKey = `alert_cap_${c.name}_${cycleKey}`;
+            const alreadyAlerted = sessionStorage.getItem(alertKey);
+            if (!alreadyAlerted) {
+                sessionStorage.setItem(alertKey, 'true');
+                if (window.showToast) {
+                    if (pct >= 100) {
+                        window.showToast(
+                            'warning',
+                            `🚨 Budget Cap Exceeded: ${c.name}`,
+                            `Spent ₹${Math.round(spent).toLocaleString('en-IN')} of ₹${cap.toLocaleString('en-IN')} cap (${pct}%).`
+                        );
+                    } else {
+                        window.showToast(
+                            'warning',
+                            `⚠️ Budget Alert: ${c.name} at ${pct}%`,
+                            `Spent ₹${Math.round(spent).toLocaleString('en-IN')} of ₹${cap.toLocaleString('en-IN')} monthly cap.`
+                        );
+                    }
+                }
+            }
+        }
+    });
+}
+window.checkCategoryBudgetAlerts = checkCategoryBudgetAlerts;
 
 // ================= HOUSEHOLD SPENDING MATRIX (Requirement 16) =================
 function renderHouseholdSpendingMatrix(filteredData) {

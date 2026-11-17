@@ -49,6 +49,10 @@
     {
       "path": "/api/notifications?action=check_and_send",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron_digest",
+      "schedule": "30 15 * * *"
     }
   ]
 }

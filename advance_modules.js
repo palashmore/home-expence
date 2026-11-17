@@ -2080,34 +2080,54 @@
       } else {
         catGrid.innerHTML = cats.map((c) => {
           const jsName = esc(JSON.stringify(c.name || ''));
+          const cap = Number(c.monthlyBudgetCap !== undefined && c.monthlyBudgetCap !== null ? c.monthlyBudgetCap : c.monthlyBudget) || 0;
+          const currentSpent = (window.getCategoryCurrentSpend && c.type === 'expense') ? window.getCategoryCurrentSpend(c.name) : 0;
+          const pct = cap > 0 ? Math.round((currentSpent / cap) * 100) : 0;
+          const isOver = cap > 0 && currentSpent > cap;
+          const isWarning = cap > 0 && currentSpent >= 0.8 * cap && !isOver;
+          const barColor = isOver ? 'bg-rose-500' : (isWarning ? 'bg-amber-500' : 'bg-emerald-500');
+
           return `
-            <div class="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-slate-300 shadow-sm transition" data-cat-name="${esc(c.name || '')}">
-              <div class="flex items-center space-x-2.5 min-w-0">
-                <span class="text-xl shrink-0">${esc(c.icon || '🏷️')}</span>
-                <div class="min-w-0">
-                  <div class="text-xs font-black text-slate-900 truncate">${esc(c.name || '')}</div>
-                  <div class="text-[10px] text-slate-500 flex items-center gap-1.5">
-                    <span class="px-1.5 py-0.2 rounded font-extrabold uppercase text-[9px] ${c.type === 'income' ? 'bg-emerald-100 text-emerald-800' : (c.type === 'transfer' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700')}">${esc(c.type || 'expense')}</span>
-                    ${c.defaultPaidTo ? `<span class="truncate text-slate-400">→ ${esc(c.defaultPaidTo)}</span>` : ''}
+            <div class="p-3.5 bg-white border border-slate-200 rounded-2xl flex flex-col justify-between hover:border-slate-300 shadow-sm transition" data-cat-name="${esc(c.name || '')}">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2.5 min-w-0">
+                  <span class="text-xl shrink-0">${esc(c.icon || '🏷️')}</span>
+                  <div class="min-w-0">
+                    <div class="text-xs font-black text-slate-900 truncate">${esc(c.name || '')}</div>
+                    <div class="text-[10px] text-slate-500 flex items-center gap-1.5">
+                      <span class="px-1.5 py-0.2 rounded font-extrabold uppercase text-[9px] ${c.type === 'income' ? 'bg-emerald-100 text-emerald-800' : (c.type === 'transfer' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700')}">${esc(c.type || 'expense')}</span>
+                      ${c.defaultPaidTo ? `<span class="truncate text-slate-400">→ ${esc(c.defaultPaidTo)}</span>` : ''}
+                    </div>
                   </div>
                 </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <label class="cat-budget-wrap" title="Monthly budget cap for ${esc(c.name || '')}. Leave blank for no limit.">
+                    <span class="cat-budget-rupee">&#8377;</span>
+                    <input type="number" min="0" step="any" inputmode="decimal"
+                      class="cat-budget-input ${c.type === 'expense' ? '' : 'hidden'}"
+                      value="${cap > 0 ? cap : ''}"
+                      placeholder="No limit"
+                      onchange="adminSetCategoryBudget(${jsName}, this.value)">
+                  </label>
+                  <button onclick="adminEditCategory(${jsName})" class="cat-edit-btn p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition" title="Edit category" aria-label="Edit category ${esc(c.name || '')}">
+                    <svg class="ic text-xs" aria-hidden="true"><use href="#i-pen"></use></svg>
+                  </button>
+                  <button onclick="adminDeleteCategory(${jsName})" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition" title="Delete category" aria-label="Delete category ${esc(c.name || '')}">
+                    <svg class="ic text-xs" aria-hidden="true"><use href="#i-x"></use></svg>
+                  </button>
+                </div>
               </div>
-              <div class="flex items-center gap-1 shrink-0">
-                <label class="cat-budget-wrap" title="Monthly budget for ${esc(c.name || '')}. Leave blank for no limit.">
-                  <span class="cat-budget-rupee">&#8377;</span>
-                  <input type="number" min="0" step="any" inputmode="decimal"
-                    class="cat-budget-input ${c.type === 'expense' ? '' : 'hidden'}"
-                    value="${c.monthlyBudget === undefined || c.monthlyBudget === null ? '' : Number(c.monthlyBudget)}"
-                    placeholder="No limit"
-                    onchange="adminSetCategoryBudget(${jsName}, this.value)">
-                </label>
-                <button onclick="adminEditCategory(${jsName})" class="cat-edit-btn p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition" title="Edit category" aria-label="Edit category ${esc(c.name || '')}">
-                  <svg class="ic text-xs" aria-hidden="true"><use href="#i-pen"></use></svg>
-                </button>
-                <button onclick="adminDeleteCategory(${jsName})" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition" title="Delete category" aria-label="Delete category ${esc(c.name || '')}">
-                  <svg class="ic text-xs" aria-hidden="true"><use href="#i-x"></use></svg>
-                </button>
-              </div>
+              ${c.type === 'expense' && cap > 0 ? `
+                <div class="mt-2.5 pt-2 border-t border-slate-100">
+                  <div class="flex items-center justify-between text-[10px] font-bold text-slate-500 mb-1">
+                    <span>Used: ₹${Math.round(currentSpent).toLocaleString('en-IN')} of ₹${cap.toLocaleString('en-IN')}</span>
+                    <span class="${isOver ? 'text-rose-600 font-extrabold' : (isWarning ? 'text-amber-600 font-extrabold' : 'text-slate-700')}">${pct}%</span>
+                  </div>
+                  <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                    <div class="h-full rounded-full transition-all duration-300 ${barColor}" style="width: ${Math.min(100, pct)}%"></div>
+                  </div>
+                </div>
+              ` : ''}
             </div>
           `;
         }).join('');
@@ -2877,11 +2897,23 @@
     }
 
     cats[idx] = { ...cats[idx] };
-    if (budget === null) delete cats[idx].monthlyBudget;
-    else cats[idx].monthlyBudget = budget;
+    if (budget === null) {
+      delete cats[idx].monthlyBudget;
+      delete cats[idx].monthlyBudgetCap;
+    } else {
+      cats[idx].monthlyBudget = budget;
+      cats[idx].monthlyBudgetCap = budget;
+    }
 
     const ok = await saveMasterConfig({ categories: cats });
-    if (ok && window.renderAllViews) window.renderAllViews();
+    if (ok) {
+      if (window.showToast) {
+        window.showToast('success', 'Budget Cap Saved',
+          budget === null ? `Budget cap cleared for "${categoryName}"` : `Budget cap for "${categoryName}" set to ₹${budget.toLocaleString('en-IN')}`);
+      }
+      if (window.renderAdminView) window.renderAdminView();
+      if (window.renderAllViews) window.renderAllViews();
+    }
     return ok;
   };
 

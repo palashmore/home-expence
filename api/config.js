@@ -156,6 +156,55 @@ module.exports = async function handler(req, res) {
                 });
             }
 
+            // Action: Dedicated Category Monthly Budget Cap update
+            if (body.action === 'update_category_budget' && body.categoryName !== undefined) {
+                const currentCats = Array.isArray(current.categories) ? [...current.categories] : [];
+                const catName = String(body.categoryName).trim();
+                const idx = currentCats.findIndex(c => c && String(c.name || '').toLowerCase() === catName.toLowerCase());
+                if (idx === -1) {
+                    return res.status(404).json({ success: false, error: `Category "${catName}" not found.` });
+                }
+
+                const rawVal = body.monthlyBudgetCap !== undefined ? body.monthlyBudgetCap : body.monthlyBudget;
+                let cap = null;
+                if (rawVal !== null && rawVal !== undefined && String(rawVal).trim() !== '') {
+                    const parsed = Number(String(rawVal).replace(/,/g, ''));
+                    if (!Number.isFinite(parsed) || parsed < 0) {
+                        return res.status(422).json({
+                            success: false,
+                            error: 'Category budget cap must be 0 or more, or blank to remove limit.'
+                        });
+                    }
+                    cap = parsed;
+                }
+
+                currentCats[idx] = { ...currentCats[idx] };
+                if (cap === null) {
+                    delete currentCats[idx].monthlyBudget;
+                    delete currentCats[idx].monthlyBudgetCap;
+                } else {
+                    currentCats[idx].monthlyBudget = cap;
+                    currentCats[idx].monthlyBudgetCap = cap;
+                }
+
+                const updated = {
+                    ...current,
+                    categories: currentCats,
+                    householdId: householdId,
+                    updatedAt: new Date().toISOString()
+                };
+
+                await storage.saveHouseholdConfig(householdId, updated, actorUser);
+
+                return res.status(200).json({
+                    success: true,
+                    message: cap === null
+                        ? `Budget cap removed for "${currentCats[idx].name}"`
+                        : `Budget cap for "${currentCats[idx].name}" set to ₹${cap.toLocaleString('en-IN')}`,
+                    data: updated
+                });
+            }
+
             // Action: rename a category, family member, payment method or split
             // rule, cascading the new value onto every expense that refers to
             // the old one. Without the cascade a rename orphans history.
@@ -284,13 +333,24 @@ module.exports = async function handler(req, res) {
                         seen.add(key);
                         // Spread first so properties this endpoint does not know
                         // about survive the round-trip instead of being dropped.
-                        dedupedCats.push({
+                        const catClean = {
                             ...cat,
                             name: String(cat.name).trim(),
                             icon: cat.icon || '🏷️',
                             type: cat.type || 'expense',
                             defaultPaidTo: cat.defaultPaidTo || ''
-                        });
+                        };
+                        const capVal = cat.monthlyBudgetCap !== undefined && cat.monthlyBudgetCap !== null
+                            ? cat.monthlyBudgetCap
+                            : (cat.monthlyBudget !== undefined && cat.monthlyBudget !== null ? cat.monthlyBudget : undefined);
+                        if (capVal !== undefined && capVal !== null && String(capVal).trim() !== '') {
+                            const capNum = Number(String(capVal).replace(/,/g, ''));
+                            if (Number.isFinite(capNum) && capNum >= 0) {
+                                catClean.monthlyBudget = capNum;
+                                catClean.monthlyBudgetCap = capNum;
+                            }
+                        }
+                        dedupedCats.push(catClean);
                     }
                 }
                 body.categories = dedupedCats;

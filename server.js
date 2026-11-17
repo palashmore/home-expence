@@ -16,6 +16,7 @@ const configHandler = require('./api/config');
 const auditHandler = require('./api/audit');
 const backupHandler = require('./api/backup');
 const notificationsHandler = require('./api/notifications');
+const cronDigestHandler = require('./api/cron_digest');
 
 const mimeTypes = {
     '.html': 'text/html',
@@ -117,6 +118,9 @@ const handler = async (req, res) => {
         }
         if (pathname === '/api/notifications') {
             return await notificationsHandler(req, res);
+        }
+        if (pathname === '/api/cron_digest') {
+            return await cronDigestHandler(req, res);
         }
 
         // Serve Static Files: Prioritize fresh disk read, fallback to staticCache

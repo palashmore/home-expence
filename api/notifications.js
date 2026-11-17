@@ -646,6 +646,11 @@ module.exports = async function handler(req, res) {
                 });
             }
 
+            if (action === 'daily_digest') {
+                const cronDigestHandler = require('./cron_digest');
+                return await cronDigestHandler(req, res);
+            }
+
             const subs = await readSubscriptions();
             return res.status(200).json({
                 success: true,

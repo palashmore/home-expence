@@ -381,6 +381,10 @@
   }
   window.getActiveFamilyMembers = getActiveFamilyMembers;
 
+  let lastP2Paid = 0;
+  let lastP1DirectPaid = 0;
+  let lastReimbursedByP1 = 0;
+
   function renderSplitwiseMatrix(filtered) {
     const grid = document.getElementById('splitwiseCardsGrid');
     const settleContainer = document.getElementById('settleUpActionContainer');
@@ -535,6 +539,9 @@
     currentNetSettleAmount = netDueToP2;
     currentSettlePayer = payer1;
     currentSettleReceiver = payer2;
+    lastP2Paid = p2Paid;
+    lastP1DirectPaid = p1DirectPaid;
+    lastReimbursedByP1 = reimbursedByP1;
 
     let verdictCard = '';
     if (netDueToP2 <= 0) {
@@ -631,23 +638,63 @@
 
     // Settle Up button in header
     if (settleContainer) {
+      const waBtn = `
+        <button type="button" onclick="shareSettlementToWhatsApp()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center space-x-1.5 active:scale-95" title="Share Settlement to WhatsApp">
+          <svg class="ic text-xs" aria-hidden="true"><use href="#i-smartphone"></use></svg>
+          <span>WhatsApp</span>
+        </button>
+      `;
+
       if (netDueToP2 <= 0) {
         settleContainer.innerHTML = `
-          <button disabled class="px-4 py-2 bg-slate-200 text-slate-400 font-extrabold text-xs rounded-xl cursor-not-allowed flex items-center space-x-1.5 shadow-none">
-            <svg class="ic text-emerald-500" aria-hidden="true"><use href="#i-circle-check"></use></svg>
-            <span>All Reimbursed (₹0)</span>
-          </button>
+          <div class="flex items-center gap-2">
+            <button disabled class="px-4 py-2 bg-slate-200 text-slate-400 font-extrabold text-xs rounded-xl cursor-not-allowed flex items-center space-x-1.5 shadow-none">
+              <svg class="ic text-emerald-500" aria-hidden="true"><use href="#i-circle-check"></use></svg>
+              <span>All Reimbursed (₹0)</span>
+            </button>
+            ${waBtn}
+          </div>
         `;
       } else {
         settleContainer.innerHTML = `
-          <button onclick="openSettleUpModal()" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center space-x-1.5 active:scale-95">
-            <svg class="ic" aria-hidden="true"><use href="#i-handshake"></use></svg>
-            <span>1-Click Settle Up (Return ₹${netDueToP2.toLocaleString('en-IN')})</span>
-          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="openSettleUpModal()" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center space-x-1.5 active:scale-95">
+              <svg class="ic" aria-hidden="true"><use href="#i-handshake"></use></svg>
+              <span>1-Click Settle Up (Return ₹${netDueToP2.toLocaleString('en-IN')})</span>
+            </button>
+            ${waBtn}
+          </div>
         `;
       }
     }
   }
+
+  window.shareSettlementToWhatsApp = function () {
+    const cur = window.getCurrentPeriod ? window.getCurrentPeriod() : { monthName: 'Current Month', yearStr: '' };
+    const periodStr = `${cur.monthName} ${cur.yearStr}`.trim();
+    const members = getActiveFamilyMembers();
+    const p1 = members[0] || 'Palash';
+    const p2 = members[1] || 'Pallavi';
+
+    let text = `🏠 *GharKhata Household Settlement Summary*\n`;
+    text += `📅 *Billing Period*: ${periodStr}\n\n`;
+    text += `💰 *Household Outflows*:\n`;
+    text += `• ${p2} funded: ₹${Math.round(lastP2Paid || 0).toLocaleString('en-IN')}\n`;
+    text += `• ${p1} direct spend: ₹${Math.round(lastP1DirectPaid || 0).toLocaleString('en-IN')}\n`;
+    if ((lastReimbursedByP1 || 0) > 0) {
+      text += `• Reimbursed so far: ₹${Math.round(lastReimbursedByP1).toLocaleString('en-IN')}\n`;
+    }
+    text += `\n⚖️ *Net Settlement Status*:\n`;
+    if ((currentNetSettleAmount || 0) > 0) {
+      text += `👉 *${currentSettlePayer} owes ${currentSettleReceiver}: ₹${currentNetSettleAmount.toLocaleString('en-IN')}*\n`;
+    } else {
+      text += `✨ All expenses are fully settled up! (₹0 pending)\n`;
+    }
+    text += `\n📲 Generated via GharKhata Command Center`;
+
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
 
   window.openSettleUpModal = function () {
     const modal = document.getElementById('settleUpModal');

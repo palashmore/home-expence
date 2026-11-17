@@ -3911,7 +3911,122 @@ function renderBudgetProgress(householdSpent, personalSpent = 0, combinedSpent =
             pill.textContent = "On Track";
         }
     }
+
+    renderBudgetPaceForecast(effectiveBudget, totalSpent);
 }
+
+// Predictive Budget Pace & Run-Rate Forecasting
+function renderBudgetPaceForecast(effectiveBudget, totalSpent) {
+    const banner = document.getElementById("budgetPaceBanner");
+    if (!banner) return;
+
+    const iconEl = document.getElementById("budgetPaceIcon");
+    const titleEl = document.getElementById("budgetPaceTitle");
+    const descEl = document.getElementById("budgetPaceDesc");
+    const badgeEl = document.getElementById("budgetPaceBadge");
+    const recEl = document.getElementById("budgetPaceRec");
+
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth();
+    const todayDate = now.getDate();
+
+    const config = window.masterConfig || {};
+    const cycle = config.householdCycle || { type: 'calendar' };
+
+    let totalDaysInCycle = 30;
+    let daysElapsed = todayDate;
+    let daysRemaining = 0;
+
+    if (cycle.type === 'custom' && cycle.cycleStartDay) {
+        const startDay = Number(cycle.cycleStartDay) || 1;
+        let startD, endD;
+        if (todayDate >= startDay) {
+            startD = new Date(curYear, curMonth, startDay);
+            endD = new Date(curYear, curMonth + 1, startDay);
+        } else {
+            startD = new Date(curYear, curMonth - 1, startDay);
+            endD = new Date(curYear, curMonth, startDay);
+        }
+        totalDaysInCycle = Math.max(1, Math.round((endD - startD) / (1000 * 60 * 60 * 24)));
+        daysElapsed = Math.max(1, Math.min(totalDaysInCycle, Math.ceil((now - startD) / (1000 * 60 * 60 * 24))));
+        daysRemaining = Math.max(0, totalDaysInCycle - daysElapsed);
+    } else {
+        totalDaysInCycle = new Date(curYear, curMonth + 1, 0).getDate();
+        daysElapsed = Math.max(1, Math.min(totalDaysInCycle, todayDate));
+        daysRemaining = Math.max(0, totalDaysInCycle - daysElapsed);
+    }
+
+    const spent = Number(totalSpent) || 0;
+    const dailyBurnRate = spent / daysElapsed;
+    const projectedSpend = Math.round(spent + (dailyBurnRate * daysRemaining));
+    const budget = Number(effectiveBudget) || 50000;
+    const remainingBudget = Math.max(0, budget - spent);
+    const recommendedDailyPace = daysRemaining > 0 ? Math.round(remainingBudget / daysRemaining) : 0;
+
+    if (projectedSpend <= budget) {
+        const underBy = budget - projectedSpend;
+        banner.className = "mt-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50/70 flex items-center justify-between gap-3 text-xs transition-all";
+        if (iconEl) iconEl.textContent = "🟢";
+        if (titleEl) {
+            titleEl.textContent = "On Track Pace";
+            titleEl.className = "font-bold text-emerald-950 truncate";
+        }
+        if (descEl) {
+            descEl.textContent = `Projected ${formatINR(projectedSpend)} (${formatINR(underBy)} under budget). Burn: ${formatINR(Math.round(dailyBurnRate))}/day.`;
+            descEl.className = "text-emerald-700 font-medium text-[11px] truncate";
+        }
+        if (badgeEl) {
+            badgeEl.className = "px-2 py-0.5 rounded-lg text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800";
+            badgeEl.textContent = "On Track";
+        }
+        if (recEl) {
+            recEl.textContent = `${daysRemaining} days left • ${formatINR(recommendedDailyPace)}/day budget`;
+            recEl.className = "text-[10px] text-emerald-600 font-medium mt-0.5";
+        }
+    } else if (projectedSpend <= budget * 1.15) {
+        const overBy = projectedSpend - budget;
+        banner.className = "mt-3 p-3 rounded-xl border border-amber-200 bg-amber-50/70 flex items-center justify-between gap-3 text-xs transition-all";
+        if (iconEl) iconEl.textContent = "🟡";
+        if (titleEl) {
+            titleEl.textContent = "Pacing Slightly High";
+            titleEl.className = "font-bold text-amber-950 truncate";
+        }
+        if (descEl) {
+            descEl.textContent = `Projected ${formatINR(projectedSpend)} (${formatINR(overBy)} over cap). Burn: ${formatINR(Math.round(dailyBurnRate))}/day.`;
+            descEl.className = "text-amber-800 font-medium text-[11px] truncate";
+        }
+        if (badgeEl) {
+            badgeEl.className = "px-2 py-0.5 rounded-lg text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800";
+            badgeEl.textContent = "Pacing High";
+        }
+        if (recEl) {
+            recEl.textContent = `Target ${formatINR(recommendedDailyPace)}/day to stay on budget`;
+            recEl.className = "text-[10px] text-amber-700 font-semibold mt-0.5";
+        }
+    } else {
+        const overBy = projectedSpend - budget;
+        banner.className = "mt-3 p-3 rounded-xl border border-rose-200 bg-rose-50/70 flex items-center justify-between gap-3 text-xs transition-all";
+        if (iconEl) iconEl.textContent = "🔴";
+        if (titleEl) {
+            titleEl.textContent = "Budget Alert: High Run-Rate";
+            titleEl.className = "font-bold text-rose-950 truncate";
+        }
+        if (descEl) {
+            descEl.textContent = `At ${formatINR(Math.round(dailyBurnRate))}/day, projected ${formatINR(projectedSpend)} (+${formatINR(overBy)}).`;
+            descEl.className = "text-rose-800 font-medium text-[11px] truncate";
+        }
+        if (badgeEl) {
+            badgeEl.className = "px-2 py-0.5 rounded-lg text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800";
+            badgeEl.textContent = "Over Pace";
+        }
+        if (recEl) {
+            recEl.textContent = `Max allowable: ${formatINR(recommendedDailyPace)}/day`;
+            recEl.className = "text-[10px] text-rose-700 font-bold mt-0.5";
+        }
+    }
+}
+window.renderBudgetPaceForecast = renderBudgetPaceForecast;
 
 function calculateRecurringChecklist(filteredData) {
     let checklistConfig = [];
@@ -5020,8 +5135,55 @@ function openExpenseModal(editId = null) {
         window.currentEditingItem = null;
     }
 
+    renderQuickCategoryChips(document.getElementById("inputCategory")?.value);
     modal.classList.remove("hidden");
 }
+
+function renderQuickCategoryChips(selectedCat) {
+    const container = document.getElementById("quickCategoryChips");
+    if (!container) return;
+
+    const config = window.masterConfig || {};
+    const cats = Array.isArray(config.categories) && config.categories.length > 0
+        ? config.categories.filter(c => c && c.type !== 'income' && c.type !== 'transfer')
+        : [
+            { name: "Grocery & Vegetables", icon: "🛒" },
+            { name: "Food Delivery", icon: "🍔" },
+            { name: "Electricity Bill", icon: "⚡" },
+            { name: "Flat Maintenance", icon: "🏢" },
+            { name: "Shopping & Miscellaneous", icon: "🛍️" },
+            { name: "Recharge", icon: "📱" },
+            { name: "Petrol", icon: "⛽" }
+        ];
+
+    const topCats = cats.slice(0, 6);
+    const sel = String(selectedCat || document.getElementById("inputCategory")?.value || "").toLowerCase().trim();
+
+    container.innerHTML = topCats.map(c => {
+        const isSelected = sel === String(c.name).toLowerCase().trim();
+        const activeClass = isSelected
+            ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+            : "bg-slate-100/90 text-slate-700 border-slate-200 hover:bg-slate-200/80";
+        return `
+            <button type="button" onclick="selectQuickCategory(${escapeHtml(JSON.stringify(c.name))})"
+                class="px-2.5 py-1 rounded-xl text-xs font-bold border transition flex items-center gap-1 active:scale-95 ${activeClass}">
+                <span>${escapeHtml(c.icon || '🏷️')}</span>
+                <span>${escapeHtml(c.name)}</span>
+            </button>
+        `;
+    }).join('');
+}
+window.renderQuickCategoryChips = renderQuickCategoryChips;
+
+function selectQuickCategory(catName) {
+    const catSelect = document.getElementById("inputCategory");
+    if (!catSelect) return;
+    catSelect.value = catName;
+    onCategoryChange();
+    triggerHaptic("tap");
+    renderQuickCategoryChips(catName);
+}
+window.selectQuickCategory = selectQuickCategory;
 
 function closeExpenseModal() {
     const modal = document.getElementById("expenseModal");
@@ -5034,6 +5196,7 @@ function onCategoryChange() {
     const select = document.getElementById("inputCategory");
     if (!select) return;
     const cat = select.value;
+    renderQuickCategoryChips(cat);
 
     if (cat === '__NEW_CAT__') {
         if (window.promptNewCategoryForExpense) {
